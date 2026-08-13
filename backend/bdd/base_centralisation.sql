@@ -214,6 +214,8 @@ CREATE TABLE dossier(
 
     id_inconterme REFERENCES inconterme(id),
 
+    est_sous_dossier BOOLEAN NOT NULL DEFAULT FALSE,
+
     date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -326,21 +328,88 @@ CREATE TABLE conteneur(
     description TEXT
 );
 
+CREATE TABLE hbl(
+    id SERIAL PRIMARY KEY,
+    numero_hbl VARCHAR(100) NOT NULL UNIQUE,
+    id_dossier REFERENCES dossier(id),
+    id_client REFERENCES clients(id),
+    id_expediteur REFERENCES clients(id),
+    id_destinataire REFERENCES clients(id),
+    notify_party VARCHAR(200),
+
+    id_compagnie_maritime REFERENCES compagnie_maritime(id),
+    id_navire REFERENCES navire(id),
+    port_embarquement REFERENCES station(id),
+    port_debarquement REFERENCES station(id),
+    lieu_livraison VARCHAR(200),
+
+    nombre_colis INTEGER,
+    description_marchandise TEXT,
+    poids_brut NUMERIC(10, 2),
+    volume NUMERIC(10, 2),
+    type_emballage VARCHAR(100),
+    marques_numeros TEXT,
+
+    fret_payable VARCHAR(100),
+    nombre_originaux INTEGER DEFAULT 3,
+    lieu_emission VARCHAR(100),
+    date_emission TIMESTAMP,
+    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE hawb(
+    id SERIAL PRIMARY KEY,
+    numero_hawb VARCHAR(100) NOT NULL UNIQUE,
+    id_dossier REFERENCES dossier(id),
+    id_client REFERENCES clients(id),
+    id_expediteur REFERENCES clients(id),
+    id_destinataire REFERENCES clients(id),
+    notify_party VARCHAR(200),
+
+    id_compagnie_aerienne REFERENCES compagnie_aerienne(id),
+    numero_vol VARCHAR(100),
+    aeroport_depart REFERENCES station(id),
+    aeroport_arrivee REFERENCES station(id),
+    lieu_livraison VARCHAR(200),
+
+    nombre_colis INTEGER,
+    description_marchandise TEXT,
+    poids_brut NUMERIC(10, 2),
+    poids_taxable NUMERIC(10, 2),
+    volume NUMERIC(10, 2),
+
+    valeur_declaree_douane NUMERIC(15, 2),
+    valeur_declaree_transport NUMERIC(15, 2),
+    montant_assurance NUMERIC(15, 2),
+    frais_prepaid NUMERIC(15, 2),
+    frais_collect NUMERIC(15, 2),
+
+    lieu_emission VARCHAR(100),
+    date_emission TIMESTAMP,
+    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE groupage (
     id SERIAL PRIMARY KEY,
     id_dossier REFERENCES dossier(id),
     id_expedition REFERENCES expedition(id),
 
-    id_hbl reference,
-    
-    id_hawb reference,
-    date_hbl TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    id_hbl REFERENCES hbl(id),
+    id_hawb REFERENCES hawb(id),
+
+    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE dossier_interagence(
     id SERIAL PRIMARY KEY,
     id_dossier_mere REFERENCES dossier(id),
     id_sous_dossier REFERENCES dossier(id),
+    id_agence_mere REFERENCES agence(id),
+    id_agence_sous REFERENCES agence(id),
+    numero_dossier_mere VARCHAR(100) NOT NULL,
+    numero_sous_dossier VARCHAR(100) NOT NULL,
+    motif TEXT,
+    statut VARCHAR(50) DEFAULT 'en_cours',
     date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
