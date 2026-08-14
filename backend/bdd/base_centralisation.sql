@@ -33,6 +33,13 @@ CREATE TABLE utilisateur(
     id_agence REFERENCES agence(id),
 
     date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    date_modification TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE autorisation(
+    id SERIAL PRIMARY KEY,
+    id_utilisateur REFERENCES utilisateur(id),
+    niveau_autorisation INTEGER NOT NULL,
 );
 
 CREATE TABLE type_produit(
@@ -84,9 +91,29 @@ CREATE TABLE bureau_dedou(
     description TEXT
 );
 
+CREATE TABLE type_bureau(
+    id SERIAL PRIMARY KEY,
+    nom VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT
+);
+
+CREATE TABLE bureau(
+    id SERIAL PRIMARY KEY,
+    nom VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT,
+
+    id_type_bureau REFERENCES type_bureau(id)
+);
+
 CREATE TABLE mode_acheminement(
     id SERIAL PRIMARY KEY,
     nom VARCHAR(50) NOT NULL UNIQUE,
+    description TEXT
+);
+
+CREATE TABLE categorie_marchandise(
+    id SERIAL PRIMARY KEY,
+    nom VARCHAR(100) NOT NULL UNIQUE,
     description TEXT
 );
 
@@ -101,6 +128,12 @@ CREATE TABLE operation_dossier(
     description TEXT NOT NULL,
     
     id_phase REFERENCES phase_dossier(id),
+
+    niveau_autorisation INTEGER NOT NULL,
+    niveau_validation INTEGER NOT NULL,
+
+    niveau_operation INTEGER NOT NULL,
+    est_obligatoire BOOLEAN NOT NULL DEFAULT FALSE,
 );
 
 CREATE TABLE traffic(
@@ -129,13 +162,25 @@ CREATE TABLE expert_constat(
     prenom VARCHAR(100) NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
     telephone VARCHAR(15),
-    adresse VARCHAR(200),
+    adresse VARCHAR(200)
 );
 
 CREATE TABLE pays(
     id SERIAL PRIMARY KEY,
     nom VARCHAR(100) NOT NULL UNIQUE,
     code VARCHAR(3) NOT NULL UNIQUE
+);
+
+CREATE TABLE type_document(
+    id SERIAL PRIMARY KEY,
+    nom VARCHAR(100) NOT NULL UNIQUE,
+
+    id_type_produit REFERENCES type_produit(id),
+    id_mode_transport REFERENCES mode_transport(id),
+    id_categorie_marchandise REFERENCES categorie_marchandise(id),
+
+    est_obligatoire BOOLEAN NOT NULL DEFAULT FALSE,
+    description TEXT
 );
 
 CREATE TABLE ordre_transit(
@@ -157,7 +202,7 @@ CREATE TABLE ordre_transit(
     id_expediteur REFERENCES clients(id),
     id_destinataire REFERENCES clients(id),
 
-    id_bureau_dedou REFERENCES bureau_dedou(id),
+    id_bureau_dedou REFERENCES bureau(id),
 
     est_assure BOOLEAN NOT NULL DEFAULT FALSE,
 
@@ -219,24 +264,40 @@ CREATE TABLE dossier(
     date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE document_dossier(
+    id SERIAL PRIMARY KEY,
+    id_dossier REFERENCES dossier(id),
+    id_document REFERENCES type_document(id),
+    chemin_fichier VARCHAR(200) NOT NULL,
+    est_remis BOOLEAN NOT NULL DEFAULT FALSE,
+    date_ajout TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE remise(
+    id SERIAL PRIMARY KEY,
+    id_dossier REFERENCES dossier(id),
+    id_type_document REFERENCES type_document(id),
+    date_remise TIMESTAMP
+);
+
 CREATE TABLE type_container(
     id SERIAL PRIMARY KEY,
     nom VARCHAR(50) NOT NULL UNIQUE,
-    description TEXT
+    description TEXT,
     volume NUMERIC(10, 2) NOT NULL,
-    poids_max NUMERIC(10, 2) NOT NULL
+    poids_max NUMERIC(10, 2) NOT NULL,
     longueur NUMERIC(10, 2) NOT NULL,
     largeur NUMERIC(10, 2) NOT NULL,
     hauteur NUMERIC(10, 2) NOT NULL
 );
 
-CREATE TABLE nombre_container(
-    id SERIAL PRIMARY KEY,
-    id_dossier REFERENCES dossier(id),
-    nombre INTEGER NOT NULL,
-    type_container VARCHAR(50) NOT NULL,
-    description TEXT
-);
+-- CREATE TABLE nombre_container(
+--     id SERIAL PRIMARY KEY,
+--     id_dossier REFERENCES dossier(id),
+--     nombre INTEGER NOT NULL,
+--     type_container VARCHAR(50) NOT NULL,
+--     description TEXT
+-- );
 
 CREATE TABLE compagnie_maritime(
     id SERIAL PRIMARY KEY,
@@ -311,6 +372,8 @@ CREATE TABLE marchandise(
     id_dossier REFERENCES dossier(id),
     id_unite_mesure REFERENCES unite_mesure(id),
 
+    id_categorie_marchandise REFERENCES categorie_marchandise(id),
+
     marque VARCHAR(100) NOT NULL,
     modele VARCHAR(100) NOT NULL,
     description TEXT NOT NULL,
@@ -328,74 +391,14 @@ CREATE TABLE conteneur(
     description TEXT
 );
 
-CREATE TABLE hbl(
-    id SERIAL PRIMARY KEY,
-    numero_hbl VARCHAR(100) NOT NULL UNIQUE,
-    id_dossier REFERENCES dossier(id),
-    id_client REFERENCES clients(id),
-    id_expediteur REFERENCES clients(id),
-    id_destinataire REFERENCES clients(id),
-    notify_party VARCHAR(200),
-
-    id_compagnie_maritime REFERENCES compagnie_maritime(id),
-    id_navire REFERENCES navire(id),
-    port_embarquement REFERENCES station(id),
-    port_debarquement REFERENCES station(id),
-    lieu_livraison VARCHAR(200),
-
-    nombre_colis INTEGER,
-    description_marchandise TEXT,
-    poids_brut NUMERIC(10, 2),
-    volume NUMERIC(10, 2),
-    type_emballage VARCHAR(100),
-    marques_numeros TEXT,
-
-    fret_payable VARCHAR(100),
-    nombre_originaux INTEGER DEFAULT 3,
-    lieu_emission VARCHAR(100),
-    date_emission TIMESTAMP,
-    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE hawb(
-    id SERIAL PRIMARY KEY,
-    numero_hawb VARCHAR(100) NOT NULL UNIQUE,
-    id_dossier REFERENCES dossier(id),
-    id_client REFERENCES clients(id),
-    id_expediteur REFERENCES clients(id),
-    id_destinataire REFERENCES clients(id),
-    notify_party VARCHAR(200),
-
-    id_compagnie_aerienne REFERENCES compagnie_aerienne(id),
-    numero_vol VARCHAR(100),
-    aeroport_depart REFERENCES station(id),
-    aeroport_arrivee REFERENCES station(id),
-    lieu_livraison VARCHAR(200),
-
-    nombre_colis INTEGER,
-    description_marchandise TEXT,
-    poids_brut NUMERIC(10, 2),
-    poids_taxable NUMERIC(10, 2),
-    volume NUMERIC(10, 2),
-
-    valeur_declaree_douane NUMERIC(15, 2),
-    valeur_declaree_transport NUMERIC(15, 2),
-    montant_assurance NUMERIC(15, 2),
-    frais_prepaid NUMERIC(15, 2),
-    frais_collect NUMERIC(15, 2),
-
-    lieu_emission VARCHAR(100),
-    date_emission TIMESTAMP,
-    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
+-- table pour les hbl et hawb
 CREATE TABLE groupage (
     id SERIAL PRIMARY KEY,
     id_dossier REFERENCES dossier(id),
     id_expedition REFERENCES expedition(id),
 
-    id_hbl REFERENCES hbl(id),
-    id_hawb REFERENCES hawb(id),
+    numero_groupage VARCHAR(100) NOT NULL UNIQUE,
+    partie_notifier text,
 
     date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -409,8 +412,28 @@ CREATE TABLE dossier_interagence(
     numero_dossier_mere VARCHAR(100) NOT NULL,
     numero_sous_dossier VARCHAR(100) NOT NULL,
     motif TEXT,
-    statut VARCHAR(50) DEFAULT 'en_cours',
     date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- mila manamboatra table historique phase sy statut dossier
+
+CREATE TABLE mvt_dossier(
+    id SERIAL PRIMARY KEY,
+    id_dossier REFERENCES dossier(id),
+    id_utilisateur REFERENCES utilisateur(id),
+    ip_utilisateur VARCHAR(20),
+    id_operation REFERENCES operation_dossier(id),
+    id_document_dossier REFERENCES document_dossier(id),
+    commentaire TEXT,
+    date_mvt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE declaration(
+    id SERIAL PRIMARY KEY,
+    id_dossier REFERENCES dossier(id),
+    numero_declaration VARCHAR(100) NOT NULL UNIQUE,
+    date_declaration TIMESTAMP NOT NULL,
+    id_bureau REFERENCES bureau(id),
+    description TEXT,
+    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
