@@ -24,6 +24,7 @@ CREATE TABLE role(
 
 CREATE TABLE utilisateur(
     id SERIAL PRIMARY KEY,
+    nom_utilisateur VARCHAR(50) UNIQUE NOT NULL,
     nom VARCHAR(100) NOT NULL,
     prenom VARCHAR(100) NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
@@ -42,15 +43,17 @@ CREATE TABLE autorisation(
     niveau_autorisation INTEGER NOT NULL
 );
 
-CREATE TABLE type_produit(
-    id SERIAL PRIMARY KEY,
-    nom VARCHAR(100) NOT NULL,
-    description TEXT
-);
-
 CREATE TABLE mode_transport(
     id SERIAL PRIMARY KEY,
     nom VARCHAR(50) NOT NULL UNIQUE,
+    description TEXT
+);
+
+CREATE TABLE type_production(
+    id SERIAL PRIMARY KEY,
+    nom VARCHAR(100) NOT NULL,
+    id_mode_transport INTEGER REFERENCES mode_transport(id),
+    code INTEGER NOT NULL,
     description TEXT
 );
 
@@ -99,7 +102,7 @@ CREATE TABLE bureau(
     id_type_bureau INTEGER NOT NULL REFERENCES type_bureau(id)
 );
 
-CREATE TABLE mode_acheminement(
+CREATE TABLE mode_acheminement( 
     id SERIAL PRIMARY KEY,
     nom VARCHAR(50) NOT NULL UNIQUE,
     description TEXT
@@ -127,6 +130,7 @@ CREATE TABLE operation_dossier(
     niveau_validation INTEGER NOT NULL,
 
     niveau_operation INTEGER NOT NULL,
+    statut VARCHAR(100),
     est_obligatoire BOOLEAN NOT NULL DEFAULT FALSE
 );
 
@@ -169,8 +173,7 @@ CREATE TABLE type_document(
     id SERIAL PRIMARY KEY,
     nom VARCHAR(100) NOT NULL UNIQUE,
 
-    id_type_produit INTEGER REFERENCES type_produit(id),
-    id_mode_transport INTEGER REFERENCES mode_transport(id),
+    id_type_production INTEGER REFERENCES type_production(id),
     id_categorie_marchandise INTEGER REFERENCES categorie_marchandise(id),
 
     est_obligatoire BOOLEAN NOT NULL DEFAULT FALSE,
@@ -183,8 +186,7 @@ CREATE TABLE ordre_transit(
     id_agence INTEGER NOT NULL REFERENCES agence(id),
     id_client INTEGER NOT NULL REFERENCES clients(id),
 
-    id_type_produit INTEGER REFERENCES type_produit(id),
-    id_mode_transport INTEGER REFERENCES mode_transport(id),
+    id_type_production INTEGER REFERENCES type_production(id),
 
     numero_commande VARCHAR(100) NOT NULL,
 
@@ -219,6 +221,7 @@ CREATE TABLE dossier(
     id_client INTEGER NOT NULL REFERENCES clients(id),
 
     numero_dossier VARCHAR(100) NOT NULL UNIQUE,
+    -- nomenclature numero dossier: code_production(1) code_agence(2) mois(2) annee(1: dernier chiffre) numero_chonologique(4) : ex: 02007300001
     id_ordre_transit INTEGER REFERENCES ordre_transit(id),
     id_traffic INTEGER REFERENCES traffic(id),
 
@@ -421,5 +424,14 @@ CREATE TABLE declaration(
     date_declaration TIMESTAMP NOT NULL,
     id_bureau INTEGER NOT NULL REFERENCES bureau(id),
     description TEXT,
+    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE suspension_connexion(
+    id SERIAL PRIMARY KEY,
+    id_utilisateur INTEGER NOT NULL UNIQUE REFERENCES utilisateur(id),
+    tentatives_echouees INTEGER NOT NULL DEFAULT 0,
+    date_suspension TIMESTAMP,
+    duree_suspension INTEGER DEFAULT 15,
     date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
