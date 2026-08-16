@@ -1,0 +1,15 @@
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\AuximadApplication.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\config\OpenApiConfig.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\config\SecurityConfig.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\AuthentificationController.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\LoginRequest.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\LoginResponse.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Agence.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Role.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\SuspensionConnexion.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Utilisateur.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\SuspensionConnexionRepository.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\UtilisateurRepository.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\security\JwtAuthenticationFilter.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\security\JwtUtil.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\AuthentificationService.java

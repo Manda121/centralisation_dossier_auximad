@@ -8,12 +8,12 @@ CREATE DATABASE dossier_auximad;
 
 CREATE TABLE agence(
     id SERIAL PRIMARY KEY,
-    code INTEGER NOT NULL UNIQUE,
+    code INTEGER NOT NULL UNIQUE CHECK (code BETWEEN 0 AND 99), -- 2 chiffres, cf. nomenclature numero_dossier
     nom VARCHAR(100) NOT NULL,
     adresse VARCHAR(200) NOT NULL,
     ville VARCHAR(100) NOT NULL,
     code_postal VARCHAR(10) NOT NULL,
-    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    date_creation TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE role(
@@ -24,6 +24,7 @@ CREATE TABLE role(
 
 CREATE TABLE utilisateur(
     id SERIAL PRIMARY KEY,
+    nom_utilisateur VARCHAR(50) UNIQUE NOT NULL,
     nom VARCHAR(100) NOT NULL,
     prenom VARCHAR(100) NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
@@ -32,8 +33,8 @@ CREATE TABLE utilisateur(
     id_role INTEGER NOT NULL REFERENCES role(id),
     id_agence INTEGER NOT NULL REFERENCES agence(id),
 
-    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    date_modification TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    date_creation TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    date_modification TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE autorisation(
@@ -42,15 +43,17 @@ CREATE TABLE autorisation(
     niveau_autorisation INTEGER NOT NULL
 );
 
-CREATE TABLE type_produit(
+CREATE TABLE mode_transport(
     id SERIAL PRIMARY KEY,
-    nom VARCHAR(100) NOT NULL,
+    nom VARCHAR(50) NOT NULL,
     description TEXT
 );
 
-CREATE TABLE mode_transport(
+CREATE TABLE type_production(
     id SERIAL PRIMARY KEY,
-    nom VARCHAR(50) NOT NULL UNIQUE,
+    nom VARCHAR(100) NOT NULL,
+    id_mode_transport INTEGER NOT NULL REFERENCES mode_transport(id),
+    code INTEGER NOT NULL,
     description TEXT
 );
 
@@ -75,7 +78,7 @@ CREATE TABLE clients(
     stat VARCHAR(20) UNIQUE NOT NULL,
     fax VARCHAR(20),
 
-    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    date_creation TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE type_regime(
@@ -93,7 +96,10 @@ CREATE TABLE type_bureau(
 
 CREATE TABLE bureau(
     id SERIAL PRIMARY KEY,
-    nom VARCHAR(100) NOT NULL UNIQUE,
+    nom VARCHAR(100) NOT NULL,
+    adresse VARCHAR(200) NOT NULL,
+    code_postal VARCHAR(10) NOT NULL,
+    ville VARCHAR(100) NOT NULL,
     description TEXT,
 
     id_type_bureau INTEGER NOT NULL REFERENCES type_bureau(id)
@@ -127,14 +133,8 @@ CREATE TABLE operation_dossier(
     niveau_validation INTEGER NOT NULL,
 
     niveau_operation INTEGER NOT NULL,
+    est_actif BOOLEAN NOT NULL DEFAULT TRUE,
     est_obligatoire BOOLEAN NOT NULL DEFAULT FALSE
-);
-
-CREATE TABLE traffic(
-    id SERIAL PRIMARY KEY,
-    nom VARCHAR(50) NOT NULL UNIQUE,
-    code_traffic VARCHAR(10) NOT NULL UNIQUE,
-    description TEXT
 );
 
 CREATE TABLE inconterme(
@@ -152,7 +152,7 @@ CREATE TABLE type_constat(
 
 CREATE TABLE expert_constat(
     id SERIAL PRIMARY KEY,
-    nom VARCHAR(100) NOT NULL UNIQUE,
+    nom VARCHAR(100) NOT NULL,
     prenom VARCHAR(100) NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
     telephone VARCHAR(15),
@@ -169,8 +169,7 @@ CREATE TABLE type_document(
     id SERIAL PRIMARY KEY,
     nom VARCHAR(100) NOT NULL UNIQUE,
 
-    id_type_produit INTEGER REFERENCES type_produit(id),
-    id_mode_transport INTEGER REFERENCES mode_transport(id),
+    id_type_production INTEGER REFERENCES type_production(id),
     id_categorie_marchandise INTEGER REFERENCES categorie_marchandise(id),
 
     est_obligatoire BOOLEAN NOT NULL DEFAULT FALSE,
@@ -183,8 +182,7 @@ CREATE TABLE ordre_transit(
     id_agence INTEGER NOT NULL REFERENCES agence(id),
     id_client INTEGER NOT NULL REFERENCES clients(id),
 
-    id_type_produit INTEGER REFERENCES type_produit(id),
-    id_mode_transport INTEGER REFERENCES mode_transport(id),
+    id_type_production INTEGER REFERENCES type_production(id),
 
     numero_commande VARCHAR(100) NOT NULL,
 
@@ -202,14 +200,14 @@ CREATE TABLE ordre_transit(
 
     id_destination_facture INTEGER REFERENCES clients(id),
 
-    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    date_creation TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE instruction(
     id SERIAL PRIMARY KEY,
     id_ordre_transit INTEGER NOT NULL REFERENCES ordre_transit(id),
     instruction TEXT NOT NULL,
-    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    date_creation TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE dossier(
@@ -217,15 +215,16 @@ CREATE TABLE dossier(
     id_agence INTEGER NOT NULL REFERENCES agence(id),
     id_utilisateur INTEGER NOT NULL REFERENCES utilisateur(id),
     id_client INTEGER NOT NULL REFERENCES clients(id),
+    id_type_production INTEGER NOT NULL REFERENCES type_production(id),
 
     numero_dossier VARCHAR(100) NOT NULL UNIQUE,
+    -- nomenclature numero dossier: code_production(1) code_agence(2) mois(2) annee(1: dernier chiffre) numero_chonologique(4) : ex: 02007300001
     id_ordre_transit INTEGER REFERENCES ordre_transit(id),
-    id_traffic INTEGER REFERENCES traffic(id),
 
     est_groupage BOOLEAN NOT NULL DEFAULT FALSE,
     id_phase INTEGER NOT NULL REFERENCES phase_dossier(id),
 
-    echeance TIMESTAMP NOT NULL,
+    echeance TIMESTAMPTZ NOT NULL,
     pour_compte VARCHAR(100) NOT NULL,
 
     id_pays_origine INTEGER REFERENCES pays(id),
@@ -234,19 +233,19 @@ CREATE TABLE dossier(
     est_prepaye BOOLEAN NOT NULL DEFAULT FALSE,
     est_provisionne BOOLEAN NOT NULL DEFAULT FALSE,
 
-    provision_demandee NUMERIC(10, 2) DEFAULT 0,
+    provision_demandee NUMERIC(10, 2) DEFAULT 0 CHECK (provision_demandee >= 0),
     lieu_paiement_fret VARCHAR(100) NOT NULL,
 
     -- date de livraison attendue
     depart VARCHAR(100) NOT NULL,
-    date_livraison TIMESTAMP NOT NULL,
+    date_livraison TIMESTAMPTZ NOT NULL,
     adresse_livraison VARCHAR(200),
 
     id_inconterme INTEGER REFERENCES inconterme(id),
 
     est_sous_dossier BOOLEAN NOT NULL DEFAULT FALSE,
 
-    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    date_creation TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE constat(
@@ -255,7 +254,7 @@ CREATE TABLE constat(
     id_expert_constat INTEGER NOT NULL REFERENCES expert_constat(id),
     id_type_constat INTEGER NOT NULL REFERENCES type_constat(id),
     description TEXT NOT NULL,
-    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    date_creation TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE document_dossier(
@@ -264,25 +263,25 @@ CREATE TABLE document_dossier(
     id_document INTEGER NOT NULL REFERENCES type_document(id),
     chemin_fichier VARCHAR(200) NOT NULL,
     est_remis BOOLEAN NOT NULL DEFAULT FALSE,
-    date_ajout TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    date_ajout TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE remise(
     id SERIAL PRIMARY KEY,
     id_dossier INTEGER NOT NULL REFERENCES dossier(id),
     id_type_document INTEGER NOT NULL REFERENCES type_document(id),
-    date_remise TIMESTAMP
+    date_remise TIMESTAMPTZ
 );
 
 CREATE TABLE type_container(
     id SERIAL PRIMARY KEY,
     nom VARCHAR(50) NOT NULL UNIQUE,
     description TEXT,
-    volume NUMERIC(10, 2) NOT NULL,
-    poids_max NUMERIC(10, 2) NOT NULL,
-    longueur NUMERIC(10, 2) NOT NULL,
-    largeur NUMERIC(10, 2) NOT NULL,
-    hauteur NUMERIC(10, 2) NOT NULL
+    volume NUMERIC(10, 2) NOT NULL CHECK (volume > 0),
+    poids_max NUMERIC(10, 2) NOT NULL CHECK (poids_max > 0),
+    longueur NUMERIC(10, 2) NOT NULL CHECK (longueur > 0),
+    largeur NUMERIC(10, 2) NOT NULL CHECK (largeur > 0),
+    hauteur NUMERIC(10, 2) NOT NULL CHECK (hauteur > 0)
 );
 
 CREATE TABLE compagnie_maritime(
@@ -304,7 +303,7 @@ CREATE TABLE navire(
     nom VARCHAR(100) NOT NULL UNIQUE,
     imo VARCHAR(20) NOT NULL UNIQUE,
     id_compagnie_maritime INTEGER NOT NULL REFERENCES compagnie_maritime(id),
-    date_ajout TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    date_ajout TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE station(
@@ -327,7 +326,7 @@ CREATE TABLE expedition(
     id_compagnie_maritime INTEGER REFERENCES compagnie_maritime(id),
     numero_bl VARCHAR(100),
     id_navire INTEGER REFERENCES navire(id),
-    date_bl TIMESTAMP,
+    date_bl TIMESTAMPTZ,
     lieu_bl VARCHAR(100),
     id_port_embarquement INTEGER REFERENCES station(id),
     id_port_debarquement INTEGER REFERENCES station(id),
@@ -335,15 +334,17 @@ CREATE TABLE expedition(
     id_compagnie_aerienne INTEGER REFERENCES compagnie_aerienne(id),
     numero_vol VARCHAR(100),
     numero_lta VARCHAR(100),
-    date_lta TIMESTAMP,
+    date_lta TIMESTAMPTZ,
     lieu_lta VARCHAR(100),
     id_aeroport_embarquement INTEGER REFERENCES station(id),
     id_aeroport_debarquement INTEGER REFERENCES station(id), -- Aéroport d'Ivato à Antananarivo (Code IATA : TNR), Aéroport de Fascene à Nosy Be (NOS), etc.
 
     lib_scan VARCHAR(200),
-    date_depart TIMESTAMP,
-    date_prevu TIMESTAMP,
-    date_arrivee TIMESTAMP
+    date_depart TIMESTAMPTZ,
+    date_prevu TIMESTAMPTZ,
+    date_arrivee TIMESTAMPTZ,
+
+    CHECK (id_compagnie_maritime IS NULL OR id_compagnie_aerienne IS NULL) -- un seul mode par expedition
 );
 
 CREATE TABLE unite_mesure(
@@ -363,9 +364,9 @@ CREATE TABLE marchandise(
     marque VARCHAR(100) NOT NULL,
     modele VARCHAR(100) NOT NULL,
     description TEXT NOT NULL,
-    poids NUMERIC(10, 2) NOT NULL,
-    volume NUMERIC(10, 2) NOT NULL,
-    quantite INTEGER NOT NULL
+    poids NUMERIC(10, 2) NOT NULL CHECK (poids >= 0),
+    volume NUMERIC(10, 2) NOT NULL CHECK (volume >= 0),
+    quantite INTEGER NOT NULL CHECK (quantite > 0)
 );
 
 CREATE TABLE conteneur(
@@ -386,7 +387,7 @@ CREATE TABLE groupage(
     numero_groupage VARCHAR(100) NOT NULL UNIQUE,
     partie_notifier TEXT,
 
-    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    date_creation TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE dossier_interagence(
@@ -398,7 +399,7 @@ CREATE TABLE dossier_interagence(
     numero_dossier_mere VARCHAR(100) NOT NULL,
     numero_sous_dossier VARCHAR(100) NOT NULL,
     motif TEXT,
-    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    date_creation TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- mila manamboatra table historique phase sy statut dossier
@@ -411,15 +412,46 @@ CREATE TABLE mvt_dossier(
     id_operation INTEGER NOT NULL REFERENCES operation_dossier(id),
     id_document_dossier INTEGER REFERENCES document_dossier(id),
     commentaire TEXT,
-    date_mvt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    date_mvt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE declaration(
     id SERIAL PRIMARY KEY,
     id_dossier INTEGER NOT NULL REFERENCES dossier(id),
     numero_declaration VARCHAR(100) NOT NULL UNIQUE,
-    date_declaration TIMESTAMP NOT NULL,
+    date_declaration TIMESTAMPTZ NOT NULL,
     id_bureau INTEGER NOT NULL REFERENCES bureau(id),
     description TEXT,
-    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    date_creation TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE suspension_connexion(
+    id SERIAL PRIMARY KEY,
+    id_utilisateur INTEGER NOT NULL UNIQUE REFERENCES utilisateur(id),
+    tentatives_echouees INTEGER NOT NULL DEFAULT 0,
+    date_suspension TIMESTAMPTZ,
+    duree_suspension_minutes INTEGER DEFAULT 15,
+    date_creation TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Index pour accélérer les jointures et recherches les plus fréquentes
+CREATE INDEX idx_dossier_client ON dossier(id_client);
+CREATE INDEX idx_dossier_agence ON dossier(id_agence);
+CREATE INDEX idx_dossier_utilisateur ON dossier(id_utilisateur);
+CREATE INDEX idx_dossier_ordre_transit ON dossier(id_ordre_transit);
+CREATE INDEX idx_dossier_phase ON dossier(id_phase);
+CREATE INDEX idx_ordre_transit_client ON ordre_transit(id_client);
+CREATE INDEX idx_ordre_transit_agence ON ordre_transit(id_agence);
+CREATE INDEX idx_ordre_transit_utilisateur ON ordre_transit(id_utilisateur);
+CREATE INDEX idx_document_dossier_dossier ON document_dossier(id_dossier);
+CREATE INDEX idx_remise_dossier ON remise(id_dossier);
+CREATE INDEX idx_expedition_dossier ON expedition(id_dossier);
+CREATE INDEX idx_marchandise_dossier ON marchandise(id_dossier);
+CREATE INDEX idx_conteneur_dossier ON conteneur(id_dossier);
+CREATE INDEX idx_groupage_dossier ON groupage(id_dossier);
+CREATE INDEX idx_constat_dossier ON constat(id_dossier);
+CREATE INDEX idx_declaration_dossier ON declaration(id_dossier);
+CREATE INDEX idx_mvt_dossier_dossier ON mvt_dossier(id_dossier);
+CREATE INDEX idx_mvt_dossier_utilisateur ON mvt_dossier(id_utilisateur);
+CREATE INDEX idx_instruction_ordre_transit ON instruction(id_ordre_transit);
+CREATE INDEX idx_utilisateur_agence ON utilisateur(id_agence);
