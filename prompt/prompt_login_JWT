@@ -1,0 +1,17 @@
+cette application est une application de destion de dossier, la base de donnee est en postgres et le script est dans backend/bdd
+
+le backend est en spring_boot qui utilise api pour communiquer avec le frontoffice, la securite vas etre en JWT
+
+ce que tu doit faire c est d initialiser le backend et ajouter la fonctionnalite suivante:
+    _creer le login par api: le api recoit nom_utilisateur, code_agence, mot_de_passe et renvoie le tokken si il est connecter
+    il n y aura que 3 tentative de connection gerer par le serveur dans la base de donnee(creer les tables necessaire) avant d etre suspendue pour une duree determinee.
+    chaque connexion aura une expiration bien sur.
+
+pour les formats de trafert de de donnee on vas utiliser json
+
+table a suivre pour la suspension: utilisateur, datesuspension, duree
+
+il faut que tous les api soit visible dans le swagger et il faut qu on puisse le tester directement.
+
+pour tous ca il faudra utiliser la programation oriente objet, il faut que tous soit oriente objet pour etre plus facile a manipuler,
+mettre les fonctions concernant un entite directement dans la classe concernee.
