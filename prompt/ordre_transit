@@ -19,3 +19,5 @@ il faut aussi prendre en compte les autorisation de l utilisateur, seul les nive
 si c est un nombre pair il peuvent editer, si c est impair ne peuvent que lire(les methodes: get)
 
 pour le tester on vas toujour le tester dans le swagger
+
+pour les numero manquant on vas les mettre dans la table ordre de transit et modifie ainsi les donnee_deepseek.sql pour les ordre de transit
