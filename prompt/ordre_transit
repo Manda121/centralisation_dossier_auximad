@@ -17,3 +17,5 @@ les element sont:
 pour tous ca on fait une programmation oriente pbjet comme celui avec le module de login, et on utilise le jwt token avec le nom d utilisateur et mot de passe pour la securite.
 il faut aussi prendre en compte les autorisation de l utilisateur, seul les niveau d autorisation >= 10 peuvent gerer un ordre de transit:
 si c est un nombre pair il peuvent editer, si c est impair ne peuvent que lire(les methodes: get)
+
+pour le tester on vas toujour le tester dans le swagger
