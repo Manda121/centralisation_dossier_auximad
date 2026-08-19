@@ -80,8 +80,12 @@ INSERT INTO bureau (nom, description, id_type_bureau, adresse, code_postal, vill
 ('Bureau secondaire Toliara', 'Bureau secondaire', (SELECT id FROM type_bureau WHERE nom = 'Bureau secondaire'), 'Boulevard Gallieni', '601', 'Toliara');
 
 INSERT INTO mode_acheminement (nom, description) VALUES
-('pas notre soins', ''),
-('Par Camion', 'Conteneur complet');
+('pas notre soins', '...'),
+('Sous D.15(T,O)', '...'),
+('Sous D.SO(T.I)', '...'),
+('Par train', '...'),
+('Par Avion', '...'),
+('Par Camion', '...');
 
 INSERT INTO categorie_marchandise (nom, description) VALUES
 ('Textile', 'Textile et habillement'),
@@ -135,11 +139,9 @@ INSERT INTO inconterme (nom, abreviation, description) VALUES
 ('Delivered Duty Paid', 'DDP', 'Rendu droits acquittes');
 
 INSERT INTO type_constat (nom, description) VALUES
-('Avarie', 'Constat d''avarie'),
-('Manquant', 'Constat de manquant'),
-('Retard', 'Constat de retard'),
-('Dommage', 'Constat de dommage'),
-('Autre', 'Autre constat');
+('constat ...', 'Constat systematique a chaque transfert de responsabilite'),
+('constat d avarie', 'Constat unique en cas d avarie et/ou portes apparentes'),
+('pas de constat', 'Pas de constat');
 
 INSERT INTO expert_constat (nom, prenom, email, telephone, adresse) VALUES
 ('Rakoto', 'Jean', 'jean.rakoto@expert.mg', '0321111111', 'Antananarivo'),
@@ -576,36 +578,60 @@ BEGIN
         v_dossier_id := v_dossier_ids[1 + floor(random() * array_length(v_dossier_ids, 1))::int];
         v_mode_acheminement_id := v_mode_acheminement_ids[1 + floor(random() * array_length(v_mode_acheminement_ids, 1))::int];
 
-        INSERT INTO expedition (
-            id_dossier, est_achemine, id_mode_acheminement,
-            id_compagnie_maritime, numero_bl, id_navire, date_bl, lieu_bl,
-            id_port_embarquement, id_port_debarquement,
-            id_compagnie_aerienne, numero_vol, numero_lta, date_lta, lieu_lta,
-            id_aeroport_embarquement, id_aeroport_debarquement,
-            lib_scan, date_depart, date_prevu, date_arrivee
-        ) VALUES (
-            v_dossier_id,
-            (random() < 0.8),
-            v_mode_acheminement_id,
-            CASE WHEN random() < 0.6 THEN v_compagnie_maritime_ids[1 + floor(random() * array_length(v_compagnie_maritime_ids, 1))::int] ELSE NULL END,
-            CASE WHEN random() < 0.6 THEN 'BL-' || lpad(i::text, 6, '0') ELSE NULL END,
-            CASE WHEN random() < 0.6 THEN v_navire_ids[1 + floor(random() * array_length(v_navire_ids, 1))::int] ELSE NULL END,
-            CASE WHEN random() < 0.6 THEN CURRENT_TIMESTAMP - ((i % 20) || ' days')::interval ELSE NULL END,
-            CASE WHEN random() < 0.6 THEN 'Port de Toamasina' ELSE NULL END,
-            CASE WHEN random() < 0.6 THEN v_port_ids[1 + floor(random() * array_length(v_port_ids, 1))::int] ELSE NULL END,
-            CASE WHEN random() < 0.6 THEN v_port_ids[1 + floor(random() * array_length(v_port_ids, 1))::int] ELSE NULL END,
-            CASE WHEN random() < 0.4 THEN v_compagnie_aerienne_ids[1 + floor(random() * array_length(v_compagnie_aerienne_ids, 1))::int] ELSE NULL END,
-            CASE WHEN random() < 0.4 THEN 'VOL-' || lpad(i::text, 6, '0') ELSE NULL END,
-            CASE WHEN random() < 0.4 THEN 'LTA-' || lpad(i::text, 6, '0') ELSE NULL END,
-            CASE WHEN random() < 0.4 THEN CURRENT_TIMESTAMP - ((i % 15) || ' days')::interval ELSE NULL END,
-            CASE WHEN random() < 0.4 THEN 'Aeroport Ivato' ELSE NULL END,
-            CASE WHEN random() < 0.4 THEN v_aeroport_ids[1 + floor(random() * array_length(v_aeroport_ids, 1))::int] ELSE NULL END,
-            CASE WHEN random() < 0.4 THEN v_aeroport_ids[1 + floor(random() * array_length(v_aeroport_ids, 1))::int] ELSE NULL END,
-            'Scan ' || i,
-            CURRENT_TIMESTAMP - ((i % 20) || ' days')::interval,
-            CURRENT_TIMESTAMP + ((i % 20) || ' days')::interval,
-            CURRENT_TIMESTAMP + ((i % 25) || ' days')::interval
-        ) RETURNING id INTO v_expedition_id;
+        -- Choisir aléatoirement le mode : maritime ou aérien
+        IF random() < 0.5 THEN
+            -- Maritime
+            INSERT INTO expedition (
+                id_dossier, est_achemine, id_mode_acheminement,
+                id_compagnie_maritime, numero_bl, id_navire, date_bl, lieu_bl,
+                id_port_embarquement, id_port_debarquement,
+                id_compagnie_aerienne, numero_vol, numero_lta, date_lta, lieu_lta,
+                id_aeroport_embarquement, id_aeroport_debarquement,
+                lib_scan, date_depart, date_prevu, date_arrivee
+            ) VALUES (
+                v_dossier_id,
+                (random() < 0.8),
+                v_mode_acheminement_id,
+                v_compagnie_maritime_ids[1 + floor(random() * array_length(v_compagnie_maritime_ids, 1))::int],
+                'BL-' || lpad(i::text, 6, '0'),
+                v_navire_ids[1 + floor(random() * array_length(v_navire_ids, 1))::int],
+                CURRENT_TIMESTAMP - ((i % 20) || ' days')::interval,
+                'Port de Toamasina',
+                v_port_ids[1 + floor(random() * array_length(v_port_ids, 1))::int],
+                v_port_ids[1 + floor(random() * array_length(v_port_ids, 1))::int],
+                NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                'Scan ' || i,
+                CURRENT_TIMESTAMP - ((i % 20) || ' days')::interval,
+                CURRENT_TIMESTAMP + ((i % 20) || ' days')::interval,
+                CURRENT_TIMESTAMP + ((i % 25) || ' days')::interval
+            ) RETURNING id INTO v_expedition_id;
+        ELSE
+            -- Aérien
+            INSERT INTO expedition (
+                id_dossier, est_achemine, id_mode_acheminement,
+                id_compagnie_maritime, numero_bl, id_navire, date_bl, lieu_bl,
+                id_port_embarquement, id_port_debarquement,
+                id_compagnie_aerienne, numero_vol, numero_lta, date_lta, lieu_lta,
+                id_aeroport_embarquement, id_aeroport_debarquement,
+                lib_scan, date_depart, date_prevu, date_arrivee
+            ) VALUES (
+                v_dossier_id,
+                (random() < 0.8),
+                v_mode_acheminement_id,
+                NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                v_compagnie_aerienne_ids[1 + floor(random() * array_length(v_compagnie_aerienne_ids, 1))::int],
+                'VOL-' || lpad(i::text, 6, '0'),
+                'LTA-' || lpad(i::text, 6, '0'),
+                CURRENT_TIMESTAMP - ((i % 15) || ' days')::interval,
+                'Aeroport Ivato',
+                v_aeroport_ids[1 + floor(random() * array_length(v_aeroport_ids, 1))::int],
+                v_aeroport_ids[1 + floor(random() * array_length(v_aeroport_ids, 1))::int],
+                'Scan ' || i,
+                CURRENT_TIMESTAMP - ((i % 20) || ' days')::interval,
+                CURRENT_TIMESTAMP + ((i % 20) || ' days')::interval,
+                CURRENT_TIMESTAMP + ((i % 25) || ' days')::interval
+            ) RETURNING id INTO v_expedition_id;
+        END IF;
 
         v_expedition_ids := array_append(v_expedition_ids, v_expedition_id);
     END LOOP;

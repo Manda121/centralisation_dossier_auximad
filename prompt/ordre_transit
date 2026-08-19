@@ -1,0 +1,19 @@
+la base de donnee est dans le base_centralisation.sql
+
+maintennat que le module login est fait, on vas s attaquer maintenant au fonctionnement de l app.
+
+on vas d abord creer dans le backoffice le metier qu on appel avec api pour la gestion d ordre de transit. 
+les element sont:
+    type de production, le mode de transport, date, numeroOT(generer automatiquement en chronologie),
+    Commande n°(Référence de la commande commerciale du client), type regime, bureau de dedouanement, destination finale, 
+    donneur d ordre/expediteur: un des clients
+    destinataire/importateur: aussi un des clients
+
+    si maritime: 
+    on remplie le numero de bl, date du bl, M/S(id_du navire), ainsi que les info concernat les expedition en remplisant ceux qui sont maritime
+
+    si aerienne: on remplie le numero de vol, LTA ainsi que les autres info concenrant les expeditions aerienne.
+
+pour tous ca on fait une programmation oriente pbjet comme celui avec le module de login, et on utilise le jwt token avec le nom d utilisateur et mot de passe pour la securite.
+il faut aussi prendre en compte les autorisation de l utilisateur, seul les niveau d autorisation >= 10 peuvent gerer un ordre de transit:
+si c est un nombre pair il peuvent editer, si c est impair ne peuvent que lire(les methodes: get)
