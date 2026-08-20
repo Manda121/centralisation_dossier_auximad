@@ -221,18 +221,18 @@ CREATE TABLE ordre_transit(
     date_creation TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE connaissement(
+CREATE TABLE contrat_transport(
     id SERIAL PRIMARY KEY,
     id_ordre_transit INTEGER NOT NULL REFERENCES ordre_transit(id),
-    numero_connaissement VARCHAR(100) NOT NULL UNIQUE,
+    numero VARCHAR(100) NOT NULL UNIQUE,
     date_creation TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     date prevue TIMESTAMPTZ,
     date arrivee TIMESTAMPTZ,
     id_compagnie INTEGER REFERENCES compagnie(id),
     id_navire INTEGER REFERENCES navire(id),
-    emission_connaissement VARCHAR(100),
-    est_maritime BOOLEAN NOT NULL DEFAULT FALSE,
-    est_aerien BOOLEAN NOT NULL DEFAULT FALSE,
+    n_vol VARCHAR(100),
+    lieu_emission VARCHAR(100),
+    notify VARCHAR
 );
 
 CREATE TABLE instruction(
@@ -290,7 +290,8 @@ CREATE TABLE constat(
 CREATE TABLE document_dossier(
     id SERIAL PRIMARY KEY,
     id_dossier INTEGER NOT NULL REFERENCES dossier(id),
-    id_document INTEGER NOT NULL REFERENCES type_document(id),
+    id_type_document INTEGER NOT NULL REFERENCES type_document(id),
+    nombre INTEGER,
     chemin_fichier VARCHAR(200) NOT NULL,
     date_ajout TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
