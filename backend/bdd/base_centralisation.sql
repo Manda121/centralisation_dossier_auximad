@@ -176,6 +176,24 @@ CREATE TABLE type_document(
     description TEXT
 );
 
+CREATE TABLE compagnie(
+    id SERIAL PRIMARY KEY,
+    nom VARCHAR(100) NOT NULL UNIQUE,
+    code VARCHAR(5) NOT NULL,
+    id_pays INTEGER NOT NULL REFERENCES pays(id),
+
+    mode_transport INTEGER NOT NULL REFERENCES mode_transport(id),
+    description TEXT
+);
+
+CREATE TABLE navire(
+    id SERIAL PRIMARY KEY,
+    nom VARCHAR(100) NOT NULL UNIQUE,
+    imo VARCHAR(20) NOT NULL UNIQUE,
+    id_compagnie INTEGER NOT NULL REFERENCES compagnie(id),
+    date_ajout TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE ordre_transit(
     id SERIAL PRIMARY KEY,
     numero_ordre_transit INTEGER NOT NULL UNIQUE,
@@ -201,6 +219,20 @@ CREATE TABLE ordre_transit(
     id_destination_facture INTEGER REFERENCES clients(id),
 
     date_creation TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE contrat_transport(
+    id SERIAL PRIMARY KEY,
+    id_ordre_transit INTEGER NOT NULL REFERENCES ordre_transit(id),
+    numero VARCHAR(100) NOT NULL UNIQUE,
+    date_creation TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    date prevue TIMESTAMPTZ,
+    date arrivee TIMESTAMPTZ,
+    id_compagnie INTEGER REFERENCES compagnie(id),
+    id_navire INTEGER REFERENCES navire(id),
+    n_vol VARCHAR(100),
+    lieu_emission VARCHAR(100),
+    notify VARCHAR
 );
 
 CREATE TABLE instruction(
@@ -243,8 +275,6 @@ CREATE TABLE dossier(
 
     id_inconterme INTEGER REFERENCES inconterme(id),
 
-    est_sous_dossier BOOLEAN NOT NULL DEFAULT FALSE,
-
     date_creation TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -260,9 +290,9 @@ CREATE TABLE constat(
 CREATE TABLE document_dossier(
     id SERIAL PRIMARY KEY,
     id_dossier INTEGER NOT NULL REFERENCES dossier(id),
-    id_document INTEGER NOT NULL REFERENCES type_document(id),
+    id_type_document INTEGER NOT NULL REFERENCES type_document(id),
+    nombre INTEGER,
     chemin_fichier VARCHAR(200) NOT NULL,
-    est_remis BOOLEAN NOT NULL DEFAULT FALSE,
     date_ajout TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -284,28 +314,6 @@ CREATE TABLE type_container(
     hauteur NUMERIC(10, 2) NOT NULL CHECK (hauteur > 0)
 );
 
-CREATE TABLE compagnie_maritime(
-    id SERIAL PRIMARY KEY,
-    nom VARCHAR(100) NOT NULL UNIQUE,
-    code VARCHAR(5) NOT NULL,
-    id_pays INTEGER NOT NULL REFERENCES pays(id)
-);
-
-CREATE TABLE compagnie_aerienne(
-    id SERIAL PRIMARY KEY,
-    nom VARCHAR(100) NOT NULL UNIQUE,
-    code VARCHAR(5) NOT NULL,
-    id_pays INTEGER NOT NULL REFERENCES pays(id)
-);
-
-CREATE TABLE navire(
-    id SERIAL PRIMARY KEY,
-    nom VARCHAR(100) NOT NULL UNIQUE,
-    imo VARCHAR(20) NOT NULL UNIQUE,
-    id_compagnie_maritime INTEGER NOT NULL REFERENCES compagnie_maritime(id),
-    date_ajout TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-);
-
 CREATE TABLE station(
     id SERIAL PRIMARY KEY,
     nom VARCHAR(100) NOT NULL UNIQUE,
@@ -323,7 +331,7 @@ CREATE TABLE expedition(
     est_achemine BOOLEAN NOT NULL DEFAULT FALSE,
     id_mode_acheminement INTEGER REFERENCES mode_acheminement(id),
 
-    id_compagnie_maritime INTEGER REFERENCES compagnie_maritime(id),
+    id_compagnie INTEGER REFERENCES compagnie(id),
     numero_bl VARCHAR(100),
     id_navire INTEGER REFERENCES navire(id),
     date_bl TIMESTAMPTZ,
@@ -331,7 +339,6 @@ CREATE TABLE expedition(
     id_port_embarquement INTEGER REFERENCES station(id),
     id_port_debarquement INTEGER REFERENCES station(id),
 
-    id_compagnie_aerienne INTEGER REFERENCES compagnie_aerienne(id),
     numero_vol VARCHAR(100),
     numero_lta VARCHAR(100),
     date_lta TIMESTAMPTZ,
@@ -343,8 +350,6 @@ CREATE TABLE expedition(
     date_depart TIMESTAMPTZ,
     date_prevu TIMESTAMPTZ,
     date_arrivee TIMESTAMPTZ,
-
-    CHECK (id_compagnie_maritime IS NULL OR id_compagnie_aerienne IS NULL) -- un seul mode par expedition
 );
 
 CREATE TABLE unite_mesure(

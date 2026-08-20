@@ -444,7 +444,7 @@ BEGIN
             'NomUser' || i,
             'PrenomUser' || i,
             'user' || i || '@transit.mg',
-            'hashed_password',
+            '$2a$12$KovwAzSOJPTaWqYJ2UgE/.sztG.CGSEgGa/QfoV.qlNK8qBtXzMna',
             v_role_ids[1 + floor(random() * array_length(v_role_ids, 1))::int],
             v_agence_id
         ) RETURNING id INTO v_user_id;
