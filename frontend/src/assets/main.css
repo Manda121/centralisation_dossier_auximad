@@ -1,0 +1,22 @@
+@import './base.css';
+@import './theme.css';
+
+/* Layout global — pleine largeur, sans grille Vite par défaut */
+#app,
+#app-backoffice {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  font-weight: normal;
+}
+
+a {
+  color: var(--fo-accent, #0369a1);
+  text-decoration: none;
+  transition: color var(--transition);
+}
+
+a:hover {
+  color: var(--fo-primary-hover, #0d9488);
+}
