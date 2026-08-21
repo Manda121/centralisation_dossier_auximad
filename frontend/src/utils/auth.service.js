@@ -68,6 +68,18 @@ class AuthService {
     isLoggedIn() {
         return !!this.getToken()
     }
+
+    getUserInfo() {
+        const info = localStorage.getItem('auximad_user_info')
+        if (info) {
+            try {
+                return JSON.parse(info)
+            } catch (e) {
+                return null
+            }
+        }
+        return null
+    }
 }
 
 export default new AuthService()
