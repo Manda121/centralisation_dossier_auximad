@@ -66,7 +66,7 @@ CREATE TABLE mode_acheminement(
     description TEXT
 );
 
-CREATE TABLE categorie_marchandise(
+CREATE TABLE nature_marchandise(
     id SERIAL PRIMARY KEY,
     nom VARCHAR(100)  UNIQUE,
     description TEXT
@@ -239,7 +239,7 @@ CREATE TABLE type_document(
     nom VARCHAR(100)  UNIQUE,
 
     id_type_production INTEGER REFERENCES type_production(id),
-    id_categorie_marchandise INTEGER REFERENCES categorie_marchandise(id),
+    id_nature_marchandise INTEGER REFERENCES nature_marchandise(id),
 
     est_obligatoire BOOLEAN  DEFAULT FALSE,
     description TEXT
@@ -272,6 +272,12 @@ CREATE TABLE navire(
 -- 3. ORDRE DE TRANSIT
 -- =========================================================================
 
+CREATE TABLE statut_ot(
+    id SERIAL PRIMARY KEY,
+    nom VARCHAR(50)  UNIQUE,
+    description TEXT
+);
+
 CREATE TABLE ordre_transit(
     id SERIAL PRIMARY KEY,
     numero_ordre_transit INTEGER  UNIQUE,
@@ -295,6 +301,7 @@ CREATE TABLE ordre_transit(
     est_assure BOOLEAN  DEFAULT FALSE,
 
     id_destination_facture INTEGER REFERENCES clients(id),
+    id_statut_ot INTEGER REFERENCES statut_ot(id),
 
     date_creation TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP
 );
@@ -416,10 +423,10 @@ CREATE TABLE expedition(
 
 CREATE TABLE marchandise(
     id SERIAL PRIMARY KEY,
-    id_dossier INTEGER  REFERENCES dossier(id),
+    id_ordre_transit INTEGER  REFERENCES ordre_transit(id),
     id_unite_mesure INTEGER  REFERENCES unite_mesure(id),
 
-    id_categorie_marchandise INTEGER REFERENCES categorie_marchandise(id),
+    id_nature_marchandise INTEGER REFERENCES nature_marchandise(id),
 
     marque VARCHAR(100),
     modele VARCHAR(100),
@@ -517,7 +524,7 @@ CREATE INDEX idx_navire_compagnie ON navire(id_compagnie);
 CREATE INDEX idx_station_mode_transport ON station(id_mode_transport);
 
 CREATE INDEX idx_type_document_type_production ON type_document(id_type_production);
-CREATE INDEX idx_type_document_categorie_marchandise ON type_document(id_categorie_marchandise);
+CREATE INDEX idx_type_document_nature_marchandise ON type_document(id_nature_marchandise);
 
 CREATE INDEX idx_ordre_transit_client ON ordre_transit(id_client);
 CREATE INDEX idx_ordre_transit_agence ON ordre_transit(id_agence);
@@ -553,7 +560,7 @@ CREATE INDEX idx_expedition_mode_acheminement ON expedition(id_mode_acheminement
 
 CREATE INDEX idx_marchandise_dossier ON marchandise(id_dossier);
 CREATE INDEX idx_marchandise_unite_mesure ON marchandise(id_unite_mesure);
-CREATE INDEX idx_marchandise_categorie_marchandise ON marchandise(id_categorie_marchandise);
+CREATE INDEX idx_marchandise_nature_marchandise ON marchandise(id_nature_marchandise);
 
 CREATE INDEX idx_conteneur_dossier ON conteneur(id_dossier);
 CREATE INDEX idx_conteneur_type_container ON conteneur(id_type_container);

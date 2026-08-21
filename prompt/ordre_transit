@@ -1,19 +1,72 @@
-la base de donnee est dans le base_centralisation.sql
-
 maintennat que le module login est fait, on vas s attaquer maintenant au fonctionnement de l app.
 
-on vas d abord creer dans le backoffice le metier qu on appel avec api pour la gestion d ordre de transit. 
-les element sont:
-    type de production, le mode de transport, date, numeroOT(generer automatiquement en chronologie),
-    Commande n°(Référence de la commande commerciale du client), type regime, bureau de dedouanement, destination finale, 
-    donneur d ordre/expediteur: un des clients
-    destinataire/importateur: aussi un des clients
+pour tous ce qui vas suivre, il faut creer un composant et un model si besoin commun pour afficher les listes en tableau pour tous ce qui est liste.
 
-    si maritime: 
-    on remplie le numero de bl, date du bl, M/S(id_du navire), ainsi que les info concernat les expedition en remplisant ceux qui sont maritime
+dans le sidebar il y a le menu:
 
-    si aerienne: on remplie le numero de vol, LTA ainsi que les autres info concenrant les expeditions aerienne.
+le menu client,
+dedans il y a la liste de tous les clients
+    en haut il y a une filtre avance multicritere, il est d abord cacher pour ne pas prendre l espace mais quand on clique il se deroule:
+    nif, stat, fax, cp-lient, nom, prenom, email, adresse, ville, code-postal, pays, type_client, telephone
+    il y a une pagination gerer dans le serveur pour minimiser le temp de chargement
+    on vas utiliser le full text indexing pour les recherches
+le cp client sera un lient vers son detail, et dedans on poura le modifier apres avoir cliquer sur un bouton modifier
 
-pour tous ca on fait une programmation oriente pbjet comme celui avec le module de login, et on utilise le jwt token avec le nom d utilisateur et mot de passe pour la securite.
-il faut aussi prendre en compte les autorisation de l utilisateur, seul les niveau d autorisation >= 10 peuvent gerer un ordre de transit:
-si c est un nombre pair il peuvent editer, si c est impair ne peuvent que lire(les methodes: get)
+pour faire cela on creer un classe dans l entite du serveur pour minimiser le temp de chargement comme les autres classe, et on met les fonctions du logique du client dans ce classe
+dans le front end on creer un modele comme les autre modele et on met les fonction utilie dedans, dans le composant on appele juste la fonction.
+
+
+
+
+le menu ordre de transit.
+dedans il y a un bouton ajouter qui ouvre le composant de creation d ordre de transit:
+    les info du clients, expediteur, destinataire, ...
+    les info de l ordre de transit, apres on clique sur suivant ca glisse vers la groite pour les informations du contrat de transport sous forme de liste en tableau:
+        si c est un maritime le libelle pour le champ sera bl, et on selectionnera le navire; sinon le numero sera lta et on vera un champ n_vol au lieu de selectionner les navire
+        si le mode de transport est combinee(id 3) on vera les 2.
+    mais on peut encore ignorer ce partie contrat si on ne l a pas
+    une fois qu on l a creee, on vas etre rediriger vers son detail
+
+    a sa creation un ot est non valide(id_statut: 2) et dans le detail il y a un bouton pour valider si l utilisateur a le droit
+
+    dans le details d un ordre de transit on peut voir tous les informations de l ordre de transit, on poura le supprimer si on a le droit
+
+    dans le details de l ordre de transit il y aura un bouton contrat de transport, cela vas ouvrir un composant pour enregistrer les informations du contrat de transport.
+    dans le details de l ordre de transit on poura ajouter des marchandise avec un bouton, et ca ouvre le composant pour l ajout de marchandise (en fonction de l ordre de transit car plutard on vas voir une ajout par dossier).
+    
+    en bas on poura voir le detail du contrat de transport si il y en a.
+    on poura voir une partie pour voir la liste des contrat de transport.
+    en bas il y aura la liste des marchandises pour l ordre de transit si il y en.
+    on pourra cliquer sur ajouter pour afficher le composant pour assigner les marchandises
+
+dedans il y a aussi la liste on liste les ordre de transit (id_statut != 1) du jour: le plus recent en premier
+    en haut il y a une filtre multicritere, il est d abord cacher pour ne pas prendre l espace mais quand on clique il se deroule:
+    numero, date creation, date min - date max, l expediteur(select), le destinataire(select), type regime, ceux qui sont assuree, type de production, mode transport, client.
+
+    dans cette liste il faut utiliser des paginations. les plus recent toujour en premier
+    le pagination doit se faire du cote serveur pour minimiser le temp de chargement pour la performance et il ne faut pas utiliser le like mais le full text indexing
+    le numero de l ordre de transit sera un lien vers tous son detail, et dedans le client , l expediteur, le destinataire sera des lient vers le detail de ces clients,
+
+
+il y a aussi un menu marchandise
+dedans on y trouve l assignation de marchandise pour une ordre de transit et on selection la nature de marchandise.
+    on tape le numero de l ordre de transit, ou le numero de dossier liee a l ordre d etransit, apres la liste de marchandise pour cette ordre de transit se montre dans la liste
+    et on poura en ajouter des lignes
+
+
+le menu dossier:
+dedans il y a la liste des dossier du jour, avec une pagination gerer dans le serveur pour minimiser le temp de chargement
+    une filtre avance comme les liste de tout a l heure.
+    le numero de dossier sera un lien vers le detail du dossier
+    
+    dans le details du dossier on y trouve:
+    les information du client, les information du dossier
+    les information du contrat de transport, les informations de l expedition si il y en a deja,
+    la liste des marchandises si il y en a deja,
+    la liste des mvt du dossier et la statut du dossier.
+
+dedans aussi il y a un bouton creer pour ouvrir le composant pour creer un dossier:
+    on enter le numero de l ordre de transit (un ot qui est validee : id_statut = 3), et les information qui sont les meme se remplisse automatiquement,
+    on clique sur suivant et on vas vers la droite pour afficher le composant d ajout des info d expedition du dossier.
+
+pour tous ca il faut tous faire en oriente objet, utiliser des classe ou entite ou models, et mettre les fonction necessaire a l objet directement dedans et on l appele juste et pour les autorisation c est la somme de l operation et de l action: ex: creer des ordre de transit pour tous les agence il faut 2010 minimum
