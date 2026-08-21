@@ -1,163 +1,89 @@
 <template>
-    <header class="main-header glass-panel">
-        <div class="header-container">
-            <!-- Logo / Title -->
-            <div class="header-brand">
-                <h2 class="header-title">Auximad</h2>
-                <span v-if="userInfo && userInfo.agence" class="agence-badge">
-                    {{ userInfo.agence }} ({{ userInfo.codeAgence }})
+    <aside class="d-flex flex-column flex-shrink-0 p-3 bg-white border-end vh-100 sidebar-container shadow-sm">
+        <!-- Brand / Logo -->
+        <router-link to="/" class="d-flex align-items-center mb-3 me-md-auto link-dark text-decoration-none">
+            <span class="fs-4 fw-bold text-primary">Auximad</span>
+            <span v-if="userInfo && userInfo.agence"
+                class="badge bg-primary-subtle text-primary border border-primary-subtle ms-2">
+                {{ userInfo.agence }}
+            </span>
+        </router-link>
+
+        <hr class="my-2">
+
+        <!-- User Infos (Si connecté) -->
+        <div v-if="isLoggedIn" class="card border-0 bg-light shadow-sm mb-auto p-3 rounded-3">
+            <div class="d-flex flex-column">
+                <span class="fw-bold text-dark fs-6">{{ userInfo?.nomComplet || userInfo?.nomUtilisateur ||
+                    'Utilisateur' }}</span>
+                <span v-if="userInfo?.role"
+                    class="badge bg-secondary-subtle text-secondary-emphasis w-auto align-self-start mt-1 fs-7">
+                    {{ userInfo?.role }}
                 </span>
             </div>
-
-            <!-- User context & Action -->
-            <div class="header-user" v-if="isLoggedIn">
-                <div class="user-details">
-                    <span class="user-name">{{ userInfo?.nomComplet }}</span>
-                    <span class="user-role">{{ userInfo?.role }}</span>
-                </div>
-
-                <button @click="handleLogout" class="logout-btn" title="Se déconnecter">
-                    <svg xmlns="http://www.w3.org/2001/svg" class="logout-icon" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
-                    <span>Déconnexion</span>
-                </button>
-            </div>
         </div>
-    </header>
+
+        <!-- Section Bas / Déconnexion -->
+        <div v-if="isLoggedIn" class="mt-auto">
+            <hr class="my-2">
+            <button @click="handleLogout"
+                class="btn btn-outline-danger w-100 d-flex align-items-center justify-content-center gap-2 py-2 fw-semibold">
+                <svg xmlns="http://www.w3.org/2001/svg" width="16" height="16" fill="currentColor"
+                    class="bi bi-box-arrow-right" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd"
+                        d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0z" />
+                    <path fill-rule="evenodd"
+                        d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708z" />
+                </svg>
+                <span>Déconnexion</span>
+            </button>
+        </div>
+    </aside>
 </template>
 
 <script setup>
 import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import authService from '../../utils/auth.service'
+import UtilisateurService from '../../services/UtilisateurService'
 
 const router = useRouter()
-const userInfo = ref(null)
+const utilisateur = ref(null)
 
 const isLoggedIn = computed(() => {
-    return authService.isLoggedIn()
+    return UtilisateurService.estConnecte()
 })
 
-const fetchUserInfo = () => {
-    userInfo.value = authService.getUserInfo()
+const userInfo = computed(() => {
+    if (!utilisateur.value) {
+        return null
+    }
+    return UtilisateurService.formaterPourAffichage(utilisateur.value)
+})
+
+const chargerUtilisateur = () => {
+    utilisateur.value = UtilisateurService.obtenirUtilisateurConnecte()
 }
 
 onMounted(() => {
-    fetchUserInfo()
+    chargerUtilisateur()
 })
 
 const handleLogout = () => {
-    authService.logout()
+    UtilisateurService.deconnecter()
     router.push('/login')
 }
 </script>
 
 <style scoped>
-.main-header {
-    position: sticky;
+.sidebar-container {
+    width: 280px;
+    position: fixed;
     top: 0;
-    z-index: 100;
-    width: 100%;
-    padding: 1rem 2rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(15, 23, 42, 0.75);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    left: 0;
+    z-index: 1000;
 }
 
-.header-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    max-width: 1280px;
-    margin: 0 auto;
-}
-
-.header-brand {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.header-title {
-    font-size: 1.5rem;
-    font-weight: 700;
-    background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin: 0;
-    letter-spacing: -0.025em;
-}
-
-.agence-badge {
+.fs-7 {
     font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--color-primary-light);
-    background: rgba(59, 130, 246, 0.15);
-    border: 1px solid rgba(59, 130, 246, 0.3);
-    padding: 0.25rem 0.6rem;
-    border-radius: 9999px;
-}
-
-.header-user {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-}
-
-.user-details {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-}
-
-.user-name {
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: var(--color-text);
-}
-
-.user-role {
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: var(--color-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-.logout-btn {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.2);
-    color: #fca5a5;
-    padding: 0.5rem 1rem;
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-family: var(--font-family);
-}
-
-.logout-btn:hover {
-    background: rgba(239, 68, 68, 0.25);
-    border-color: rgba(239, 68, 68, 0.4);
-    color: #fff;
-    transform: translateY(-1px);
-}
-
-.logout-btn:active {
-    transform: translateY(0);
-}
-
-.logout-icon {
-    width: 1.2rem;
-    height: 1.2rem;
 }
 </style>
