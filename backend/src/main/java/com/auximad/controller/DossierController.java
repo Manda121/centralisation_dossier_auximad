@@ -1,0 +1,102 @@
+package com.auximad.controller;
+
+import com.auximad.dto.PageResponse;
+import com.auximad.entity.*;
+import com.auximad.service.DossierService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/dossiers")
+@Tag(name = "Dossiers", description = "API pour la gestion des dossiers de transit")
+public class DossierController {
+
+    private final DossierService dossierService;
+
+    public DossierController(DossierService dossierService) {
+        this.dossierService = dossierService;
+    }
+
+    @GetMapping
+    @Operation(summary = "Rechercher les dossiers (FTS + filtres)")
+    public ResponseEntity<PageResponse<Dossier>> search(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "15") int size,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDir,
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) Integer phaseId,
+            @RequestParam(required = false) Integer statutId,
+            @RequestParam(required = false) Integer clientId,
+            @RequestParam(required = false) Integer typeProductionId,
+            @RequestParam(required = false) Integer otId,
+            @RequestParam(required = false) Boolean estGroupage,
+            @RequestParam(required = false) String dateMin,
+            @RequestParam(required = false) String dateMax
+    ) {
+        return ResponseEntity.ok(dossierService.searchDossiers(
+                page, size, sortBy, sortDir, query, phaseId, statutId,
+                clientId, typeProductionId, otId, estGroupage, dateMin, dateMax
+        ));
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "Récupérer un dossier par son ID")
+    public ResponseEntity<Dossier> getById(@PathVariable Integer id) {
+        return dossierService.getById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping
+    @Operation(summary = "Créer un nouveau dossier")
+    public ResponseEntity<Dossier> create(@RequestBody Dossier dossier) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(dossierService.saveDossier(dossier));
+    }
+
+    @PutMapping("/{id}")
+    @Operation(summary = "Mettre à jour un dossier existant")
+    public ResponseEntity<Dossier> update(@PathVariable Integer id, @RequestBody Dossier dossier) {
+        dossier.setId(id);
+        return ResponseEntity.ok(dossierService.saveDossier(dossier));
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Supprimer un dossier")
+    public ResponseEntity<Void> delete(@PathVariable Integer id) {
+        try {
+            dossierService.deleteDossier(id);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // Référentiels
+    @GetMapping("/phases")
+    @Operation(summary = "Lister toutes les phases dossier")
+    public ResponseEntity<List<PhaseDossier>> getPhases(
+            @RequestParam(required = false) Integer modeTransportId) {
+        if (modeTransportId != null) {
+            return ResponseEntity.ok(dossierService.getPhasesByModeTransport(modeTransportId));
+        }
+        return ResponseEntity.ok(dossierService.getAllPhases());
+    }
+
+    @GetMapping("/statuts")
+    @Operation(summary = "Lister tous les statuts de dossier")
+    public ResponseEntity<List<StatutDossier>> getStatuts() {
+        return ResponseEntity.ok(dossierService.getAllStatuts());
+    }
+
+    @GetMapping("/incontermes")
+    @Operation(summary = "Lister tous les Incoterms")
+    public ResponseEntity<List<Inconterme>> getIncontermes() {
+        return ResponseEntity.ok(dossierService.getAllIncontermes());
+    }
+}

@@ -43,7 +43,10 @@ class AuthService {
                     nomUtilisateur: response.data.nomUtilisateur,
                     nomComplet: response.data.nomComplet,
                     role: response.data.role,
-                    agence: response.data.agence
+                    agence: response.data.agence,
+                    codeAgence: response.data.codeAgence,
+                    idAgence: response.data.idAgence,
+                    niveauAutorisation: response.data.niveauAutorisation
                 }))
             }
             return response.data
@@ -67,6 +70,18 @@ class AuthService {
 
     isLoggedIn() {
         return !!this.getToken()
+    }
+
+    getUserInfo() {
+        const info = localStorage.getItem('auximad_user_info')
+        if (info) {
+            try {
+                return JSON.parse(info)
+            } catch (e) {
+                return null
+            }
+        }
+        return null
     }
 }
 

@@ -1,0 +1,66 @@
+# RÔLE ET EXPERTISE
+Tu es un Architecte Logiciel Senior et Développeur Full-Stack expert en conception de logiciels ERP orientés objet.
+
+# CONTEXTE DU PROJET
+Nous développons le cœur applicatif d'un logiciel de gestion de transit et logistique (ERP Transit). Le module d'authentification étant finalisé, nous implémentons désormais l'architecture modulaire des entités métier principales : Clients, Ordres de Transit (OT), Contrats de Transport, Marchandises et Dossiers.
+
+# ARCHITECTURE & STANDARDS TECHNIQUES
+1. **Frontend :**
+   - Créer un composant tableau générique réutilisable (`DataTable`) intégrant : pagination pilotée par le serveur, tri par colonne et un tiroir/panneau repliable pour les filtres avancés multicritères.
+   - Les modèles frontend doivent encapsuler la logique métier, les calculs et le parsing des données. Les composants UI délèguent entièrement la logique aux méthodes de ces modèles.
+2. **Backend & Base de Données :**
+   - Architecture en couches (Entités, Repositories, Services/Use Cases, Contrôleurs).
+   - Pagination et filtrage gérés exclusivement côté serveur avec recherche plein texte (Full-Text Search / Indexation), sans utiliser de simples clauses `LIKE '%query%'`.
+3. **Cycle de vie des statuts (`actif`) :**
+   - `0` : Inactif / Supprimé (Soft Delete)
+   - `1` : Créé / Brouillon / Non validé
+   - `3` : Validé (éligible pour rattachement à un dossier)
+
+# MATRICE DES PERMISSIONS & CONTRÔLE D'ACCÈS
+Chaque opération nécessite une vérification stricte basée sur la portée (Scope) et le code d'action :
+
+* **Portées Opérationnelles (Base) :**
+  - Propre agence : Lecture = 100 | Écriture = 200 | Suppression = 300 | Validation = 400
+  - Toutes agences : Lecture = 1000 | Écriture = 2000 | Suppression = 3000 | Validation = 4000
+* **Codes d'Actions :**
+  - 10 : Ordre de transit, Contrat de transport, Marchandise, Dossier
+  - 20 : Sous-dossier, Inter-agence
+  - 30 : Traitement, Embarquement / Débarquement
+  - 40 : Comptabilité
+  - 50 : Gestion des rôles et autorisations
+* **Règle de validation :** L'utilisateur doit posséder le niveau requis `Autorisation >= (Portée + Code Action)` pour le périmètre demandé.
+
+---
+
+# SPÉCIFICATIONS DES MODULES
+
+### 1. Module Client
+- **Liste :** Filtre avancé dépliable (NIF, STAT, FAX, Code Client, Nom, Prénom, Email, Adresse, Ville, CP, Pays, Type Client, Téléphone).
+- **Navigation :** Le Code Client redirige vers sa fiche détail avec un mode consultation/édition conditionné aux permissions.
+
+### 2. Module Ordre de Transit (OT)
+- **Création (Formulaire Wizard/Multi-étapes) :**
+  - Étape 1 : Infos Client, Expéditeur, Destinataire.
+  - Étape 2 (Optionnelle) : Contrat de transport dynamique selon le mode :
+    - *Maritime* : Champ libellé `BL`, sélection d'un `Navire`.
+    - *Aérien* : Champ libellé `LTA`, champ texte `N° Vol`.
+    - *Combiné (ID 3)* : Affiche à la fois les champs BL/Navire et LTA/Vol.
+- **Liste :** Filtre OT du jour (`actif != 0`), tri décroissant par date. Filtres : N° OT, plage de dates, Expéditeur, Destinataire, Régime, Assurance, Type production, Mode transport, Client.
+- **Détail OT :** Visualisation complète, actions de validation (`actif: 1` -> `actif: 3`), suppression (si droit `300+10` ou `3000+10`), ajout/consultation de contrat de transport et association de marchandises.
+
+### 3. Module Marchandise
+- Composant d'assignation par recherche de `N° OT` ou `N° Dossier`.
+- Liste dynamique des lignes de marchandises associées avec sélection de la nature de marchandise et ajout en ligne.
+
+### 4. Module Dossier
+- **Création :** Saisie du `N° OT` validé (`actif: 3`) pré-remplissant automatiquement les champs communs, puis transition vers l'étape d'expédition.
+- **Liste :** Dossiers du jour triés par date décroissante avec filtres multicritères et pagination serveur.
+- **Détail Dossier :** Vue agrégée (Infos client, dossier, contrat de transport, expédition, liste des marchandises, mouvements et statut global).
+
+---
+
+# LIVRABLES ATTENDUS
+1. **Architecture & Modèles de données :** Définition des classes/interfaces (Backend & Frontend) avec leurs méthodes métier.
+2. **Implémentation du Helper de Sécurité :** Fonction ou Guard vérifiant la formule `(Portée + Action)`.
+3. **Composant Générique `DataTable` :** Spécification de l'interface des filtres, tri et pagination.
+4. **Services & Contrôleurs :** Logique de recherche Full-Text et transitions d'état des OT et Dossiers.

@@ -1,5 +1,6 @@
 package com.auximad.security;
 
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -33,15 +34,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String token = authHeader.substring(7);
 
             if (jwtUtil.estValide(token)) {
-                String nomUtilisateur = jwtUtil.extraireNomUtilisateur(token);
-                String role = jwtUtil.extraireClaims(token).get("role", String.class);
+                Claims claims = jwtUtil.extraireClaims(token);
+                String nomUtilisateur = claims.getSubject();
+                String role = claims.get("role", String.class);
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
                                 nomUtilisateur,
                                 null,
-                                Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role))
+                                Collections.singletonList(new SimpleGrantedAuthority(role))
                         );
+
+                // ✅ Renseigne les claims JWT (dont niveauAutorisation) dans les détails de l'authentification
+                authentication.setDetails(claims);
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }

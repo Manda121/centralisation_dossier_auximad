@@ -31,15 +31,19 @@ public class JwtUtil {
     /**
      * Génère un token JWT pour un utilisateur
      */
-    public String genererToken(Integer userId, String nomUtilisateur, Integer codeAgence, String role) {
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("userId", userId);
-        claims.put("codeAgence", codeAgence);
-        claims.put("role", role);
+    public String genererToken(Integer userId, String nomUtilisateur, Integer codeAgence,
+            Integer idAgence, String role, Integer niveauAutorisation) {
+
+        // On s'assure d'avoir une valeur par défaut propre
+        int niveau = (niveauAutorisation != null) ? niveauAutorisation : 0;
 
         return Jwts.builder()
-                .claims(claims)
                 .subject(nomUtilisateur)
+                .claim("userId", userId)
+                .claim("codeAgence", codeAgence)
+                .claim("idAgence", idAgence)
+                .claim("role", role)
+                .claim("niveauAutorisation", niveau) // ✅ Ajout direct sans passer par une Map
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSigningKey())

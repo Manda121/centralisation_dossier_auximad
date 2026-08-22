@@ -1,6 +1,15 @@
 BEGIN;
 
 -- ============================================================
+-- 0. STATUT DOSSIER (nouvelle table)
+-- ============================================================
+INSERT INTO statut_dossier (nom, description) VALUES
+('Ouvert', 'Dossier en cours de traitement'),
+('Clôturé', 'Dossier finalisé'),
+('Annulé', 'Dossier annulé'),
+('En litige', 'Dossier en litige');
+
+-- ============================================================
 -- 1. TABLES DE REFERENCE
 -- ============================================================
 
@@ -26,6 +35,7 @@ INSERT INTO role (nom, description) VALUES
 INSERT INTO mode_transport (nom, description) VALUES
 ('Maritime', 'Transport par mer'),
 ('Aerien', 'Transport par avion'),
+('combine', 'a la fois transport marin et aerien'),
 ('Terrestre', 'Transport par route');
 
 INSERT INTO type_production (nom, id_mode_transport, code, description) VALUES
@@ -48,6 +58,7 @@ INSERT INTO type_regime (nom, code, description) VALUES
 ('Entrepot', 'ENT', 'Regime d''entrepot douanier'),
 ('Admission temporaire', 'ADT', 'Admission temporaire');
 
+-- type_bureau
 INSERT INTO type_bureau (nom, description) VALUES
 ('Bureau de transfert', 'Bureau de transfert'),
 ('Bureau mise en entrepot', 'Bureau de mise en entrepot'),
@@ -99,31 +110,41 @@ INSERT INTO categorie_marchandise (nom, description) VALUES
 ('Bois', 'Bois et derives'),
 ('Autres', 'Autres marchandises');
 
-INSERT INTO phase_dossier (nom, description) VALUES
-('PREPARATION', 'Preparation du dossier'),
-('TRAITEMENT', 'Traitement du dossier'),
-('DEBARQUEMENT/LIVRAISON', 'Debarquement et livraison'),
-('COMPTABILITE', 'Comptabilite et cloture');
+-- PHASE DOSSIER (avec id_mode_transport = NULL par défaut, car générique)
+INSERT INTO phase_dossier (nom, id_mode_transport, description) VALUES
+('PREPARATION', NULL, 'Preparation du dossier'),
+('TRAITEMENT', NULL, 'Traitement du dossier'),
+('DEBARQUEMENT/LIVRAISON', NULL, 'Debarquement et livraison'),
+('COMPTABILITE', NULL, 'Comptabilite et cloture');
 
-INSERT INTO operation_dossier (description, id_phase, niveau_autorisation, niveau_validation, niveau_operation, est_obligatoire, est_actif) VALUES
-('Reservation TC/Ligne', (SELECT id FROM phase_dossier WHERE nom = 'PREPARATION'), 1, 1, 1, TRUE, TRUE),
-('Reception BL/LTA', (SELECT id FROM phase_dossier WHERE nom = 'PREPARATION'), 1, 1, 1, TRUE, TRUE),
-('Position Container', (SELECT id FROM phase_dossier WHERE nom = 'PREPARATION'), 2, 2, 2, TRUE, TRUE),
-('Declaration', (SELECT id FROM phase_dossier WHERE nom = 'TRAITEMENT'), 2, 2, 2, TRUE, TRUE),
-('Dispatch/Passeur', (SELECT id FROM phase_dossier WHERE nom = 'TRAITEMENT'), 2, 3, 2, TRUE, TRUE),
-('Depot Declaration', (SELECT id FROM phase_dossier WHERE nom = 'TRAITEMENT'), 2, 3, 2, TRUE, TRUE),
-('Visite Douane', (SELECT id FROM phase_dossier WHERE nom = 'TRAITEMENT'), 3, 4, 3, TRUE, TRUE),
-('Empotage', (SELECT id FROM phase_dossier WHERE nom = 'TRAITEMENT'), 3, 4, 3, TRUE, TRUE),
-('Depart Camion', (SELECT id FROM phase_dossier WHERE nom = 'DEBARQUEMENT/LIVRAISON'), 3, 4, 3, TRUE, TRUE),
-('Arrivee Camion', (SELECT id FROM phase_dossier WHERE nom = 'DEBARQUEMENT/LIVRAISON'), 3, 4, 3, TRUE, TRUE),
-('Mise a quai', (SELECT id FROM phase_dossier WHERE nom = 'DEBARQUEMENT/LIVRAISON'), 4, 5, 4, TRUE, TRUE),
-('Taxation BAE', (SELECT id FROM phase_dossier WHERE nom = 'DEBARQUEMENT/LIVRAISON'), 2, 3, 2, TRUE, TRUE),
-('Closing date', (SELECT id FROM phase_dossier WHERE nom = 'DEBARQUEMENT/LIVRAISON'), 3, 4, 3, TRUE, TRUE),
-('Provision', (SELECT id FROM phase_dossier WHERE nom = 'COMPTABILITE'), 3, 4, 3, FALSE, TRUE),
-('Facturation', (SELECT id FROM phase_dossier WHERE nom = 'COMPTABILITE'), 4, 5, 4, TRUE, TRUE),
-('Transmission', (SELECT id FROM phase_dossier WHERE nom = 'COMPTABILITE'), 4, 5, 4, TRUE, TRUE),
-('Paiement', (SELECT id FROM phase_dossier WHERE nom = 'COMPTABILITE'), 4, 5, 5, TRUE, TRUE),
-('Cloture', (SELECT id FROM phase_dossier WHERE nom = 'COMPTABILITE'), 4, 5, 5, TRUE, TRUE);
+-- Récupération des IDs pour les opérations
+-- On suppose que statut "Ouvert" a l'id 1 (ou on le sélectionne dynamiquement)
+DO $$
+DECLARE
+    v_statut_ouvert_id INT;
+BEGIN
+    SELECT id INTO v_statut_ouvert_id FROM statut_dossier WHERE nom = 'Ouvert';
+
+    INSERT INTO operation_dossier (description, id_phase, id_statut, niveau_autorisation, niveau_validation, niveau_operation, est_obligatoire, est_actif) VALUES
+    ('Reservation TC/Ligne', (SELECT id FROM phase_dossier WHERE nom = 'PREPARATION'), v_statut_ouvert_id, 1, 1, 1, TRUE, TRUE),
+    ('Reception BL/LTA', (SELECT id FROM phase_dossier WHERE nom = 'PREPARATION'), v_statut_ouvert_id, 1, 1, 1, TRUE, TRUE),
+    ('Position Container', (SELECT id FROM phase_dossier WHERE nom = 'PREPARATION'), v_statut_ouvert_id, 2, 2, 2, TRUE, TRUE),
+    ('Declaration', (SELECT id FROM phase_dossier WHERE nom = 'TRAITEMENT'), v_statut_ouvert_id, 2, 2, 2, TRUE, TRUE),
+    ('Dispatch/Passeur', (SELECT id FROM phase_dossier WHERE nom = 'TRAITEMENT'), v_statut_ouvert_id, 2, 3, 2, TRUE, TRUE),
+    ('Depot Declaration', (SELECT id FROM phase_dossier WHERE nom = 'TRAITEMENT'), v_statut_ouvert_id, 2, 3, 2, TRUE, TRUE),
+    ('Visite Douane', (SELECT id FROM phase_dossier WHERE nom = 'TRAITEMENT'), v_statut_ouvert_id, 3, 4, 3, TRUE, TRUE),
+    ('Empotage', (SELECT id FROM phase_dossier WHERE nom = 'TRAITEMENT'), v_statut_ouvert_id, 3, 4, 3, TRUE, TRUE),
+    ('Depart Camion', (SELECT id FROM phase_dossier WHERE nom = 'DEBARQUEMENT/LIVRAISON'), v_statut_ouvert_id, 3, 4, 3, TRUE, TRUE),
+    ('Arrivee Camion', (SELECT id FROM phase_dossier WHERE nom = 'DEBARQUEMENT/LIVRAISON'), v_statut_ouvert_id, 3, 4, 3, TRUE, TRUE),
+    ('Mise a quai', (SELECT id FROM phase_dossier WHERE nom = 'DEBARQUEMENT/LIVRAISON'), v_statut_ouvert_id, 4, 5, 4, TRUE, TRUE),
+    ('Taxation BAE', (SELECT id FROM phase_dossier WHERE nom = 'DEBARQUEMENT/LIVRAISON'), v_statut_ouvert_id, 2, 3, 2, TRUE, TRUE),
+    ('Closing date', (SELECT id FROM phase_dossier WHERE nom = 'DEBARQUEMENT/LIVRAISON'), v_statut_ouvert_id, 3, 4, 3, TRUE, TRUE),
+    ('Provision', (SELECT id FROM phase_dossier WHERE nom = 'COMPTABILITE'), v_statut_ouvert_id, 3, 4, 3, FALSE, TRUE),
+    ('Facturation', (SELECT id FROM phase_dossier WHERE nom = 'COMPTABILITE'), v_statut_ouvert_id, 4, 5, 4, TRUE, TRUE),
+    ('Transmission', (SELECT id FROM phase_dossier WHERE nom = 'COMPTABILITE'), v_statut_ouvert_id, 4, 5, 4, TRUE, TRUE),
+    ('Paiement', (SELECT id FROM phase_dossier WHERE nom = 'COMPTABILITE'), v_statut_ouvert_id, 4, 5, 5, TRUE, TRUE),
+    ('Cloture', (SELECT id FROM phase_dossier WHERE nom = 'COMPTABILITE'), (SELECT id FROM statut_dossier WHERE nom = 'Clôturé'), 4, 5, 5, TRUE, TRUE);
+END $$;
 
 INSERT INTO inconterme (nom, abreviation, description) VALUES
 ('Ex Works', 'EXW', 'Depart usine'),
@@ -242,51 +263,52 @@ INSERT INTO type_container (nom, description, volume, poids_max, longueur, large
 ('Open Top', 'Conteneur open top', 65.0, 28000, 12.19, 2.44, 2.59),
 ('Reefer', 'Conteneur refrigere', 60.0, 28000, 12.19, 2.44, 2.59);
 
-INSERT INTO compagnie_maritime (nom, code, id_pays) VALUES
-('Maersk', 'MAE', (SELECT id FROM pays WHERE code = 'DNK')),
-('MSC', 'MSC', (SELECT id FROM pays WHERE code = 'CHE')),
-('CMA CGM', 'CMA', (SELECT id FROM pays WHERE code = 'FRA')),
-('COSCO', 'COS', (SELECT id FROM pays WHERE code = 'CHN')),
-('Hapag-Lloyd', 'HAP', (SELECT id FROM pays WHERE code = 'DEU')),
-('Evergreen', 'EVE', (SELECT id FROM pays WHERE code = 'TWN')),
-('ONE', 'ONE', (SELECT id FROM pays WHERE code = 'JPN')),
-('HMM', 'HMM', (SELECT id FROM pays WHERE code = 'KOR')),
-('Yang Ming', 'YML', (SELECT id FROM pays WHERE code = 'TWN')),
-('PIL', 'PIL', (SELECT id FROM pays WHERE code = 'SGP'));
+-- ============================================================
+-- COMPAGNIES (fusion maritime + aerienne)
+-- ============================================================
+INSERT INTO compagnie (nom, code, id_pays, id_mode_transport, description) VALUES
+('Maersk', 'MAE', (SELECT id FROM pays WHERE code = 'DNK'), (SELECT id FROM mode_transport WHERE nom = 'Maritime'), NULL),
+('MSC', 'MSC', (SELECT id FROM pays WHERE code = 'CHE'), (SELECT id FROM mode_transport WHERE nom = 'Maritime'), NULL),
+('CMA CGM', 'CMA', (SELECT id FROM pays WHERE code = 'FRA'), (SELECT id FROM mode_transport WHERE nom = 'Maritime'), NULL),
+('COSCO', 'COS', (SELECT id FROM pays WHERE code = 'CHN'), (SELECT id FROM mode_transport WHERE nom = 'Maritime'), NULL),
+('Hapag-Lloyd', 'HAP', (SELECT id FROM pays WHERE code = 'DEU'), (SELECT id FROM mode_transport WHERE nom = 'Maritime'), NULL),
+('Evergreen', 'EVE', (SELECT id FROM pays WHERE code = 'TWN'), (SELECT id FROM mode_transport WHERE nom = 'Maritime'), NULL),
+('ONE', 'ONE', (SELECT id FROM pays WHERE code = 'JPN'), (SELECT id FROM mode_transport WHERE nom = 'Maritime'), NULL),
+('HMM', 'HMM', (SELECT id FROM pays WHERE code = 'KOR'), (SELECT id FROM mode_transport WHERE nom = 'Maritime'), NULL),
+('Yang Ming', 'YML', (SELECT id FROM pays WHERE code = 'TWN'), (SELECT id FROM mode_transport WHERE nom = 'Maritime'), NULL),
+('PIL', 'PIL', (SELECT id FROM pays WHERE code = 'SGP'), (SELECT id FROM mode_transport WHERE nom = 'Maritime'), NULL),
+('Air France', 'AFR', (SELECT id FROM pays WHERE code = 'FRA'), (SELECT id FROM mode_transport WHERE nom = 'Aerien'), NULL),
+('Air Madagascar', 'MDG', (SELECT id FROM pays WHERE code = 'MDG'), (SELECT id FROM mode_transport WHERE nom = 'Aerien'), NULL),
+('Kenya Airways', 'KQA', (SELECT id FROM pays WHERE code = 'KEN'), (SELECT id FROM mode_transport WHERE nom = 'Aerien'), NULL),
+('Ethiopian Airlines', 'ETH', (SELECT id FROM pays WHERE code = 'ETH'), (SELECT id FROM mode_transport WHERE nom = 'Aerien'), NULL),
+('Emirates', 'UAE', (SELECT id FROM pays WHERE code = 'ARE'), (SELECT id FROM mode_transport WHERE nom = 'Aerien'), NULL),
+('Qatar Airways', 'QTR', (SELECT id FROM pays WHERE code = 'QAT'), (SELECT id FROM mode_transport WHERE nom = 'Aerien'), NULL),
+('Turkish Airlines', 'THY', (SELECT id FROM pays WHERE code = 'TUR'), (SELECT id FROM mode_transport WHERE nom = 'Aerien'), NULL),
+('Corsair', 'CRL', (SELECT id FROM pays WHERE code = 'FRA'), (SELECT id FROM mode_transport WHERE nom = 'Aerien'), NULL),
+('Air Mauritius', 'MAU', (SELECT id FROM pays WHERE code = 'MUS'), (SELECT id FROM mode_transport WHERE nom = 'Aerien'), NULL),
+('Air Austral', 'REU', (SELECT id FROM pays WHERE code = 'REU'), (SELECT id FROM mode_transport WHERE nom = 'Aerien'), NULL);
 
-INSERT INTO compagnie_aerienne (nom, code, id_pays) VALUES
-('Air France', 'AFR', (SELECT id FROM pays WHERE code = 'FRA')),
-('Air Madagascar', 'MDG', (SELECT id FROM pays WHERE code = 'MDG')),
-('Kenya Airways', 'KQA', (SELECT id FROM pays WHERE code = 'KEN')),
-('Ethiopian Airlines', 'ETH', (SELECT id FROM pays WHERE code = 'ETH')),
-('Emirates', 'UAE', (SELECT id FROM pays WHERE code = 'ARE')),
-('Qatar Airways', 'QTR', (SELECT id FROM pays WHERE code = 'QAT')),
-('Turkish Airlines', 'THY', (SELECT id FROM pays WHERE code = 'TUR')),
-('Corsair', 'CRL', (SELECT id FROM pays WHERE code = 'FRA')),
-('Air Mauritius', 'MAU', (SELECT id FROM pays WHERE code = 'MUS')),
-('Air Austral', 'REU', (SELECT id FROM pays WHERE code = 'REU'));
-
-INSERT INTO navire (nom, imo, id_compagnie_maritime) VALUES
-('CMA CGM Marco Polo', 'IMO9454436', (SELECT id FROM compagnie_maritime WHERE code = 'CMA')),
-('MSC Oscar', 'IMO9703291', (SELECT id FROM compagnie_maritime WHERE code = 'MSC')),
-('Maersk Triple E', 'IMO9632064', (SELECT id FROM compagnie_maritime WHERE code = 'MAE')),
-('Ever Given', 'IMO9811000', (SELECT id FROM compagnie_maritime WHERE code = 'EVE')),
-('HMM Algeciras', 'IMO9863296', (SELECT id FROM compagnie_maritime WHERE code = 'HMM')),
-('COSCO Shipping Universe', 'IMO9795610', (SELECT id FROM compagnie_maritime WHERE code = 'COS')),
-('ONE Trust', 'IMO9863578', (SELECT id FROM compagnie_maritime WHERE code = 'ONE')),
-('Yang Ming Wellbeing', 'IMO9861611', (SELECT id FROM compagnie_maritime WHERE code = 'YML')),
-('PIL Kota Pahlawan', 'IMO9628236', (SELECT id FROM compagnie_maritime WHERE code = 'PIL')),
-('Hapag-Lloyd Al Nefud', 'IMO9708776', (SELECT id FROM compagnie_maritime WHERE code = 'HAP')),
-('MSC Gulsun', 'IMO9839430', (SELECT id FROM compagnie_maritime WHERE code = 'MSC')),
-('Maersk Edinburgh', 'IMO9458078', (SELECT id FROM compagnie_maritime WHERE code = 'MAE')),
-('CMA CGM Antoine de Saint Exupery', 'IMO9776418', (SELECT id FROM compagnie_maritime WHERE code = 'CMA')),
-('Ever Ace', 'IMO9893890', (SELECT id FROM compagnie_maritime WHERE code = 'EVE')),
-('HMM Copenhagen', 'IMO9863301', (SELECT id FROM compagnie_maritime WHERE code = 'HMM')),
-('COSCO Shipping Pisces', 'IMO9783481', (SELECT id FROM compagnie_maritime WHERE code = 'COS')),
-('ONE Continuity', 'IMO9863592', (SELECT id FROM compagnie_maritime WHERE code = 'ONE')),
-('Yang Ming Warranty', 'IMO9861623', (SELECT id FROM compagnie_maritime WHERE code = 'YML')),
-('PIL Kota Cempaka', 'IMO9628248', (SELECT id FROM compagnie_maritime WHERE code = 'PIL')),
-('Hapag-Lloyd Berlin Express', 'IMO9851185', (SELECT id FROM compagnie_maritime WHERE code = 'HAP'));
+INSERT INTO navire (nom, imo, id_compagnie) VALUES
+('CMA CGM Marco Polo', 'IMO9454436', (SELECT id FROM compagnie WHERE code = 'CMA')),
+('MSC Oscar', 'IMO9703291', (SELECT id FROM compagnie WHERE code = 'MSC')),
+('Maersk Triple E', 'IMO9632064', (SELECT id FROM compagnie WHERE code = 'MAE')),
+('Ever Given', 'IMO9811000', (SELECT id FROM compagnie WHERE code = 'EVE')),
+('HMM Algeciras', 'IMO9863296', (SELECT id FROM compagnie WHERE code = 'HMM')),
+('COSCO Shipping Universe', 'IMO9795610', (SELECT id FROM compagnie WHERE code = 'COS')),
+('ONE Trust', 'IMO9863578', (SELECT id FROM compagnie WHERE code = 'ONE')),
+('Yang Ming Wellbeing', 'IMO9861611', (SELECT id FROM compagnie WHERE code = 'YML')),
+('PIL Kota Pahlawan', 'IMO9628236', (SELECT id FROM compagnie WHERE code = 'PIL')),
+('Hapag-Lloyd Al Nefud', 'IMO9708776', (SELECT id FROM compagnie WHERE code = 'HAP')),
+('MSC Gulsun', 'IMO9839430', (SELECT id FROM compagnie WHERE code = 'MSC')),
+('Maersk Edinburgh', 'IMO9458078', (SELECT id FROM compagnie WHERE code = 'MAE')),
+('CMA CGM Antoine de Saint Exupery', 'IMO9776418', (SELECT id FROM compagnie WHERE code = 'CMA')),
+('Ever Ace', 'IMO9893890', (SELECT id FROM compagnie WHERE code = 'EVE')),
+('HMM Copenhagen', 'IMO9863301', (SELECT id FROM compagnie WHERE code = 'HMM')),
+('COSCO Shipping Pisces', 'IMO9783481', (SELECT id FROM compagnie WHERE code = 'COS')),
+('ONE Continuity', 'IMO9863592', (SELECT id FROM compagnie WHERE code = 'ONE')),
+('Yang Ming Warranty', 'IMO9861623', (SELECT id FROM compagnie WHERE code = 'YML')),
+('PIL Kota Cempaka', 'IMO9628248', (SELECT id FROM compagnie WHERE code = 'PIL')),
+('Hapag-Lloyd Berlin Express', 'IMO9851185', (SELECT id FROM compagnie WHERE code = 'HAP'));
 
 INSERT INTO station (nom, code, lieu, id_mode_transport, description) VALUES
 ('Port de Toamasina', 'PTOM', 'Toamasina', (SELECT id FROM mode_transport WHERE nom = 'Maritime'), 'Port principal de Madagascar'),
@@ -348,6 +370,7 @@ DECLARE
     v_pays_ids INT[];
     v_type_document_ids INT[];
     v_type_container_ids INT[];
+    v_compagnie_ids INT[];
     v_compagnie_maritime_ids INT[];
     v_compagnie_aerienne_ids INT[];
     v_navire_ids INT[];
@@ -355,13 +378,15 @@ DECLARE
     v_aeroport_ids INT[];
     v_unite_mesure_ids INT[];
     v_operation_ids INT[];
+    v_statut_ids INT[];
+    v_statut_ouvert_id INT;
 
     v_client_ids INT[];
     v_utilisateur_ids INT[];
     v_ot_ids INT[] := '{}';
     v_dossier_ids INT[] := '{}';
     v_expedition_ids INT[] := '{}';
-    v_document_dossier_ids INT[] := '{}';
+    v_document_ids INT[] := '{}';
 
     i INT;
     v_user_id INT;
@@ -385,8 +410,7 @@ DECLARE
     v_type_constat_id INT;
     v_unite_mesure_id INT;
     v_categorie_marchandise_id INT;
-    v_compagnie_maritime_id INT;
-    v_compagnie_aerienne_id INT;
+    v_compagnie_id INT;
     v_navire_id INT;
     v_port_emb INT;
     v_port_deb INT;
@@ -394,7 +418,12 @@ DECLARE
     v_aeroport_deb INT;
     v_dossier_mere INT;
     v_sous_dossier INT;
+    v_mode_transport_maritime_id INT;
+    v_mode_transport_aerien_id INT;
+    v_doc_id INT;
+    v_est_remis BOOLEAN;
 BEGIN
+    -- Récupération des IDs des tables de référence
     v_agence_ids := ARRAY(SELECT id FROM agence);
     v_role_ids := ARRAY(SELECT id FROM role);
     v_type_production_ids := ARRAY(SELECT id FROM type_production);
@@ -410,19 +439,23 @@ BEGIN
     v_pays_ids := ARRAY(SELECT id FROM pays);
     v_type_document_ids := ARRAY(SELECT id FROM type_document);
     v_type_container_ids := ARRAY(SELECT id FROM type_container);
-    v_compagnie_maritime_ids := ARRAY(SELECT id FROM compagnie_maritime);
-    v_compagnie_aerienne_ids := ARRAY(SELECT id FROM compagnie_aerienne);
+    v_compagnie_ids := ARRAY(SELECT id FROM compagnie);
+    v_compagnie_maritime_ids := ARRAY(SELECT id FROM compagnie WHERE id_mode_transport = (SELECT id FROM mode_transport WHERE nom = 'Maritime'));
+    v_compagnie_aerienne_ids := ARRAY(SELECT id FROM compagnie WHERE id_mode_transport = (SELECT id FROM mode_transport WHERE nom = 'Aerien'));
     v_navire_ids := ARRAY(SELECT id FROM navire);
     v_port_ids := ARRAY(SELECT id FROM station WHERE id_mode_transport = (SELECT id FROM mode_transport WHERE nom = 'Maritime'));
     v_aeroport_ids := ARRAY(SELECT id FROM station WHERE id_mode_transport = (SELECT id FROM mode_transport WHERE nom = 'Aerien'));
     v_unite_mesure_ids := ARRAY(SELECT id FROM unite_mesure);
     v_operation_ids := ARRAY(SELECT id FROM operation_dossier);
+    v_statut_ids := ARRAY(SELECT id FROM statut_dossier);
+    v_statut_ouvert_id := (SELECT id FROM statut_dossier WHERE nom = 'Ouvert');
+    v_mode_transport_maritime_id := (SELECT id FROM mode_transport WHERE nom = 'Maritime');
+    v_mode_transport_aerien_id := (SELECT id FROM mode_transport WHERE nom = 'Aerien');
 
     -- CLIENTS (100)
     FOR i IN 1..100 LOOP
-        INSERT INTO clients (cp_client, nom, prenom, email, telephone, adresse, id_type_client, nif, stat, fax)
+        INSERT INTO clients (nom, prenom, email, telephone, adresse, id_type_client, nif, stat, fax, id_pays)
         VALUES (
-            'CP' || lpad(i::text, 5, '0'),
             'ClientNom' || i,
             'Prenom' || i,
             'client' || i || '@mail.com',
@@ -431,7 +464,8 @@ BEGIN
             v_type_client_ids[1 + floor(random() * array_length(v_type_client_ids, 1))::int],
             'NIF' || lpad(i::text, 10, '0'),
             'STAT' || lpad(i::text, 10, '0'),
-            'Fax' || i
+            'Fax' || i,
+            v_pays_ids[1 + floor(random() * array_length(v_pays_ids, 1))::int]
         );
     END LOOP;
 
@@ -509,18 +543,19 @@ BEGIN
 
         INSERT INTO dossier (
             id_agence, id_utilisateur, id_client, id_type_production, numero_dossier, id_ordre_transit,
-            est_groupage, id_phase, echeance, pour_compte, id_pays_origine, id_pays_destination,
+            est_groupage, id_phase, id_statut, echeance, pour_compte, id_pays_origine, id_pays_destination,
             est_prepaye, est_provisionne, provision_demandee, lieu_paiement_fret,
-            depart, date_livraison, adresse_livraison, id_inconterme, est_sous_dossier
+            depart, date_livraison, adresse_livraison, id_inconterme
         ) VALUES (
             v_agence_id,
             v_utilisateur_ids[1 + floor(random() * array_length(v_utilisateur_ids, 1))::int],
             v_client_id,
             v_type_production_id,
-            'DOS-' || lpad(i::text, 7, '0'),
+            (20260100000 + i)::text,
             v_ot_id,
             (random() < 0.4),
             v_phase_id,
+            v_statut_ouvert_id,
             CURRENT_TIMESTAMP + ((i % 60) || ' days')::interval,
             'Pour compte de ' || i,
             v_pays_origine,
@@ -532,8 +567,7 @@ BEGIN
             'Port/Aeroport ' || i,
             CURRENT_TIMESTAMP + (((i % 120) + 30) || ' days')::interval,
             'Adresse livraison ' || i,
-            v_inconterme_id,
-            (random() < 0.2)
+            v_inconterme_id
         ) RETURNING id INTO v_dossier_id;
 
         v_dossier_ids := array_append(v_dossier_ids, v_dossier_id);
@@ -550,27 +584,29 @@ BEGIN
         );
     END LOOP;
 
-    -- DOCUMENTS DE DOSSIER (600)
+    -- DOCUMENTS
     FOR i IN 1..600 LOOP
-        INSERT INTO document_dossier (id_dossier, id_document, chemin_fichier, est_remis)
+        INSERT INTO document (id_dossier, id_type_document, nombre, chemin_fichier)
         VALUES (
             v_dossier_ids[1 + floor(random() * array_length(v_dossier_ids, 1))::int],
             v_type_document_ids[1 + floor(random() * array_length(v_type_document_ids, 1))::int],
-            '/documents/doc_' || i || '.pdf',
-            (random() < 0.7)
-        );
-    END LOOP;
+            1,
+            '/documents/doc_' || i || '.pdf'
+        ) RETURNING id INTO v_doc_id;
 
-    v_document_dossier_ids := ARRAY(SELECT id FROM document_dossier);
+        v_document_ids := array_append(v_document_ids, v_doc_id);
+    END LOOP;
 
     -- REMISES (100)
     FOR i IN 1..100 LOOP
         INSERT INTO remise (id_dossier, id_type_document, date_remise)
-        VALUES (
-            v_dossier_ids[1 + floor(random() * array_length(v_dossier_ids, 1))::int],
-            v_type_document_ids[1 + floor(random() * array_length(v_type_document_ids, 1))::int],
+        SELECT
+            d.id_dossier,
+            d.id_type_document,
             CURRENT_TIMESTAMP - ((i % 30) || ' days')::interval
-        );
+        FROM document d
+        WHERE d.id = v_document_ids[1 + floor(random() * array_length(v_document_ids, 1))::int]
+        LIMIT 1;
     END LOOP;
 
     -- EXPEDITIONS (250)
@@ -578,28 +614,30 @@ BEGIN
         v_dossier_id := v_dossier_ids[1 + floor(random() * array_length(v_dossier_ids, 1))::int];
         v_mode_acheminement_id := v_mode_acheminement_ids[1 + floor(random() * array_length(v_mode_acheminement_ids, 1))::int];
 
-        -- Choisir aléatoirement le mode : maritime ou aérien
         IF random() < 0.5 THEN
             -- Maritime
+            v_compagnie_id := v_compagnie_maritime_ids[1 + floor(random() * array_length(v_compagnie_maritime_ids, 1))::int];
+            v_navire_id := v_navire_ids[1 + floor(random() * array_length(v_navire_ids, 1))::int];
+            v_port_emb := v_port_ids[1 + floor(random() * array_length(v_port_ids, 1))::int];
+            v_port_deb := v_port_ids[1 + floor(random() * array_length(v_port_ids, 1))::int];
+
             INSERT INTO expedition (
-                id_dossier, est_achemine, id_mode_acheminement,
-                id_compagnie_maritime, numero_bl, id_navire, date_bl, lieu_bl,
+                id_dossier, est_achemine, id_mode_transport, id_mode_acheminement,
+                id_compagnie, numero_bl, id_navire, date_bl, lieu_bl,
                 id_port_embarquement, id_port_debarquement,
-                id_compagnie_aerienne, numero_vol, numero_lta, date_lta, lieu_lta,
-                id_aeroport_embarquement, id_aeroport_debarquement,
                 lib_scan, date_depart, date_prevu, date_arrivee
             ) VALUES (
                 v_dossier_id,
                 (random() < 0.8),
+                v_mode_transport_maritime_id,
                 v_mode_acheminement_id,
-                v_compagnie_maritime_ids[1 + floor(random() * array_length(v_compagnie_maritime_ids, 1))::int],
+                v_compagnie_id,
                 'BL-' || lpad(i::text, 6, '0'),
-                v_navire_ids[1 + floor(random() * array_length(v_navire_ids, 1))::int],
+                v_navire_id,
                 CURRENT_TIMESTAMP - ((i % 20) || ' days')::interval,
                 'Port de Toamasina',
-                v_port_ids[1 + floor(random() * array_length(v_port_ids, 1))::int],
-                v_port_ids[1 + floor(random() * array_length(v_port_ids, 1))::int],
-                NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                v_port_emb,
+                v_port_deb,
                 'Scan ' || i,
                 CURRENT_TIMESTAMP - ((i % 20) || ' days')::interval,
                 CURRENT_TIMESTAMP + ((i % 20) || ' days')::interval,
@@ -607,25 +645,27 @@ BEGIN
             ) RETURNING id INTO v_expedition_id;
         ELSE
             -- Aérien
+            v_compagnie_id := v_compagnie_aerienne_ids[1 + floor(random() * array_length(v_compagnie_aerienne_ids, 1))::int];
+            v_aeroport_emb := v_aeroport_ids[1 + floor(random() * array_length(v_aeroport_ids, 1))::int];
+            v_aeroport_deb := v_aeroport_ids[1 + floor(random() * array_length(v_aeroport_ids, 1))::int];
+
             INSERT INTO expedition (
-                id_dossier, est_achemine, id_mode_acheminement,
-                id_compagnie_maritime, numero_bl, id_navire, date_bl, lieu_bl,
-                id_port_embarquement, id_port_debarquement,
-                id_compagnie_aerienne, numero_vol, numero_lta, date_lta, lieu_lta,
+                id_dossier, est_achemine, id_mode_transport, id_mode_acheminement,
+                id_compagnie, numero_vol, numero_lta, date_lta, lieu_lta,
                 id_aeroport_embarquement, id_aeroport_debarquement,
                 lib_scan, date_depart, date_prevu, date_arrivee
             ) VALUES (
                 v_dossier_id,
                 (random() < 0.8),
+                v_mode_transport_aerien_id,
                 v_mode_acheminement_id,
-                NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                v_compagnie_aerienne_ids[1 + floor(random() * array_length(v_compagnie_aerienne_ids, 1))::int],
+                v_compagnie_id,
                 'VOL-' || lpad(i::text, 6, '0'),
                 'LTA-' || lpad(i::text, 6, '0'),
                 CURRENT_TIMESTAMP - ((i % 15) || ' days')::interval,
                 'Aeroport Ivato',
-                v_aeroport_ids[1 + floor(random() * array_length(v_aeroport_ids, 1))::int],
-                v_aeroport_ids[1 + floor(random() * array_length(v_aeroport_ids, 1))::int],
+                v_aeroport_emb,
+                v_aeroport_deb,
                 'Scan ' || i,
                 CURRENT_TIMESTAMP - ((i % 20) || ' days')::interval,
                 CURRENT_TIMESTAMP + ((i % 20) || ' days')::interval,
@@ -681,16 +721,10 @@ BEGIN
         v_dossier_mere := v_dossier_ids[1 + floor(random() * array_length(v_dossier_ids, 1))::int];
         v_sous_dossier := v_dossier_ids[1 + floor(random() * array_length(v_dossier_ids, 1))::int];
 
-        INSERT INTO dossier_interagence (
-            id_dossier_mere, id_sous_dossier, id_agence_mere, id_agence_sous,
-            numero_dossier_mere, numero_sous_dossier, motif
-        ) VALUES (
+        INSERT INTO dossier_interagence (id_dossier_mere, id_sous_dossier, motif)
+        VALUES (
             v_dossier_mere,
             v_sous_dossier,
-            (SELECT id_agence FROM dossier WHERE id = v_dossier_mere),
-            (SELECT id_agence FROM dossier WHERE id = v_sous_dossier),
-            (SELECT numero_dossier FROM dossier WHERE id = v_dossier_mere),
-            (SELECT numero_dossier FROM dossier WHERE id = v_sous_dossier),
             'Motif interagence ' || i
         );
     END LOOP;
@@ -699,13 +733,12 @@ BEGIN
     FOR i IN 1..1000 LOOP
         INSERT INTO mvt_dossier (
             id_dossier, id_utilisateur, ip_utilisateur, id_operation,
-            id_document_dossier, commentaire
+            commentaire
         ) VALUES (
             v_dossier_ids[1 + floor(random() * array_length(v_dossier_ids, 1))::int],
             v_utilisateur_ids[1 + floor(random() * array_length(v_utilisateur_ids, 1))::int],
             ('192.168.' || (i % 255) || '.' || (i % 255))::inet,
             v_operation_ids[1 + floor(random() * array_length(v_operation_ids, 1))::int],
-            CASE WHEN random() < 0.3 THEN v_document_dossier_ids[1 + floor(random() * array_length(v_document_dossier_ids, 1))::int] ELSE NULL END,
             'Mouvement ' || i
         );
     END LOOP;
