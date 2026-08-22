@@ -18,4 +18,6 @@ public class LoginResponse {
     private String role;
     private String agence;
     private Integer codeAgence;
+    private Integer idAgence;
+    private Integer niveauAutorisation;
 }

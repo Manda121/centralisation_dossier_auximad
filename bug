@@ -432,6 +432,7 @@ DECLARE
     v_mode_transport_aerien_id INT;
     v_doc_id INT;
     v_est_remis BOOLEAN;
+    v_rand_statut_ot_id INT;
 BEGIN
     -- Récupération des IDs des tables de référence
     v_agence_ids := ARRAY(SELECT id FROM agence);
@@ -464,7 +465,6 @@ BEGIN
 
     -- Récupération des statuts OT
     v_statut_ot_ids := ARRAY(SELECT id FROM statut_ot);
-    v_statut_ot_creer_id := (SELECT id FROM statut_ot WHERE nom = 'creer');
 
     -- CLIENTS (100)
     FOR i IN 1..100 LOOP
@@ -504,13 +504,15 @@ BEGIN
     v_client_ids := ARRAY(SELECT id FROM clients);
     v_utilisateur_ids := ARRAY(SELECT id FROM utilisateur);
 
-    -- ORDRES DE TRANSIT (200) avec id_statut_ot = 'creer' par défaut
+    -- ORDRES DE TRANSIT (200) avec statut OT aléatoire
     FOR i IN 1..200 LOOP
         v_agence_id := v_agence_ids[1 + floor(random() * array_length(v_agence_ids, 1))::int];
         v_client_id := v_client_ids[1 + floor(random() * array_length(v_client_ids, 1))::int];
         v_type_production_id := v_type_production_ids[1 + floor(random() * array_length(v_type_production_ids, 1))::int];
         v_type_regime_id := v_type_regime_ids[1 + floor(random() * array_length(v_type_regime_ids, 1))::int];
         v_bureau_id := v_bureau_ids[1 + floor(random() * array_length(v_bureau_ids, 1))::int];
+        -- Choix aléatoire du statut OT
+        v_rand_statut_ot_id := v_statut_ot_ids[1 + floor(random() * array_length(v_statut_ot_ids, 1))::int];
 
         INSERT INTO ordre_transit (
             numero_ordre_transit, id_agence, id_client, id_type_production,
@@ -531,7 +533,7 @@ BEGIN
             v_bureau_id,
             (random() < 0.3),
             v_client_ids[1 + floor(random() * array_length(v_client_ids, 1))::int],
-            v_statut_ot_creer_id
+            v_rand_statut_ot_id
         ) RETURNING id INTO v_ot_id;
 
         v_ot_ids := array_append(v_ot_ids, v_ot_id);

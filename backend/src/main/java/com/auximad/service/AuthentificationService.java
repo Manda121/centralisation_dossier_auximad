@@ -2,8 +2,10 @@ package com.auximad.service;
 
 import com.auximad.dto.LoginRequest;
 import com.auximad.dto.LoginResponse;
+import com.auximad.entity.Autorisation;
 import com.auximad.entity.SuspensionConnexion;
 import com.auximad.entity.Utilisateur;
+import com.auximad.repository.AutorisationRepository;
 import com.auximad.repository.SuspensionConnexionRepository;
 import com.auximad.repository.UtilisateurRepository;
 import com.auximad.security.JwtUtil;
@@ -20,6 +22,7 @@ public class AuthentificationService {
 
     private final UtilisateurRepository utilisateurRepository;
     private final SuspensionConnexionRepository suspensionRepository;
+    private final AutorisationRepository autorisationRepository;
     private final JwtUtil jwtUtil;
     private final PasswordEncoder passwordEncoder;
 
@@ -31,10 +34,12 @@ public class AuthentificationService {
 
     public AuthentificationService(UtilisateurRepository utilisateurRepository,
                                     SuspensionConnexionRepository suspensionRepository,
+                                    AutorisationRepository autorisationRepository,
                                     JwtUtil jwtUtil,
                                     PasswordEncoder passwordEncoder) {
         this.utilisateurRepository = utilisateurRepository;
         this.suspensionRepository = suspensionRepository;
+        this.autorisationRepository = autorisationRepository;
         this.jwtUtil = jwtUtil;
         this.passwordEncoder = passwordEncoder;
     }
@@ -97,13 +102,23 @@ public class AuthentificationService {
         suspension.reinitialiser();
         suspensionRepository.save(suspension);
 
-        // 5. Générer le token JWT
+        // 5. Récupérer le niveau d'autorisation
+        Integer niveauAutorisation = autorisationRepository
+                .findByUtilisateurId(utilisateur.getId())
+                .map(Autorisation::getNiveauAutorisation)
+                .orElse(0);
+
+        // 6. Générer le token JWT
         String token = jwtUtil.genererToken(
                 utilisateur.getId(),
                 utilisateur.getNomUtilisateur(),
                 utilisateur.getAgence().getCode(),
-                utilisateur.getRole().getNom()
+                utilisateur.getAgence().getId(),
+                utilisateur.getRole().getNom(),
+                niveauAutorisation
         );
+
+        System.out.println("Niveau autorisation pour l'utilisateur " + utilisateur.getNomUtilisateur() + ": " + niveauAutorisation + " token: "+ token);
 
         LoginResponse response = LoginResponse.builder()
                 .token(token)
@@ -113,6 +128,8 @@ public class AuthentificationService {
                 .role(utilisateur.getRole().getNom())
                 .agence(utilisateur.getAgence().getNom())
                 .codeAgence(utilisateur.getAgence().getCode())
+                .idAgence(utilisateur.getAgence().getId())
+                .niveauAutorisation(niveauAutorisation)
                 .build();
 
         resultat.put("response", response);

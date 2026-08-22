@@ -43,7 +43,10 @@ class AuthService {
                     nomUtilisateur: response.data.nomUtilisateur,
                     nomComplet: response.data.nomComplet,
                     role: response.data.role,
-                    agence: response.data.agence
+                    agence: response.data.agence,
+                    codeAgence: response.data.codeAgence,
+                    idAgence: response.data.idAgence,
+                    niveauAutorisation: response.data.niveauAutorisation
                 }))
             }
             return response.data

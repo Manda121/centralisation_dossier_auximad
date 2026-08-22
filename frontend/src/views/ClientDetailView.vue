@@ -1,0 +1,295 @@
+<template>
+    <div class="d-flex min-vh-100 bg-light">
+        <Header />
+
+        <main class="flex-grow-1 p-4" style="margin-left: 280px;">
+            <div class="container-fluid">
+                <!-- Back Link -->
+                <div class="mb-4">
+                    <router-link to="/clients"
+                        class="text-decoration-none text-muted d-inline-flex align-items-center gap-2">
+                        &larr; Retour à la liste des clients
+                    </router-link>
+                </div>
+
+                <div v-if="loading" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                </div>
+
+                <div v-else-if="erreur" class="alert alert-danger" role="alert">
+                    {{ erreur }}
+                </div>
+
+                <div v-else>
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div>
+                            <span class="badge bg-primary text-uppercase mb-2">{{ clientModel.typeClient?.nom ||
+                                'Client' }}</span>
+                            <h1 class="h3 fw-bold text-primary mb-1">
+                                {{ estNouveau ? 'Nouveau Client' : clientModel.getNomComplet() }}
+                            </h1>
+                            <p class="text-secondary mb-0">
+                                {{ estNouveau ? 'Créer une nouvelle entité client dans le système.' : `Enregistrement
+                                CLI-${String(clientModel.id).padStart(4, '0')}` }}
+                            </p>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <template v-if="editionMode">
+                                <button type="button" class="btn btn-secondary btn-sm"
+                                    @click="annulerModifications">Annuler</button>
+                                <button type="button" class="btn btn-primary btn-sm"
+                                    @click="enregistrerClient">Enregistrer</button>
+                            </template>
+                            <template v-else>
+                                <button v-if="peutModifier" type="button" class="btn btn-outline-primary btn-sm"
+                                    @click="editionMode = true">Modifier</button>
+                                <button v-if="peutSupprimer" type="button" class="btn btn-outline-danger btn-sm"
+                                    @click="supprimerClient">Supprimer</button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Fiche d'informations détaillée -->
+                    <div class="row g-4">
+                        <div class="col-lg-8">
+                            <div class="card border-0 shadow-sm p-4 mb-4">
+                                <h5 class="fw-bold mb-3">Informations d'identité</h5>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label text-xs fw-semibold">Nom / Raison Sociale <span
+                                                class="text-danger">*</span></label>
+                                        <input type="text" v-model="clientModel.nom"
+                                            class="form-control form-control-sm" :disabled="!editionMode" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label text-xs fw-semibold">Prénom (facultatif)</label>
+                                        <input type="text" v-model="clientModel.prenom"
+                                            class="form-control form-control-sm" :disabled="!editionMode">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label text-xs fw-semibold">Type de client</label>
+                                        <select v-model="selectedTypeClientId" class="form-select form-select-sm"
+                                            :disabled="!editionMode" @change="notifierTypeChange">
+                                            <option v-for="t in typeClients" :key="t.id" :value="t.id">{{ t.nom }}
+                                            </option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label text-xs fw-semibold">Téléphone</label>
+                                        <input type="text" v-model="clientModel.telephone"
+                                            class="form-control form-control-sm" :disabled="!editionMode">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label text-xs fw-semibold">Email</label>
+                                        <input type="email" v-model="clientModel.email"
+                                            class="form-control form-control-sm" :disabled="!editionMode">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label text-xs fw-semibold">Fax</label>
+                                        <input type="text" v-model="clientModel.fax"
+                                            class="form-control form-control-sm" :disabled="!editionMode">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card border-0 shadow-sm p-4">
+                                <h5 class="fw-bold mb-3">Informations Douanières & Fiscales</h5>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label text-xs fw-semibold">NIF (Numéro d'Identification
+                                            Fiscale)</label>
+                                        <input type="text" v-model="clientModel.nif"
+                                            class="form-control form-control-sm" :disabled="!editionMode"
+                                            placeholder="ex: 10 caractères si particulier, 13 si entreprise">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label text-xs fw-semibold">STAT (Numéro Statistique)</label>
+                                        <input type="text" v-model="clientModel.stat"
+                                            class="form-control form-control-sm" :disabled="!editionMode"
+                                            placeholder="ex: 17 caractères">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-4">
+                            <div class="card border-0 shadow-sm p-4">
+                                <h5 class="fw-bold mb-3">Adresse & Localisation</h5>
+                                <div class="row g-3">
+                                    <div class="col-md-12">
+                                        <label class="form-label text-xs fw-semibold">Adresse postale / physique</label>
+                                        <textarea v-model="clientModel.adresse" class="form-control form-control-sm"
+                                            rows="3" :disabled="!editionMode"></textarea>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label text-xs fw-semibold">Ville</label>
+                                        <input type="text" v-model="clientModel.ville"
+                                            class="form-control form-control-sm" :disabled="!editionMode">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label text-xs fw-semibold">Code Postal</label>
+                                        <input type="text" v-model="clientModel.codePostal"
+                                            class="form-control form-control-sm" :disabled="!editionMode">
+                                    </div>
+                                    <div class="col-md-12">
+                                        <label class="form-label text-xs fw-semibold">Pays</label>
+                                        <select v-model="selectedPaysId" class="form-select form-select-sm"
+                                            :disabled="!editionMode">
+                                            <option v-for="p in listePays" :key="p.id" :value="p.id">{{ p.nom }}
+                                            </option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</template>
+
+<script setup>
+import { ref, onMounted, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import Header from '../components/inc/Header.vue'
+import Client from '../models/Client'
+import ClientService from '../services/ClientService'
+import PermissionService, { PORTEE_PROPRE_ECRITURE, PORTEE_PROPRE_SUPPRESSION, ACTION_OT } from '../utils/permission.service'
+
+const route = useRoute()
+const router = useRouter()
+
+const loading = ref(true)
+const erreur = ref(null)
+const editionMode = ref(false)
+const estNouveau = ref(false)
+
+const clientModel = ref(new Client())
+const originalData = ref(null)
+
+const typeClients = ref([])
+const listePays = ref([])
+
+const selectedTypeClientId = ref(null)
+const selectedPaysId = ref(null)
+
+const peutModifier = computed(() => {
+    return PermissionService.verifierPermission(PORTEE_PROPRE_ECRITURE, ACTION_OT)
+})
+
+const peutSupprimer = computed(() => {
+    return PermissionService.verifierPermission(PORTEE_PROPRE_SUPPRESSION, ACTION_OT)
+})
+
+onMounted(async () => {
+    try {
+        const [types, pays] = await Promise.all([
+            ClientService.getAllTypeClients(),
+            ClientService.getAllPays()
+        ])
+        typeClients.value = types
+        listePays.value = pays
+
+        const idParam = route.params.id
+        if (idParam === 'nouveau') {
+            estNouveau.value = true
+            editionMode.value = true
+            clientModel.value = new Client({
+                typeClient: types[0] || null,
+                pays: pays.find(p => p.nom === 'Madagascar') || pays[0] || null
+            })
+            selectedTypeClientId.value = clientModel.value.typeClient?.id
+            selectedPaysId.value = clientModel.value.pays?.id
+            loading.value = false
+        } else {
+            chargerClient(idParam)
+        }
+    } catch (e) {
+        erreur.value = "Impossible de récupérer les données référentielles."
+        loading.value = false
+    }
+})
+
+async function chargerClient(id) {
+    loading.value = true
+    try {
+        const data = await ClientService.getClientById(id)
+        clientModel.value = new Client(data)
+        originalData.value = { ...data }
+        selectedTypeClientId.value = clientModel.value.typeClient?.id
+        selectedPaysId.value = clientModel.value.pays?.id
+        loading.value = false
+    } catch (e) {
+        erreur.value = "Le client spécifié n'existe pas ou vous n'avez pas l'autorisation d'y accéder."
+        loading.value = false
+    }
+}
+
+function notifierTypeChange() {
+    const selected = typeClients.value.find(t => t.id === selectedTypeClientId.value)
+    clientModel.value.typeClient = selected || null
+}
+
+async function enregistrerClient() {
+    // Liaison finale avant validation
+    clientModel.value.pays = listePays.value.find(p => p.id === selectedPaysId.value) || null
+    clientModel.value.typeClient = typeClients.value.find(t => t.id === selectedTypeClientId.value) || null
+
+    const validation = clientModel.value.valider()
+    if (!validation.valide) {
+        alert(validation.erreurs.join('\n'))
+        return
+    }
+
+    loading.value = true
+    try {
+        if (estNouveau.value) {
+            const data = await ClientService.createClient(clientModel.value.toJSON())
+            alert('Client créé avec succès.')
+            router.push(`/clients/${data.id}`)
+        } else {
+            const data = await ClientService.updateClient(clientModel.value.id, clientModel.value.toJSON())
+            alert('Client mis à jour avec succès.')
+            clientModel.value = new Client(data)
+            originalData.value = { ...data }
+            editionMode.value = false
+            loading.value = false
+        }
+    } catch (e) {
+        alert("Erreur lors de l'enregistrement : données erronées ou doublon de NIF/STAT/Email.")
+        loading.value = false
+    }
+}
+
+function annulerModifications() {
+    if (estNouveau.value) {
+        router.push('/clients')
+    } else {
+        clientModel.value = new Client(originalData.value)
+        selectedTypeClientId.value = clientModel.value.typeClient?.id
+        selectedPaysId.value = clientModel.value.pays?.id
+        editionMode.value = false
+    }
+}
+
+async function supprimerClient() {
+    if (confirm("Êtes-vous sûr de vouloir supprimer ce client définitivement ?")) {
+        loading.value = true
+        try {
+            await ClientService.deleteClient(clientModel.value.id)
+            alert('Client supprimé avec succès.')
+            router.push('/clients')
+        } catch (e) {
+            alert('Erreur lors de la suppression du client. Il est probablement associé à des Ordres de Transit.')
+            loading.value = false
+        }
+    }
+}
+</script>
+
+<style scoped>
+.text-xs {
+    font-size: 0.75rem;
+}
+</style>

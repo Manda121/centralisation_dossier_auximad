@@ -16,4 +16,6 @@ public interface UtilisateurRepository extends JpaRepository<Utilisateur, Intege
             @Param("nomUtilisateur") String nomUtilisateur,
             @Param("codeAgence") Integer codeAgence
     );
+
+    Optional<Utilisateur> findByNomUtilisateur(String nomUtilisateur);
 }
