@@ -186,18 +186,20 @@ onMounted(async () => {
     try {
         utilisateur.value = UtilisateurService.obtenirUtilisateurConnecte()
         // console.log('user: ', utilisateur.value)
-        const [cls, prods, ph, st, inc] = await Promise.all([
+        const [cls, prods, ph, st, inc, ps] = await Promise.all([
             ClientService.searchClients(0, 1000, 'nom', 'asc', {}),
             OrdreTransitService.getAllTypeProductions(),
             DossierService.getAllPhases(),
             DossierService.getAllStatuts(),
-            DossierService.getAllIncontermes()
+            DossierService.getAllIncontermes(),
+            ClientService.getAllPays()
         ])
         clients.value = cls.content || []
         typeProductions.value = prods
         phases.value = ph
         statuts.value = st
         incontermes.value = inc
+        pays.value = ps || []
     } catch (e) {
         console.error('Erreur chargement formulaire dossier', e)
     }
@@ -232,10 +234,28 @@ async function creerDossier() {
         return
     }
     enCours.value = true
-    try {
-        dossier.value.agence = utilisateur.value.idAgence;
-        console.log('agence dossier: ', dossier.value.agence);
-        console.log('agence utilisateur: ', utilisateur.value.agence);
+        try {
+        // Assurer que `dossier.agence` est un objet { id: ... } attendu par toJSON()
+        if (utilisateur.value) {
+            if (utilisateur.value.agence && typeof utilisateur.value.agence === 'object') {
+                dossier.value.agence = utilisateur.value.agence
+            } else {
+                const agenceId = utilisateur.value.idAgence || utilisateur.value.agence
+                if (agenceId) {
+                    dossier.value.agence = { id: agenceId }
+                }
+            }
+        }
+        // Assurer que `dossier.utilisateur` contient l'id de l'utilisateur connecté
+        if (utilisateur.value) {
+            if (utilisateur.value.id) {
+                dossier.value.utilisateur = { id: utilisateur.value.id }
+            } else if (utilisateur.value.idUtilisateur) {
+                dossier.value.utilisateur = { id: utilisateur.value.idUtilisateur }
+            }
+        }
+        console.log('agence dossier: ', dossier.value.agence)
+        console.log('agence utilisateur: ', utilisateur.value.agence)
         const result = await DossierService.createDossier(dossier.value.toJSON())
         alert(`Dossier ${result.numeroDossier} créé avec succès.`)
         router.push(`/dossiers/${result.id}`)

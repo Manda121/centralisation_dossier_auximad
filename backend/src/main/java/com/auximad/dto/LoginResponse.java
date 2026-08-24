@@ -12,6 +12,7 @@ public class LoginResponse {
     @Builder.Default
     private String type = "Bearer";
 
+    private Integer id;
     private Long expiration;
     private String nomUtilisateur;
     private String nomComplet;

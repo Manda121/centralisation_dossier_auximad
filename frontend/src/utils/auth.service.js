@@ -40,6 +40,7 @@ class AuthService {
             if (response.data.token) {
                 localStorage.setItem('auximad_token', response.data.token)
                 localStorage.setItem('auximad_user_info', JSON.stringify({
+                    id: response.data.id,  // ✅ Ajouté pour stocker l'ID de l'utilisateur
                     nomUtilisateur: response.data.nomUtilisateur,
                     nomComplet: response.data.nomComplet,
                     nom: response.data.nom,

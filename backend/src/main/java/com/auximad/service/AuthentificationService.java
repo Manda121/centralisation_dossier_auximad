@@ -118,13 +118,16 @@ public class AuthentificationService {
                 niveauAutorisation
         );
 
-        System.out.println("Niveau autorisation pour l'utilisateur " + utilisateur.getNomUtilisateur() + ": " + niveauAutorisation + " token: "+ token);
+        System.out.println("Niveau autorisation pour l'utilisateur " + utilisateur.getId() + ": " + niveauAutorisation + " token: "+ token);
 
         LoginResponse response = LoginResponse.builder()
                 .token(token)
                 .expiration(jwtUtil.getExpiration())
+                .id(utilisateur.getId())
                 .nomUtilisateur(utilisateur.getNomUtilisateur())
                 .nomComplet(utilisateur.getNomComplet())
+                .nom(utilisateur.getNom())
+                .prenom(utilisateur.getPrenom())
                 .role(utilisateur.getRole().getNom())
                 .agence(utilisateur.getAgence().getNom())
                 .codeAgence(utilisateur.getAgence().getCode())

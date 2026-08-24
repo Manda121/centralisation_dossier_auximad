@@ -112,6 +112,7 @@ export class Utilisateur {
      * @param {object} data - Données à charger
      */
     chargerDonnees(data) {
+        console.log('Utilisateur:', data)
         console.log(data)
         if (data.id) this.id = data.id
         if (data.nomUtilisateur) this.nomUtilisateur = data.nomUtilisateur
@@ -131,7 +132,6 @@ export class Utilisateur {
      * @returns {object}
      */
     toJSON() {
-        // console.log(this)
         return {
             id: this.id,
             nomUtilisateur: this.nomUtilisateur,

@@ -30,7 +30,7 @@ export class Dossier {
 
     valider() {
         const erreurs = []
-        if (!this.agence) erreurs.push('L\'agence est requise.')
+        // if (!this.agence) erreurs.push('L\'agence est requise.')
         if (!this.client) erreurs.push('Le client est requis.')
         if (!this.typeProduction) erreurs.push('Le type de production est requis.')
         if (!this.phaseDossier) erreurs.push('La phase du dossier est requise.')
