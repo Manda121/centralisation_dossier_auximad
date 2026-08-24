@@ -12,6 +12,9 @@ export default defineConfig({
     }
   },
   server: {
+    // Autorise tous les hôtes externes (Ngrok, etc.)
+    allowedHosts: true,
+
     proxy: {
       // Proxy pour GLPI
       '/api-glpi': {

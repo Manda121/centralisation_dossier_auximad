@@ -213,9 +213,19 @@ async function preRemplirDepuisOt() {
         })
         if (result.content && result.content.length > 0) {
             const ot = result.content[0]
+
+            const dossiersOt = await DossierService.searchDossiers(0, 1, 'date_creation', 'desc', {
+                otId: ot.id
+            })
+            if (dossiersOt.content && dossiersOt.content.length > 0) {
+                const existant = dossiersOt.content[0]
+                alert(`Un dossier existe déjà pour cet OT (${existant.numeroDossier || existant.id}).`)
+                otCharge.value = null
+                dossier.value.ordreTransit = null
+                return
+            }
+
             otCharge.value = ot
-            // Pré-remplir les champs du dossier depuis l'OT
-            
             dossier.value.client = ot.client
             dossier.value.typeProduction = ot.typeProduction
             dossier.value.ordreTransit = ot
@@ -260,7 +270,8 @@ async function creerDossier() {
         alert(`Dossier ${result.numeroDossier} créé avec succès.`)
         router.push(`/dossiers/${result.id}`)
     } catch (e) {
-        alert("Erreur lors de la création du dossier.")
+        const msg = e?.response?.data
+        alert(typeof msg === 'string' && msg ? msg : "Erreur lors de la création du dossier.")
     } finally {
         enCours.value = false
     }

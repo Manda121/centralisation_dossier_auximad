@@ -22,15 +22,21 @@ public class DossierService {
     private final PhaseDossierRepository phaseDossierRepository;
     private final StatutDossierRepository statutDossierRepository;
     private final IncontermeRepository incontermeRepository;
+    private final AgenceRepository agenceRepository;
+    private final TypeProductionRepository typeProductionRepository;
 
     public DossierService(DossierRepository dossierRepository,
                           PhaseDossierRepository phaseDossierRepository,
                           StatutDossierRepository statutDossierRepository,
-                          IncontermeRepository incontermeRepository) {
+                          IncontermeRepository incontermeRepository,
+                          AgenceRepository agenceRepository,
+                          TypeProductionRepository typeProductionRepository) {
         this.dossierRepository = dossierRepository;
         this.phaseDossierRepository = phaseDossierRepository;
         this.statutDossierRepository = statutDossierRepository;
         this.incontermeRepository = incontermeRepository;
+        this.agenceRepository = agenceRepository;
+        this.typeProductionRepository = typeProductionRepository;
     }
 
     /**
@@ -62,24 +68,61 @@ public class DossierService {
         return dossierRepository.findById(id);
     }
 
-        /**
+    /**
      * Génère automatiquement un numéro de dossier selon la nomenclature :
-     * CodeTypeProduction-CodeAgence-MM-A-NNNN (TypeProd-Agence-Mois-DernierChiffreAnnée-Séquence)
+     * CodeTypeProduction-CodeAgence-MMA-NNNN
+     * (TypeProd - Agence - Mois 2 chiffres + dernier chiffre année - Chronologie 4 chiffres)
      */
     private String genererNumeroDossier(Dossier d) {
         LocalDateTime now = LocalDateTime.now();
-        String annee = String.valueOf(now.getYear());
-        String dernierChiffreAnnee = annee.substring(annee.length() - 1);
+        String dernierChiffreAnnee = String.valueOf(now.getYear() % 10);
         String mois = String.format("%02d", now.getMonthValue());
-        String codeAgence = d.getAgence() != null ? String.format("%02d", d.getAgence().getCode()) : "00";
-        String codeProd = d.getTypeProduction() != null ? String.valueOf(d.getTypeProduction().getCode()) : "0";
-        long count = dossierRepository.count() + 1;
-        String seq = String.format("%04d", count);
-        return codeProd + "-" + codeAgence + "-" + mois + dernierChiffreAnnee + "-" + seq;
+
+        Agence agence = d.getAgence();
+        if (agence != null && agence.getId() != null && agence.getCode() == null) {
+            agence = agenceRepository.findById(agence.getId()).orElse(agence);
+            d.setAgence(agence);
+        }
+
+        TypeProduction typeProduction = d.getTypeProduction();
+        if (typeProduction != null && typeProduction.getId() != null && typeProduction.getCode() == null) {
+            typeProduction = typeProductionRepository.findById(typeProduction.getId()).orElse(typeProduction);
+            d.setTypeProduction(typeProduction);
+        }
+
+        if (agence == null || agence.getCode() == null) {
+            throw new IllegalArgumentException("Impossible de générer le numéro de dossier : code agence manquant.");
+        }
+        if (typeProduction == null || typeProduction.getCode() == null) {
+            throw new IllegalArgumentException("Impossible de générer le numéro de dossier : code type production manquant.");
+        }
+
+        String codeAgence = String.format("%02d", agence.getCode());
+        String codeProd = String.valueOf(typeProduction.getCode());
+        int chronologie = dossierRepository.findMaxChronologie() + 1;
+        String seq = String.format("%04d", chronologie);
+
+        return codeProd + "" + codeAgence + "" + mois + dernierChiffreAnnee + "" + seq;
+    }
+
+    private void verifierOtDisponible(Dossier dossier) {
+        if (dossier.getOrdreTransit() == null || dossier.getOrdreTransit().getId() == null) {
+            return;
+        }
+        Integer otId = dossier.getOrdreTransit().getId();
+        Optional<Dossier> existant = dossierRepository.findByOrdreTransitId(otId);
+        if (existant.isPresent() && (dossier.getId() == null || !existant.get().getId().equals(dossier.getId()))) {
+            throw new IllegalArgumentException(
+                    "Un dossier existe déjà pour cet ordre de transit (" +
+                            (existant.get().getNumeroDossier() != null ? existant.get().getNumeroDossier() : existant.get().getId()) +
+                            ")."
+            );
+        }
     }
 
     @Transactional
     public Dossier saveDossier(Dossier dossier) {
+        verifierOtDisponible(dossier);
         if (dossier.getId() == null) {
             dossier.setNumeroDossier(genererNumeroDossier(dossier));
             dossier.setDateCreation(LocalDateTime.now());

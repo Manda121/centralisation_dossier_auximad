@@ -8,8 +8,22 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
+
 @Repository
 public interface DossierRepository extends JpaRepository<Dossier, Integer> {
+
+    Optional<Dossier> findByOrdreTransitId(Integer ordreTransitId);
+
+    /**
+     * Chronologie max (4 derniers chiffres) des numéros au format *-NNNN
+     */
+    @Query(value = """
+        SELECT COALESCE(MAX(CAST(RIGHT(numero_dossier, 4) AS INTEGER)), 0)
+        FROM dossier
+        WHERE numero_dossier ~ '-[0-9]{4}$'
+        """, nativeQuery = true)
+    int findMaxChronologie();
 
     @Query(value = """
         SELECT d.* FROM dossier d

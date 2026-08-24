@@ -55,15 +55,23 @@ public class DossierController {
 
     @PostMapping
     @Operation(summary = "Créer un nouveau dossier")
-    public ResponseEntity<Dossier> create(@RequestBody Dossier dossier) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(dossierService.saveDossier(dossier));
+    public ResponseEntity<?> create(@RequestBody Dossier dossier) {
+        try {
+            return ResponseEntity.status(HttpStatus.CREATED).body(dossierService.saveDossier(dossier));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+        }
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Mettre à jour un dossier existant")
-    public ResponseEntity<Dossier> update(@PathVariable Integer id, @RequestBody Dossier dossier) {
-        dossier.setId(id);
-        return ResponseEntity.ok(dossierService.saveDossier(dossier));
+    public ResponseEntity<?> update(@PathVariable Integer id, @RequestBody Dossier dossier) {
+        try {
+            dossier.setId(id);
+            return ResponseEntity.ok(dossierService.saveDossier(dossier));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+        }
     }
 
     @DeleteMapping("/{id}")
