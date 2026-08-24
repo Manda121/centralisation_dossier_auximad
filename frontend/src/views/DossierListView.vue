@@ -72,20 +72,6 @@ function formatarDate(dt) {
                     </router-link>
                 </div>
 
-                <div class="card border shadow-sm mb-3">
-                    <div class="card-body p-3">
-                        <div class="row g-2 align-items-center">
-                            <div class="col-md-9">
-                                <input type="text" v-model="filters.query" class="form-control form-control-sm"
-                                    placeholder="Rechercher par N° Dossier, Client, Pour compte..."
-                                    @input="declencherRecherche">
-                            </div>
-                            <div class="col-md-3 text-end">
-                                <button class="btn btn-link btn-sm text-secondary text-decoration-none" @click="reinitialiserFiltres">Effacer tout</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
                 <div class="card border shadow-sm">
                     <div class="card-body p-3">

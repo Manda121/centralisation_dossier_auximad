@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import Header from '../components/inc/Header.vue'
 import OrdreTransit from '../models/OrdreTransit'
@@ -28,6 +28,20 @@ const typeRegimes = ref([])
 const bureaux = ref([])
 const compagnies = ref([])
 const navires = ref([])
+
+const isMaritime = computed(() => {
+    const mode = otModel.value.typeProduction?.idModeTransport
+        ?? otModel.value.typeProduction?.id_mode_transport
+        ?? otModel.value.typeProduction?.modeTransport?.id
+    return mode === 1
+})
+
+const isAerien = computed(() => {
+    const mode = otModel.value.typeProduction?.idModeTransport
+        ?? otModel.value.typeProduction?.id_mode_transport
+        ?? otModel.value.typeProduction?.modeTransport?.id
+    return mode === 2
+})
 
 onMounted(async () => {
     try {
@@ -61,12 +75,32 @@ async function notifierCompagnieChange() {
     }
 }
 
+async function chargerCompagniesSelonMode() {
+    contratModel.value.compagnie = null
+    contratModel.value.navire = null
+    navires.value = []
+    const mode = otModel.value.typeProduction?.idModeTransport
+        ?? otModel.value.typeProduction?.id_mode_transport
+        ?? otModel.value.typeProduction?.modeTransport?.id
+    if (!mode) {
+        compagnies.value = []
+        return
+    }
+    try {
+        compagnies.value = await OrdreTransitService.getCompagnies(mode)
+    } catch (e) {
+        console.error('Erreur chargement compagnies', e)
+        compagnies.value = []
+    }
+}
+
 function etapeSuivante() {
     if (currentStep.value === 1) {
         if (!otModel.value.client || !otModel.value.typeProduction || !otModel.value.typeRegime) {
             alert('Veuillez renseigner tous les champs obligatoires (*) de l\'étape 1.')
             return
         }
+        chargerCompagniesSelonMode()
     } else if (currentStep.value === 2) {
         if (!otModel.value.expediteur || !otModel.value.destinataire || !otModel.value.bureauDedouanement) {
             alert('Veuillez renseigner tous les champs obligatoires (*) de l\'étape 2.')
@@ -88,7 +122,7 @@ async function creerOrdreTransit() {
         const otPayload = otModel.value.toJSON()
         const savedOt = await OrdreTransitService.createOrdreTransit(otPayload)
 
-        if (contratModel.value.numero || contratModel.value.compagnie) {
+        if (contratModel.value.numero || contratModel.value.compagnie || contratModel.value.numeroVol) {
             const contratPayload = {
                 numero: contratModel.value.numero,
                 compagnie: contratModel.value.compagnie ? { id: contratModel.value.compagnie.id } : null,
@@ -149,6 +183,7 @@ async function creerOrdreTransit() {
 
                 <div class="card border shadow-sm">
                     <div class="card-body p-4">
+                        <!-- Étape 1 -->
                         <div v-show="currentStep === 1">
                             <h4 class="h5 fw-bold text-dark mb-3">Étape 1 — Donneur d'ordre & Régime</h4>
                             <div class="row g-3">
@@ -180,6 +215,7 @@ async function creerOrdreTransit() {
                             </div>
                         </div>
 
+                        <!-- Étape 2 -->
                         <div v-show="currentStep === 2">
                             <h4 class="h5 fw-bold text-dark mb-3">Étape 2 — Destinations & Acteurs</h4>
                             <div class="row g-3">
@@ -224,51 +260,97 @@ async function creerOrdreTransit() {
                             </div>
                         </div>
 
+                        <!-- Étape 3 — Contrat de transport (conditionnel) -->
                         <div v-show="currentStep === 3">
                             <h4 class="h5 fw-bold text-dark mb-3">Étape 3 — Contrat de transport</h4>
-                            <p class="text-secondary small mb-3">Saisissez les informations logistiques de transport (B/L, Vol, Compagnie).</p>
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label small fw-semibold text-secondary">Transporteur / Compagnie maritime ou aérienne</label>
-                                    <select v-model="contratModel.compagnie" class="form-select form-select-sm" @change="notifierCompagnieChange">
-                                        <option :value="null">Sélectionnez la compagnie</option>
-                                        <option v-for="comp in compagnies" :key="comp.id" :value="comp">{{ comp.nom }} ({{ comp.code }})</option>
-                                    </select>
+
+                            <div v-if="!otModel.typeProduction" class="alert alert-secondary small">
+                                Veuillez d'abord sélectionner un type de production à l'étape 1.
+                            </div>
+
+                            <div v-else-if="isMaritime">
+                                <p class="text-secondary small mb-3">Mode maritime détecté — renseignez les informations du connaissement (B/L).</p>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold text-secondary">Compagnie maritime</label>
+                                        <select v-model="contratModel.compagnie" class="form-select form-select-sm" @change="notifierCompagnieChange">
+                                            <option :value="null">Sélectionnez la compagnie</option>
+                                            <option v-for="comp in compagnies" :key="comp.id" :value="comp">{{ comp.nom }} ({{ comp.code }})</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold text-secondary">Navire</label>
+                                        <select v-model="contratModel.navire" class="form-select form-select-sm" :disabled="!contratModel.compagnie">
+                                            <option :value="null">Sélectionnez le navire</option>
+                                            <option v-for="nav in navires" :key="nav.id" :value="nav">{{ nav.nom }} (IMO: {{ nav.imo }})</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold text-secondary">Numéro B/L</label>
+                                        <input type="text" v-model="contratModel.numero" class="form-control form-control-sm" placeholder="ex: HBLM4991209">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold text-secondary">Lieu d'émission</label>
+                                        <input type="text" v-model="contratModel.lieuEmission" class="form-control form-control-sm" placeholder="ex: Antananarivo">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold text-secondary">Notify party</label>
+                                        <input type="text" v-model="contratModel.notify" class="form-control form-control-sm" placeholder="ex: Auximad Tana">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold text-secondary">Date prévue de départ / d'arrivée</label>
+                                        <input type="datetime-local" v-model="contratModel.datePrevue" class="form-control form-control-sm">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold text-secondary">Date d'arrivée effective</label>
+                                        <input type="datetime-local" v-model="contratModel.dateArrivee" class="form-control form-control-sm">
+                                    </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <label class="form-label small fw-semibold text-secondary">Navire (si maritime)</label>
-                                    <select v-model="contratModel.navire" class="form-select form-select-sm" :disabled="!contratModel.compagnie">
-                                        <option :value="null">Sélectionnez le navire</option>
-                                        <option v-for="nav in navires" :key="nav.id" :value="nav">{{ nav.nom }} (IMO: {{ nav.imo }})</option>
-                                    </select>
+                            </div>
+
+                            <div v-else-if="isAerien">
+                                <p class="text-secondary small mb-3">Mode aérien détecté — renseignez les informations de la LTA / vol.</p>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold text-secondary">Compagnie aérienne</label>
+                                        <select v-model="contratModel.compagnie" class="form-select form-select-sm">
+                                            <option :value="null">Sélectionnez la compagnie</option>
+                                            <option v-for="comp in compagnies" :key="comp.id" :value="comp">{{ comp.nom }} ({{ comp.code }})</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold text-secondary">N° de Vol</label>
+                                        <input type="text" v-model="contratModel.numeroVol" class="form-control form-control-sm" placeholder="ex: MD051">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold text-secondary">Numéro LTA</label>
+                                        <input type="text" v-model="contratModel.numero" class="form-control form-control-sm" placeholder="ex: 057-12345678">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold text-secondary">Lieu d'émission</label>
+                                        <input type="text" v-model="contratModel.lieuEmission" class="form-control form-control-sm" placeholder="ex: Antananarivo">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold text-secondary">Notify party</label>
+                                        <input type="text" v-model="contratModel.notify" class="form-control form-control-sm" placeholder="ex: Auximad Tana">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold text-secondary">Date prévue de départ / d'arrivée</label>
+                                        <input type="datetime-local" v-model="contratModel.datePrevue" class="form-control form-control-sm">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold text-secondary">Date d'arrivée effective</label>
+                                        <input type="datetime-local" v-model="contratModel.dateArrivee" class="form-control form-control-sm">
+                                    </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <label class="form-label small fw-semibold text-secondary">Numéro B/L ou LTA</label>
-                                    <input type="text" v-model="contratModel.numero" class="form-control form-control-sm" placeholder="ex: HBLM4991209">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label small fw-semibold text-secondary">N° de Vol (si aérien)</label>
-                                    <input type="text" v-model="contratModel.numeroVol" class="form-control form-control-sm" placeholder="ex: MD051">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label small fw-semibold text-secondary">Lieu d'émission</label>
-                                    <input type="text" v-model="contratModel.lieuEmission" class="form-control form-control-sm" placeholder="ex: Antananarivo">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label small fw-semibold text-secondary">Notify party</label>
-                                    <input type="text" v-model="contratModel.notify" class="form-control form-control-sm" placeholder="ex: Auximad Tana">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label small fw-semibold text-secondary">Date prévue de départ / d'arrivée</label>
-                                    <input type="datetime-local" v-model="contratModel.datePrevue" class="form-control form-control-sm">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label small fw-semibold text-secondary">Date d'arrivée effective</label>
-                                    <input type="datetime-local" v-model="contratModel.dateArrivee" class="form-control form-control-sm">
-                                </div>
+                            </div>
+
+                            <div v-else class="alert alert-secondary small">
+                                Mode de transport non reconnu pour ce type de production. Les champs de contrat ne sont pas disponibles.
                             </div>
                         </div>
 
+                        <!-- Étape 4 -->
                         <div v-show="currentStep === 4">
                             <h4 class="h5 fw-bold text-dark mb-3">Étape 4 — Consultation & Validation</h4>
                             <div class="alert alert-secondary small py-2">
@@ -308,7 +390,12 @@ async function creerOrdreTransit() {
                                             <div class="row small">
                                                 <div class="col-md-4"><strong>Numéro B/L ou LTA :</strong> {{ contratModel.numero || 'Aucun' }}</div>
                                                 <div class="col-md-4"><strong>Compagnie :</strong> {{ contratModel.compagnie?.nom || 'Non spécifiée' }}</div>
-                                                <div class="col-md-4"><strong>Navire / Vol :</strong> {{ contratModel.navire?.nom || contratModel.numeroVol || 'Aucun' }}</div>
+                                                <div class="col-md-4">
+                                                    <strong v-if="isMaritime">Navire :</strong>
+                                                    <strong v-else-if="isAerien">Vol :</strong>
+                                                    <strong v-else>Navire / Vol :</strong>
+                                                    {{ contratModel.navire?.nom || contratModel.numeroVol || 'Aucun' }}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

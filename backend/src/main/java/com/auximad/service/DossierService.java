@@ -62,17 +62,20 @@ public class DossierService {
         return dossierRepository.findById(id);
     }
 
-    /**
+        /**
      * Génère automatiquement un numéro de dossier selon la nomenclature :
-     * AA-CCC-TP-AAAA-NNNN (Agence-CodeClient-TypeProd-Année-Séquence)
+     * CodeTypeProduction-CodeAgence-MM-A-NNNN (TypeProd-Agence-Mois-DernierChiffreAnnée-Séquence)
      */
     private String genererNumeroDossier(Dossier d) {
-        String annee = String.valueOf(LocalDateTime.now().getYear());
+        LocalDateTime now = LocalDateTime.now();
+        String annee = String.valueOf(now.getYear());
+        String dernierChiffreAnnee = annee.substring(annee.length() - 1);
+        String mois = String.format("%02d", now.getMonthValue());
         String codeAgence = d.getAgence() != null ? String.format("%02d", d.getAgence().getCode()) : "00";
         String codeProd = d.getTypeProduction() != null ? String.valueOf(d.getTypeProduction().getCode()) : "0";
         long count = dossierRepository.count() + 1;
         String seq = String.format("%04d", count);
-        return codeAgence + "-" + codeProd + "-" + annee + "-" + seq;
+        return codeProd + "-" + codeAgence + "-" + mois + dernierChiffreAnnee + "-" + seq;
     }
 
     @Transactional

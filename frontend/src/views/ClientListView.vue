@@ -11,7 +11,7 @@ const datatableRef = ref(null)
 
 const allFilters = reactive({
     query: '',
-    codeClient: '',
+    cpClient: '',
     nom: '',
     prenom: '',
     typeClientId: '',
@@ -41,7 +41,7 @@ onMounted(async () => {
 })
 
 const columns = [
-    { key: 'code', label: 'Code Client', sortable: false, width: '130px' },
+    { key: 'cpClient', label: 'CP Client', sortable: false, width: '130px' },
     { key: 'nom', label: 'Nom', sortable: true },
     { key: 'prenom', label: 'Prénom', sortable: true },
     { key: 'typeClient.nom', label: 'Type', sortable: false },
@@ -99,22 +99,6 @@ function reinitialiserFiltres() {
                     </button>
                 </div>
 
-                <div class="card border shadow-sm mb-3">
-                    <div class="card-body p-3">
-                        <div class="row g-2 align-items-center">
-                            <div class="col-md-9">
-                                <input type="text" v-model="allFilters.query" class="form-control form-control-sm"
-                                    placeholder="Rechercher par nom, prénom, email, NIF, STAT..."
-                                    @input="declencherRecherche">
-                            </div>
-                            <div class="col-md-3 text-end">
-                                <button class="btn btn-link btn-sm text-secondary text-decoration-none" @click="reinitialiserFiltres">
-                                    Effacer tout
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
                 <div class="card border shadow-sm">
                     <div class="card-body p-3">
@@ -124,8 +108,8 @@ function reinitialiserFiltres() {
                             <template #filters="{ filters }">
                                 <div class="row g-2">
                                     <div class="col-md-3">
-                                        <label class="form-label small fw-semibold text-secondary">Code Client</label>
-                                        <input type="number" v-model="filters.codeClient" class="form-control form-control-sm" placeholder="ex: 12">
+                                        <label class="form-label small fw-semibold text-secondary">Cp Client</label>
+                                        <input type="text" v-model="filters.cpClient" class="form-control form-control-sm" placeholder="ex: 10112">
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label small fw-semibold text-secondary">Nom</label>
@@ -176,9 +160,9 @@ function reinitialiserFiltres() {
                                 </div>
                             </template>
 
-                            <template #cell-code="{ row }">
+                            <template #cell-cpClient="{ row }">
                                 <router-link :to="`/clients/${row.id}`" class="fw-semibold text-primary text-decoration-none">
-                                    CLI-{{ String(row.id).padStart(4, '0') }}
+                                    {{ row.cpClient || '—' }}
                                 </router-link>
                             </template>
 
