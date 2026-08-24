@@ -21,7 +21,7 @@ INSERT INTO statut_ot (nom, description) VALUES
 -- 1. TABLES DE REFERENCE
 -- ============================================================
 
-INSERT INTO agence (code, nom, adresse, ville, code_postal) VALUES
+INSERT INTO agence (code, nom, adresse, ville, cp_client) VALUES
 (20, 'TNR', '18, RUE J.J. Rabearivelo-Antsahavola', 'Antananarivo', '101'),
 (90, 'DIR', '18, RUE J.J. Rabearivelo-Antsahavola', 'Antananarivo', '101'),
 (10, 'TMA', '21, Bd Ratsimilaho Po Box 93- 501', 'Toamasina', '501'),
@@ -76,7 +76,7 @@ INSERT INTO type_bureau (nom, description) VALUES
 ('Bureau de controle', 'Bureau de controle'),
 ('Bureau d''enquete', 'Bureau d''enquete');
 
-INSERT INTO bureau (nom, description, id_type_bureau, adresse, code_postal, ville) VALUES
+INSERT INTO bureau (nom, description, id_type_bureau, adresse, cp_client, ville) VALUES
 ('Bureau des douanes Antananarivo', 'Bureau principal des douanes a Antananarivo', (SELECT id FROM type_bureau WHERE nom = 'Bureau principal'), 'Rue de l''Independance', '101', 'Antananarivo'),
 ('Bureau des douanes Toamasina', 'Bureau de douane du port', (SELECT id FROM type_bureau WHERE nom = 'Bureau de douane'), 'Boulevard Joffre', '501', 'Toamasina'),
 ('Bureau secondaire Antsirabe', 'Bureau secondaire', (SELECT id FROM type_bureau WHERE nom = 'Bureau secondaire'), 'Avenue de la Gare', '110', 'Antsirabe'),
@@ -106,7 +106,7 @@ INSERT INTO mode_acheminement (nom, description) VALUES
 ('Par Avion', '...'),
 ('Par Camion', '...');
 
--- NATURE MARCHANDISE (remplace categorie_marchandise)
+-- NATURE MARCHANDISE (remplace nature_marchandise)
 INSERT INTO nature_marchandise (nom, description) VALUES
 ('Textile', 'Textile et habillement'),
 ('Electronique', 'Produits electroniques'),

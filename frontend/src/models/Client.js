@@ -11,7 +11,7 @@ export class Client {
         this.telephone = data.telephone || ''
         this.adresse = data.adresse || ''
         this.ville = data.ville || ''
-        this.codePostal = data.codePostal || ''
+        this.cpClient = data.cpClient || ''
         this.pays = data.pays || null
         this.typeClient = data.typeClient || null
         this.nif = data.nif || ''
@@ -79,7 +79,7 @@ export class Client {
         if (data.telephone) this.telephone = data.telephone
         if (data.adresse) this.adresse = data.adresse
         if (data.ville) this.ville = data.ville
-        if (data.codePostal) this.codePostal = data.codePostal
+        if (data.cpClient) this.cpClient = data.cpClient
         if (data.pays) this.pays = data.pays
         if (data.typeClient) this.typeClient = data.typeClient
         if (data.nif) this.nif = data.nif
@@ -101,7 +101,7 @@ export class Client {
             telephone: this.telephone,
             adresse: this.adresse,
             ville: this.ville,
-            codePostal: this.codePostal,
+            cpClient: this.cpClient,
             pays: this.pays,
             typeClient: this.typeClient,
             nif: this.nif,

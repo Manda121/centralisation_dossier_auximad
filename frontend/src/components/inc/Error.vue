@@ -1,10 +1,10 @@
 <script setup>
-const props = defineProps({error: String});
+const props = defineProps({ error: String })
 </script>
 
 <template>
-    <div class="error">
-        <h2>ERROR</h2>
-        <p>{{ props.error }}</p>
+    <div class="alert alert-danger">
+        <h2 class="h5">ERROR</h2>
+        <p class="mb-0">{{ props.error }}</p>
     </div>
 </template>

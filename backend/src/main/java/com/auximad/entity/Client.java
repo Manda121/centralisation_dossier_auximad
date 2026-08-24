@@ -36,8 +36,8 @@ public class Client {
     @Column(length = 100)
     private String ville;
 
-    @Column(name = "code_postal", length = 10)
-    private String codePostal;
+    @Column(name = "cp_client", length = 10)
+    private String cpClient;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "id_pays")

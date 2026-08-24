@@ -10,10 +10,18 @@ INSERT INTO statut_dossier (nom, description) VALUES
 ('En litige', 'Dossier en litige');
 
 -- ============================================================
+-- 0bis. STATUT ORDRE DE TRANSIT
+-- ============================================================
+INSERT INTO statut_ot (nom, description) VALUES
+('creer', 'Ordre de transit créé'),
+('validee', 'Ordre de transit validé'),
+('supprimee', 'Ordre de transit supprimé');
+
+-- ============================================================
 -- 1. TABLES DE REFERENCE
 -- ============================================================
 
-INSERT INTO agence (code, nom, adresse, ville, code_postal) VALUES
+INSERT INTO agence (code, nom, adresse, ville, cp_client) VALUES
 (20, 'TNR', '18, RUE J.J. Rabearivelo-Antsahavola', 'Antananarivo', '101'),
 (90, 'DIR', '18, RUE J.J. Rabearivelo-Antsahavola', 'Antananarivo', '101'),
 (10, 'TMA', '21, Bd Ratsimilaho Po Box 93- 501', 'Toamasina', '501'),
@@ -68,7 +76,7 @@ INSERT INTO type_bureau (nom, description) VALUES
 ('Bureau de controle', 'Bureau de controle'),
 ('Bureau d''enquete', 'Bureau d''enquete');
 
-INSERT INTO bureau (nom, description, id_type_bureau, adresse, code_postal, ville) VALUES
+INSERT INTO bureau (nom, description, id_type_bureau, adresse, cp_client, ville) VALUES
 ('Bureau des douanes Antananarivo', 'Bureau principal des douanes a Antananarivo', (SELECT id FROM type_bureau WHERE nom = 'Bureau principal'), 'Rue de l''Independance', '101', 'Antananarivo'),
 ('Bureau des douanes Toamasina', 'Bureau de douane du port', (SELECT id FROM type_bureau WHERE nom = 'Bureau de douane'), 'Boulevard Joffre', '501', 'Toamasina'),
 ('Bureau secondaire Antsirabe', 'Bureau secondaire', (SELECT id FROM type_bureau WHERE nom = 'Bureau secondaire'), 'Avenue de la Gare', '110', 'Antsirabe'),
@@ -98,7 +106,8 @@ INSERT INTO mode_acheminement (nom, description) VALUES
 ('Par Avion', '...'),
 ('Par Camion', '...');
 
-INSERT INTO categorie_marchandise (nom, description) VALUES
+-- NATURE MARCHANDISE (remplace nature_marchandise)
+INSERT INTO nature_marchandise (nom, description) VALUES
 ('Textile', 'Textile et habillement'),
 ('Electronique', 'Produits electroniques'),
 ('Alimentaire', 'Produits alimentaires'),
@@ -118,7 +127,6 @@ INSERT INTO phase_dossier (nom, id_mode_transport, description) VALUES
 ('COMPTABILITE', NULL, 'Comptabilite et cloture');
 
 -- Récupération des IDs pour les opérations
--- On suppose que statut "Ouvert" a l'id 1 (ou on le sélectionne dynamiquement)
 DO $$
 DECLARE
     v_statut_ouvert_id INT;
@@ -225,13 +233,13 @@ INSERT INTO pays (nom, code) VALUES
 ('Qatar', 'QAT'),
 ('Ethiopie', 'ETH');
 
-INSERT INTO type_document (nom, id_type_production, id_categorie_marchandise, est_obligatoire, description) VALUES
+INSERT INTO type_document (nom, id_type_production, id_nature_marchandise, est_obligatoire, description) VALUES
 ('Facture commerciale', NULL, NULL, TRUE, 'Facture commerciale'),
 ('Liste de colisage', NULL, NULL, TRUE, 'Liste de colisage'),
 ('Connaissement maritime', NULL, NULL, TRUE, 'Connaissement maritime'),
 ('Lettre de transport aerien', NULL, NULL, TRUE, 'Lettre de transport aerien'),
 ('Certificat d''origine', NULL, NULL, TRUE, 'Certificat d''origine'),
-('Certificat phytosanitaire', NULL, (SELECT id FROM categorie_marchandise WHERE nom = 'Alimentaire'), FALSE, 'Certificat phytosanitaire'),
+('Certificat phytosanitaire', NULL, (SELECT id FROM nature_marchandise WHERE nom = 'Alimentaire'), FALSE, 'Certificat phytosanitaire'),
 ('Certificat de qualite', NULL, NULL, TRUE, 'Certificat de qualite'),
 ('Certificat d''assurance', NULL, NULL, FALSE, 'Certificat d''assurance'),
 ('Licence d''importation', NULL, NULL, TRUE, 'Licence d''importation'),
@@ -241,9 +249,9 @@ INSERT INTO type_document (nom, id_type_production, id_categorie_marchandise, es
 ('Declaration en douane', NULL, NULL, TRUE, 'Declaration en douane'),
 ('Facture proforma', NULL, NULL, FALSE, 'Facture proforma'),
 ('Bon de commande', NULL, NULL, FALSE, 'Bon de commande'),
-('Certificat de non-manipulation', NULL, (SELECT id FROM categorie_marchandise WHERE nom = 'Alimentaire'), FALSE, 'Certificat de non-manipulation'),
-('Certificat veterinaire', NULL, (SELECT id FROM categorie_marchandise WHERE nom = 'Alimentaire'), FALSE, 'Certificat veterinaire'),
-('Certificat de salubrite', NULL, (SELECT id FROM categorie_marchandise WHERE nom = 'Alimentaire'), FALSE, 'Certificat de salubrite'),
+('Certificat de non-manipulation', NULL, (SELECT id FROM nature_marchandise WHERE nom = 'Alimentaire'), FALSE, 'Certificat de non-manipulation'),
+('Certificat veterinaire', NULL, (SELECT id FROM nature_marchandise WHERE nom = 'Alimentaire'), FALSE, 'Certificat veterinaire'),
+('Certificat de salubrite', NULL, (SELECT id FROM nature_marchandise WHERE nom = 'Alimentaire'), FALSE, 'Certificat de salubrite'),
 ('Fiche technique', NULL, NULL, FALSE, 'Fiche technique'),
 ('Rapport d''inspection', NULL, NULL, FALSE, 'Rapport d''inspection'),
 ('Preuve de paiement', NULL, NULL, FALSE, 'Preuve de paiement'),
@@ -253,7 +261,7 @@ INSERT INTO type_document (nom, id_type_production, id_categorie_marchandise, es
 ('Packing list', NULL, NULL, TRUE, 'Packing list'),
 ('Certificat de fret', NULL, NULL, FALSE, 'Certificat de fret'),
 ('Attestation de non-radioactivite', NULL, NULL, FALSE, 'Attestation de non-radioactivite'),
-('Certificat de conformite', NULL, (SELECT id FROM categorie_marchandise WHERE nom = 'Electronique'), TRUE, 'Certificat de conformite');
+('Certificat de conformite', NULL, (SELECT id FROM nature_marchandise WHERE nom = 'Electronique'), TRUE, 'Certificat de conformite');
 
 INSERT INTO type_container (nom, description, volume, poids_max, longueur, largeur, hauteur) VALUES
 ('20 pieds', 'Conteneur standard 20 pieds', 33.2, 28000, 6.06, 2.44, 2.59),
@@ -362,7 +370,7 @@ DECLARE
     v_type_regime_ids INT[];
     v_bureau_ids INT[];
     v_mode_acheminement_ids INT[];
-    v_categorie_marchandise_ids INT[];
+    v_nature_marchandise_ids INT[];
     v_phase_ids INT[];
     v_inconterme_ids INT[];
     v_type_constat_ids INT[];
@@ -380,6 +388,8 @@ DECLARE
     v_operation_ids INT[];
     v_statut_ids INT[];
     v_statut_ouvert_id INT;
+    v_statut_ot_ids INT[];
+    v_statut_ot_creer_id INT;
 
     v_client_ids INT[];
     v_utilisateur_ids INT[];
@@ -409,7 +419,7 @@ DECLARE
     v_expert_constat_id INT;
     v_type_constat_id INT;
     v_unite_mesure_id INT;
-    v_categorie_marchandise_id INT;
+    v_nature_marchandise_id INT;
     v_compagnie_id INT;
     v_navire_id INT;
     v_port_emb INT;
@@ -422,6 +432,7 @@ DECLARE
     v_mode_transport_aerien_id INT;
     v_doc_id INT;
     v_est_remis BOOLEAN;
+    v_rand_statut_ot_id INT;
 BEGIN
     -- Récupération des IDs des tables de référence
     v_agence_ids := ARRAY(SELECT id FROM agence);
@@ -431,7 +442,7 @@ BEGIN
     v_type_regime_ids := ARRAY(SELECT id FROM type_regime);
     v_bureau_ids := ARRAY(SELECT id FROM bureau);
     v_mode_acheminement_ids := ARRAY(SELECT id FROM mode_acheminement);
-    v_categorie_marchandise_ids := ARRAY(SELECT id FROM categorie_marchandise);
+    v_nature_marchandise_ids := ARRAY(SELECT id FROM nature_marchandise);
     v_phase_ids := ARRAY(SELECT id FROM phase_dossier);
     v_inconterme_ids := ARRAY(SELECT id FROM inconterme);
     v_type_constat_ids := ARRAY(SELECT id FROM type_constat);
@@ -452,9 +463,12 @@ BEGIN
     v_mode_transport_maritime_id := (SELECT id FROM mode_transport WHERE nom = 'Maritime');
     v_mode_transport_aerien_id := (SELECT id FROM mode_transport WHERE nom = 'Aerien');
 
-    -- CLIENTS (100)
+    -- Récupération des statuts OT
+    v_statut_ot_ids := ARRAY(SELECT id FROM statut_ot);
+
+    -- CLIENTS (100) avec cp_client unique de 6 caractères
     FOR i IN 1..100 LOOP
-        INSERT INTO clients (nom, prenom, email, telephone, adresse, id_type_client, nif, stat, fax, id_pays)
+        INSERT INTO clients (nom, prenom, email, telephone, adresse, id_type_client, nif, stat, fax, id_pays, cp_client)
         VALUES (
             'ClientNom' || i,
             'Prenom' || i,
@@ -465,7 +479,8 @@ BEGIN
             'NIF' || lpad(i::text, 10, '0'),
             'STAT' || lpad(i::text, 10, '0'),
             'Fax' || i,
-            v_pays_ids[1 + floor(random() * array_length(v_pays_ids, 1))::int]
+            v_pays_ids[1 + floor(random() * array_length(v_pays_ids, 1))::int],
+            'CLI' || lpad(i::text, 3, '0')   -- 6 caractères, unique de CLI001 à CLI100
         );
     END LOOP;
 
@@ -490,18 +505,21 @@ BEGIN
     v_client_ids := ARRAY(SELECT id FROM clients);
     v_utilisateur_ids := ARRAY(SELECT id FROM utilisateur);
 
-    -- ORDRES DE TRANSIT (200)
+    -- ORDRES DE TRANSIT (200) avec statut OT aléatoire
     FOR i IN 1..200 LOOP
         v_agence_id := v_agence_ids[1 + floor(random() * array_length(v_agence_ids, 1))::int];
         v_client_id := v_client_ids[1 + floor(random() * array_length(v_client_ids, 1))::int];
         v_type_production_id := v_type_production_ids[1 + floor(random() * array_length(v_type_production_ids, 1))::int];
         v_type_regime_id := v_type_regime_ids[1 + floor(random() * array_length(v_type_regime_ids, 1))::int];
         v_bureau_id := v_bureau_ids[1 + floor(random() * array_length(v_bureau_ids, 1))::int];
+        -- Choix aléatoire du statut OT
+        v_rand_statut_ot_id := v_statut_ot_ids[1 + floor(random() * array_length(v_statut_ot_ids, 1))::int];
 
         INSERT INTO ordre_transit (
             numero_ordre_transit, id_agence, id_client, id_type_production,
             numero_commande, id_utilisateur, id_type_regime, destination_finale,
-            id_expediteur, id_destinataire, id_bureau_dedou, est_assure, id_destination_facture
+            id_expediteur, id_destinataire, id_bureau_dedou, est_assure, id_destination_facture,
+            id_statut_ot
         ) VALUES (
             10000 + i,
             v_agence_id,
@@ -515,7 +533,8 @@ BEGIN
             v_client_ids[1 + floor(random() * array_length(v_client_ids, 1))::int],
             v_bureau_id,
             (random() < 0.3),
-            v_client_ids[1 + floor(random() * array_length(v_client_ids, 1))::int]
+            v_client_ids[1 + floor(random() * array_length(v_client_ids, 1))::int],
+            v_rand_statut_ot_id
         ) RETURNING id INTO v_ot_id;
 
         v_ot_ids := array_append(v_ot_ids, v_ot_id);
@@ -676,15 +695,15 @@ BEGIN
         v_expedition_ids := array_append(v_expedition_ids, v_expedition_id);
     END LOOP;
 
-    -- MARCHANDISES (600)
+    -- MARCHANDISES (600) - adapté : lie désormais à l'ordre de transit (id_ordre_transit) et utilise nature_marchandise
     FOR i IN 1..600 LOOP
         INSERT INTO marchandise (
-            id_dossier, id_unite_mesure, id_categorie_marchandise,
+            id_ordre_transit, id_unite_mesure, id_nature_marchandise,
             marque, modele, description, poids, volume, quantite
         ) VALUES (
-            v_dossier_ids[1 + floor(random() * array_length(v_dossier_ids, 1))::int],
+            v_ot_ids[1 + floor(random() * array_length(v_ot_ids, 1))::int],
             v_unite_mesure_ids[1 + floor(random() * array_length(v_unite_mesure_ids, 1))::int],
-            v_categorie_marchandise_ids[1 + floor(random() * array_length(v_categorie_marchandise_ids, 1))::int],
+            v_nature_marchandise_ids[1 + floor(random() * array_length(v_nature_marchandise_ids, 1))::int],
             'Marque' || (i % 20),
             'Modele' || (i % 30),
             'Description marchandise ' || i,

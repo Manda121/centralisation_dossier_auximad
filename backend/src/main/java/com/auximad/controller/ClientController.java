@@ -36,7 +36,7 @@ public class ClientController {
             @RequestParam(required = false) String email,
             @RequestParam(required = false) String adresse,
             @RequestParam(required = false) String ville,
-            @RequestParam(required = false) String codePostal,
+            @RequestParam(required = false) String cpClient,
             @RequestParam(required = false) Integer paysId,
             @RequestParam(required = false) Integer typeClientId,
             @RequestParam(defaultValue = "0") int page,
@@ -46,7 +46,7 @@ public class ClientController {
         
         PageResponse<Client> response = clientService.searchClients(
                 query, nif, stat, fax, codeClient, nom, prenom,
-                email, adresse, ville, codePostal, paysId, typeClientId,
+                email, adresse, ville, cpClient, paysId, typeClientId,
                 page, size, sortBy, sortDir
         );
         return ResponseEntity.ok(response);

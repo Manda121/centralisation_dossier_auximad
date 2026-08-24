@@ -4,7 +4,7 @@ CREATE TABLE agence(
    nom VARCHAR(100) NOT NULL,
    adresse VARCHAR(200) NOT NULL,
    ville VARCHAR(100) NOT NULL,
-   code_postal VARCHAR(10) NOT NULL,
+   cp_client VARCHAR(10) NOT NULL,
    date_creation DATETIME DEFAULT CURRENT_TIMESTAMP,
    PRIMARY KEY(id),
    UNIQUE(code)
@@ -109,7 +109,7 @@ CREATE TABLE mode_acheminement(
    UNIQUE(nom)
 );
 
-CREATE TABLE categorie_marchandise(
+CREATE TABLE nature_marchandise(
    id COUNTER,
    nom VARCHAR(100) NOT NULL,
    description TEXT,
@@ -270,12 +270,12 @@ CREATE TABLE type_document(
    nom VARCHAR(100) NOT NULL,
    est_obligatoire LOGICAL NOT NULL DEFAULT FALSE,
    description TEXT,
-   id_categorie_marchandise INT,
+   id_nature_marchandise INT,
    id_mode_transport INT,
    id_type_produit INT,
    PRIMARY KEY(id),
    UNIQUE(nom),
-   FOREIGN KEY(id_categorie_marchandise) REFERENCES categorie_marchandise(id),
+   FOREIGN KEY(id_nature_marchandise) REFERENCES nature_marchandise(id),
    FOREIGN KEY(id_mode_transport) REFERENCES mode_transport(id),
    FOREIGN KEY(id_type_produit) REFERENCES type_produit(id)
 );
@@ -438,11 +438,11 @@ CREATE TABLE marchandise(
    poids DECIMAL(10,2) NOT NULL,
    volume DECIMAL(10,2) NOT NULL,
    quantite INT NOT NULL,
-   id_categorie_marchandise INT,
+   id_nature_marchandise INT,
    id_unite_mesure INT NOT NULL,
    id_dossier INT NOT NULL,
    PRIMARY KEY(id),
-   FOREIGN KEY(id_categorie_marchandise) REFERENCES categorie_marchandise(id),
+   FOREIGN KEY(id_nature_marchandise) REFERENCES nature_marchandise(id),
    FOREIGN KEY(id_unite_mesure) REFERENCES unite_mesure(id),
    FOREIGN KEY(id_dossier) REFERENCES dossier(id)
 );

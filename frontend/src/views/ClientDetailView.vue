@@ -1,154 +1,3 @@
-<template>
-    <div class="d-flex min-vh-100 bg-light">
-        <Header />
-
-        <main class="flex-grow-1 p-4" style="margin-left: 280px;">
-            <div class="container-fluid">
-                <!-- Back Link -->
-                <div class="mb-4">
-                    <router-link to="/clients"
-                        class="text-decoration-none text-muted d-inline-flex align-items-center gap-2">
-                        &larr; Retour à la liste des clients
-                    </router-link>
-                </div>
-
-                <div v-if="loading" class="text-center py-5">
-                    <div class="spinner-border text-primary" role="status"></div>
-                </div>
-
-                <div v-else-if="erreur" class="alert alert-danger" role="alert">
-                    {{ erreur }}
-                </div>
-
-                <div v-else>
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <div>
-                            <span class="badge bg-primary text-uppercase mb-2">{{ clientModel.typeClient?.nom ||
-                                'Client' }}</span>
-                            <h1 class="h3 fw-bold text-primary mb-1">
-                                {{ estNouveau ? 'Nouveau Client' : clientModel.getNomComplet() }}
-                            </h1>
-                            <p class="text-secondary mb-0">
-                                {{ estNouveau ? 'Créer une nouvelle entité client dans le système.' : `Enregistrement
-                                CLI-${String(clientModel.id).padStart(4, '0')}` }}
-                            </p>
-                        </div>
-                        <div class="d-flex gap-2">
-                            <template v-if="editionMode">
-                                <button type="button" class="btn btn-secondary btn-sm"
-                                    @click="annulerModifications">Annuler</button>
-                                <button type="button" class="btn btn-primary btn-sm"
-                                    @click="enregistrerClient">Enregistrer</button>
-                            </template>
-                            <template v-else>
-                                <button v-if="peutModifier" type="button" class="btn btn-outline-primary btn-sm"
-                                    @click="editionMode = true">Modifier</button>
-                                <button v-if="peutSupprimer" type="button" class="btn btn-outline-danger btn-sm"
-                                    @click="supprimerClient">Supprimer</button>
-                            </template>
-                        </div>
-                    </div>
-
-                    <!-- Fiche d'informations détaillée -->
-                    <div class="row g-4">
-                        <div class="col-lg-8">
-                            <div class="card border-0 shadow-sm p-4 mb-4">
-                                <h5 class="fw-bold mb-3">Informations d'identité</h5>
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label text-xs fw-semibold">Nom / Raison Sociale <span
-                                                class="text-danger">*</span></label>
-                                        <input type="text" v-model="clientModel.nom"
-                                            class="form-control form-control-sm" :disabled="!editionMode" required>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label text-xs fw-semibold">Prénom (facultatif)</label>
-                                        <input type="text" v-model="clientModel.prenom"
-                                            class="form-control form-control-sm" :disabled="!editionMode">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label text-xs fw-semibold">Type de client</label>
-                                        <select v-model="selectedTypeClientId" class="form-select form-select-sm"
-                                            :disabled="!editionMode" @change="notifierTypeChange">
-                                            <option v-for="t in typeClients" :key="t.id" :value="t.id">{{ t.nom }}
-                                            </option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label text-xs fw-semibold">Téléphone</label>
-                                        <input type="text" v-model="clientModel.telephone"
-                                            class="form-control form-control-sm" :disabled="!editionMode">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label text-xs fw-semibold">Email</label>
-                                        <input type="email" v-model="clientModel.email"
-                                            class="form-control form-control-sm" :disabled="!editionMode">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label text-xs fw-semibold">Fax</label>
-                                        <input type="text" v-model="clientModel.fax"
-                                            class="form-control form-control-sm" :disabled="!editionMode">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="card border-0 shadow-sm p-4">
-                                <h5 class="fw-bold mb-3">Informations Douanières & Fiscales</h5>
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label text-xs fw-semibold">NIF (Numéro d'Identification
-                                            Fiscale)</label>
-                                        <input type="text" v-model="clientModel.nif"
-                                            class="form-control form-control-sm" :disabled="!editionMode"
-                                            placeholder="ex: 10 caractères si particulier, 13 si entreprise">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label text-xs fw-semibold">STAT (Numéro Statistique)</label>
-                                        <input type="text" v-model="clientModel.stat"
-                                            class="form-control form-control-sm" :disabled="!editionMode"
-                                            placeholder="ex: 17 caractères">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-lg-4">
-                            <div class="card border-0 shadow-sm p-4">
-                                <h5 class="fw-bold mb-3">Adresse & Localisation</h5>
-                                <div class="row g-3">
-                                    <div class="col-md-12">
-                                        <label class="form-label text-xs fw-semibold">Adresse postale / physique</label>
-                                        <textarea v-model="clientModel.adresse" class="form-control form-control-sm"
-                                            rows="3" :disabled="!editionMode"></textarea>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label text-xs fw-semibold">Ville</label>
-                                        <input type="text" v-model="clientModel.ville"
-                                            class="form-control form-control-sm" :disabled="!editionMode">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label text-xs fw-semibold">Code Postal</label>
-                                        <input type="text" v-model="clientModel.codePostal"
-                                            class="form-control form-control-sm" :disabled="!editionMode">
-                                    </div>
-                                    <div class="col-md-12">
-                                        <label class="form-label text-xs fw-semibold">Pays</label>
-                                        <select v-model="selectedPaysId" class="form-select form-select-sm"
-                                            :disabled="!editionMode">
-                                            <option v-for="p in listePays" :key="p.id" :value="p.id">{{ p.nom }}
-                                            </option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
-</template>
-
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -232,7 +81,6 @@ function notifierTypeChange() {
 }
 
 async function enregistrerClient() {
-    // Liaison finale avant validation
     clientModel.value.pays = listePays.value.find(p => p.id === selectedPaysId.value) || null
     clientModel.value.typeClient = typeClients.value.find(t => t.id === selectedTypeClientId.value) || null
 
@@ -288,8 +136,140 @@ async function supprimerClient() {
 }
 </script>
 
+<template>
+    <div class="d-flex min-vh-100 bg-light">
+        <Header />
+
+        <main class="flex-grow-1 p-4" style="margin-left: 280px;">
+            <div class="container-fluid">
+                <div class="mb-3">
+                    <router-link to="/clients" class="text-decoration-none text-secondary">
+                        &larr; Retour à la liste des clients
+                    </router-link>
+                </div>
+
+                <div v-if="loading" class="text-center py-5">
+                    <div class="spinner-border text-secondary" role="status"></div>
+                </div>
+
+                <div v-else-if="erreur" class="alert alert-danger" role="alert">
+                    {{ erreur }}
+                </div>
+
+                <div v-else>
+                    <div class="d-flex justify-content-between align-items-start mb-4">
+                        <div>
+                            <h1 class="h4 fw-bold text-dark mb-1">
+                                {{ estNouveau ? 'Nouveau Client' : clientModel.getNomComplet() }}
+                            </h1>
+                            <p class="text-secondary mb-0 small">
+                                {{ estNouveau ? 'Créer une nouvelle entité client dans le système.' : `Enregistrement CLI-${String(clientModel.id).padStart(4, '0')}` }}
+                            </p>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <template v-if="editionMode">
+                                <button type="button" class="btn btn-secondary btn-sm" @click="annulerModifications">Annuler</button>
+                                <button type="button" class="btn btn-primary btn-sm" @click="enregistrerClient">Enregistrer</button>
+                            </template>
+                            <template v-else>
+                                <button v-if="peutModifier" type="button" class="btn btn-outline-primary btn-sm" @click="editionMode = true">Modifier</button>
+                                <button v-if="peutSupprimer" type="button" class="btn btn-outline-danger btn-sm" @click="supprimerClient">Supprimer</button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-lg-8">
+                            <div class="card border shadow-sm mb-3">
+                                <div class="card-header bg-white border-bottom py-2">
+                                    <h5 class="mb-0 fw-semibold text-dark">Informations d'identité</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold text-secondary">Nom / Raison Sociale <span class="text-danger">*</span></label>
+                                            <input type="text" v-model="clientModel.nom" class="form-control form-control-sm" :disabled="!editionMode" required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold text-secondary">Prénom (facultatif)</label>
+                                            <input type="text" v-model="clientModel.prenom" class="form-control form-control-sm" :disabled="!editionMode">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold text-secondary">Type de client</label>
+                                            <select v-model="selectedTypeClientId" class="form-select form-select-sm" :disabled="!editionMode" @change="notifierTypeChange">
+                                                <option v-for="t in typeClients" :key="t.id" :value="t.id">{{ t.nom }}</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold text-secondary">Téléphone</label>
+                                            <input type="text" v-model="clientModel.telephone" class="form-control form-control-sm" :disabled="!editionMode">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold text-secondary">Email</label>
+                                            <input type="email" v-model="clientModel.email" class="form-control form-control-sm" :disabled="!editionMode">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold text-secondary">Fax</label>
+                                            <input type="text" v-model="clientModel.fax" class="form-control form-control-sm" :disabled="!editionMode">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card border shadow-sm">
+                                <div class="card-header bg-white border-bottom py-2">
+                                    <h5 class="mb-0 fw-semibold text-dark">Informations Douanières & Fiscales</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold text-secondary">NIF (Numéro d'Identification Fiscale)</label>
+                                            <input type="text" v-model="clientModel.nif" class="form-control form-control-sm" :disabled="!editionMode" placeholder="ex: 10 caractères si particulier, 13 si entreprise">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold text-secondary">STAT (Numéro Statistique)</label>
+                                            <input type="text" v-model="clientModel.stat" class="form-control form-control-sm" :disabled="!editionMode" placeholder="ex: 17 caractères">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-4">
+                            <div class="card border shadow-sm">
+                                <div class="card-header bg-white border-bottom py-2">
+                                    <h5 class="mb-0 fw-semibold text-dark">Adresse & Localisation</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row g-3">
+                                        <div class="col-12">
+                                            <label class="form-label small fw-semibold text-secondary">Adresse postale / physique</label>
+                                            <textarea v-model="clientModel.adresse" class="form-control form-control-sm" rows="3" :disabled="!editionMode"></textarea>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold text-secondary">Ville</label>
+                                            <input type="text" v-model="clientModel.ville" class="form-control form-control-sm" :disabled="!editionMode">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold text-secondary">Code Postal</label>
+                                            <input type="text" v-model="clientModel.cpClient" class="form-control form-control-sm" :disabled="!editionMode">
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label small fw-semibold text-secondary">Pays</label>
+                                            <select v-model="selectedPaysId" class="form-select form-select-sm" :disabled="!editionMode">
+                                                <option v-for="p in listePays" :key="p.id" :value="p.id">{{ p.nom }}</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</template>
+
 <style scoped>
-.text-xs {
-    font-size: 0.75rem;
-}
 </style>

@@ -36,7 +36,7 @@ public class ClientService {
     public PageResponse<Client> searchClients(String query, String nif, String stat, String fax,
                                               Integer codeClient, String nom, String prenom,
                                               String email, String adresse, String ville,
-                                              String codePostal, Integer paysId, Integer typeClientId,
+                                              String cpClient, Integer paysId, Integer typeClientId,
                                               int page, int size, String sortBy, String sortDir) {
         Sort sort = Sort.unsorted();
         if (sortBy != null && !sortBy.trim().isEmpty()) {
@@ -45,7 +45,7 @@ public class ClientService {
         Pageable pageable = PageRequest.of(page, size, sort);
         Page<Client> clientPage = clientRepository.searchClients(
                 query, nif, stat, fax, codeClient, nom, prenom,
-                email, adresse, ville, codePostal, paysId, typeClientId, pageable
+                email, adresse, ville, cpClient, paysId, typeClientId, pageable
         );
         return PageResponse.of(clientPage);
     }
@@ -71,7 +71,7 @@ public class ClientService {
         client.setTelephone(clientDetails.getTelephone());
         client.setAdresse(clientDetails.getAdresse());
         client.setVille(clientDetails.getVille());
-        client.setCodePostal(clientDetails.getCodePostal());
+        client.setCpClient(clientDetails.getCpClient());
         client.setPays(clientDetails.getPays());
         client.setTypeClient(clientDetails.getTypeClient());
         client.setNif(clientDetails.getNif());

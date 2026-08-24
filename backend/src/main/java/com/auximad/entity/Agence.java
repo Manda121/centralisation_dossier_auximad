@@ -30,8 +30,8 @@ public class Agence {
     @Column(nullable = false, length = 100)
     private String ville;
 
-    @Column(name = "code_postal", nullable = false, length = 10)
-    private String codePostal;
+    @Column(name = "cp_client", nullable = false, length = 10)
+    private String cpClient;
 
     @Column(name = "date_creation")
     private LocalDateTime dateCreation;

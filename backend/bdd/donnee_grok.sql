@@ -12,7 +12,7 @@ BEGIN;
 -- ============================================================
 
 -- Agences
-INSERT INTO agence (code, nom, adresse, ville, code_postal) VALUES
+INSERT INTO agence (code, nom, adresse, ville, cp_client) VALUES
 (100, 'AUXIMAD Antananarivo Siège', 'Lot II M 45 Bis Ambohijanahary', 'Antananarivo', '101'),
 (200, 'AUXIMAD Toamasina Port', 'Boulevard Joffre, Port de Toamasina', 'Toamasina', '501'),
 (300, 'AUXIMAD Ivato Aéroport', 'Aéroport International d''Ivato', 'Antananarivo', '105'),
@@ -115,7 +115,7 @@ INSERT INTO mode_acheminement (nom, description) VALUES
 ('Cabotage', 'Transport cabotage national');
 
 -- Catégories marchandise
-INSERT INTO categorie_marchandise (nom, description) VALUES
+INSERT INTO nature_marchandise (nom, description) VALUES
 ('Produits alimentaires', 'Denrées alimentaires et boissons'),
 ('Produits pharmaceutiques', 'Médicaments et dispositifs médicaux'),
 ('Produits chimiques', 'Produits chimiques et engrais'),
@@ -390,7 +390,7 @@ INSERT INTO station (nom, code, lieu, id_mode_transport, description) VALUES
 ('Aéroport de Maurice', 'MRU', 'Port Louis', 2, 'Aéroport Sir Seewoosagur Ramgoolam');
 
 -- Types document
-INSERT INTO type_document (nom, id_type_produit, id_mode_transport, id_categorie_marchandise, est_obligatoire, description) VALUES
+INSERT INTO type_document (nom, id_type_produit, id_mode_transport, id_nature_marchandise, est_obligatoire, description) VALUES
 ('Connaissement (BL)', NULL, 1, NULL, TRUE, 'Bill of Lading - Connaissement maritime'),
 ('Lettre de transport aérien (LTA/AWB)', NULL, 2, NULL, TRUE, 'Air Waybill'),
 ('Facture commerciale', NULL, NULL, NULL, TRUE, 'Facture proforma ou définitive'),
@@ -647,7 +647,7 @@ INSERT INTO expedition (
 -- 7. MARCHANDISES + CONTENEURS + GROUPAGES
 -- ============================================================
 
-INSERT INTO marchandise (id_dossier, id_unite_mesure, id_categorie_marchandise, marque, modele, description, poids, volume, quantite) VALUES
+INSERT INTO marchandise (id_dossier, id_unite_mesure, id_nature_marchandise, marque, modele, description, poids, volume, quantite) VALUES
 (1, 2, 12, 'Divers', 'Général', 'Marchandises générales diverses en conteneurs', 18500.00, 28.50, 1),
 (2, 2, 1, 'Divers alimentaires', 'N/A', 'Produits alimentaires divers', 12000.00, 22.00, 1),
 (3, 2, 12, 'Divers', 'Groupage', 'Marchandises groupées score', 8500.00, 15.30, 1),

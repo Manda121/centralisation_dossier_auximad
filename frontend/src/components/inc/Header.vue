@@ -77,7 +77,7 @@
         <!-- User Infos (Si connecté) -->
         <div v-if="isLoggedIn" class="card border-0 bg-light shadow-sm mb-3 p-3 rounded-3">
             <div class="d-flex flex-column">
-                {{ utilisateur }}
+                <!-- {{ utilisateur }} -->
                 <span class="fw-bold text-dark fs-6">{{ userInfo?.nomComplet || userInfo?.nomUtilisateur ||
                     'Utilisateur' }}</span>
                 <span v-if="userInfo?.role"

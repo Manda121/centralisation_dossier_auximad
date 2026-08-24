@@ -23,7 +23,7 @@ public interface ClientRepository extends JpaRepository<Client, Integer> {
             "AND (:email IS NULL OR :email = '' OR c.email ILIKE CONCAT('%', :email, '%')) " +
             "AND (:adresse IS NULL OR :adresse = '' OR c.adresse ILIKE CONCAT('%', :adresse, '%')) " +
             "AND (:ville IS NULL OR :ville = '' OR c.ville ILIKE CONCAT('%', :ville, '%')) " +
-            "AND (:codePostal IS NULL OR :codePostal = '' OR c.code_postal = :codePostal) " +
+            "AND (:cpClient IS NULL OR :cpClient = '' OR c.cp_client = :cpClient) " +
             "AND (:paysId IS NULL OR c.id_pays = :paysId) " +
             "AND (:typeClientId IS NULL OR c.id_type_client = :typeClientId)",
             countQuery = "SELECT count(*) FROM clients c WHERE " +
@@ -38,7 +38,7 @@ public interface ClientRepository extends JpaRepository<Client, Integer> {
             "AND (:email IS NULL OR :email = '' OR c.email ILIKE CONCAT('%', :email, '%')) " +
             "AND (:adresse IS NULL OR :adresse = '' OR c.adresse ILIKE CONCAT('%', :adresse, '%')) " +
             "AND (:ville IS NULL OR :ville = '' OR c.ville ILIKE CONCAT('%', :ville, '%')) " +
-            "AND (:codePostal IS NULL OR :codePostal = '' OR c.code_postal = :codePostal) " +
+            "AND (:cpClient IS NULL OR :cpClient = '' OR c.cp_client = :cpClient) " +
             "AND (:paysId IS NULL OR c.id_pays = :paysId) " +
             "AND (:typeClientId IS NULL OR c.id_type_client = :typeClientId)",
             nativeQuery = true)
@@ -53,7 +53,7 @@ public interface ClientRepository extends JpaRepository<Client, Integer> {
             @Param("email") String email,
             @Param("adresse") String adresse,
             @Param("ville") String ville,
-            @Param("codePostal") String codePostal,
+            @Param("cpClient") String cpClient,
             @Param("paysId") Integer paysId,
             @Param("typeClientId") Integer typeClientId,
             Pageable pageable

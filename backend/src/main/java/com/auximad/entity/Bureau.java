@@ -22,8 +22,8 @@ public class Bureau {
     @Column(length = 200)
     private String adresse;
 
-    @Column(name = "code_postal", length = 10)
-    private String codePostal;
+    @Column(name = "cp_client", length = 10)
+    private String cpClient;
 
     @Column(length = 100)
     private String ville;

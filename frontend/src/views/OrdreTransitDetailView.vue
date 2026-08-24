@@ -1,211 +1,3 @@
-<template>
-    <div class="d-flex min-vh-100 bg-light">
-        <Header />
-
-        <main class="flex-grow-1 p-4" style="margin-left: 280px;">
-            <div class="container-fluid">
-                <!-- Back Link -->
-                <div class="mb-4">
-                    <router-link to="/ordres-transit"
-                        class="text-decoration-none text-muted d-inline-flex align-items-center gap-2">
-                        &larr; Retour à la liste des ordres de transit
-                    </router-link>
-                </div>
-
-                <div v-if="loading" class="text-center py-5">
-                    <div class="spinner-border text-primary" role="status"></div>
-                </div>
-
-                <div v-else-if="erreur" class="alert alert-danger" role="alert">
-                    {{ erreur }}
-                </div>
-
-                <div v-else>
-                    <!-- Header Info / Actions -->
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <div>
-                            <div class="d-flex align-items-center gap-2 mb-2">
-                                <span class="badge bg-primary text-uppercase">{{ otModel.typeProduction?.nom }}</span>
-                                <span :class="obtenirBadgeClasse(otModel.statutOt?.nom)">
-                                    {{ otModel.statutOt?.nom }}
-                                </span>
-                            </div>
-                            <h1 class="h3 fw-bold text-primary mb-1">
-                                Ordre de Transit OT-{{ otModel.numeroOrdreTransit }}
-                            </h1>
-                            <p class="text-secondary mb-0">
-                                Créé le {{ formatarDate(otModel.dateCreation) }} par {{ otModel.utilisateur?.nom }}
-                                (Agence: {{ otModel.agence?.nom }})
-                            </p>
-                        </div>
-                        <div class="d-flex gap-2">
-                            <button v-if="peutValider && otModel.statutOt?.id !== 3" type="button"
-                                class="btn btn-success btn-sm d-flex align-items-center gap-1" @click="validerOT">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
-                                    viewBox="0 0 16 16">
-                                    <path
-                                        d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z" />
-                                </svg>
-                                Valider l'OT
-                            </button>
-                            <button v-if="peutSupprimer" type="button" class="btn btn-outline-danger btn-sm"
-                                @click="supprimerOT">Supprimer</button>
-                        </div>
-                    </div>
-
-                    <!-- Fiche detaillee -->
-                    <div class="row g-4">
-                        <!-- Col Gauche: Details Administratifs -->
-                        <div class="col-lg-8">
-                            <div class="card border-0 shadow-sm p-4 mb-4">
-                                <h5 class="fw-bold mb-4 border-bottom pb-2">Informations Générales</h5>
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label text-xs fw-semibold text-muted">CLIENT DONNEUR
-                                            D'ORDRE</label>
-                                        <div class="fw-semibold">{{ otModel.client?.nom }} {{ otModel.client?.prenom }}
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label text-xs fw-semibold text-muted">COMPTE DE
-                                            FACTURATION</label>
-                                        <div class="fw-semibold">{{ otModel.destinationFacture ?
-                                            `${otModel.destinationFacture.nom} ${otModel.destinationFacture.prenom ||
-                                            ''}` : 'Même que le client' }}</div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label text-xs fw-semibold text-muted">RÉGIME DOUANIER</label>
-                                        <div><span class="badge bg-light text-dark border">{{ otModel.typeRegime?.code
-                                                }}</span> - {{ otModel.typeRegime?.nom }}</div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label text-xs fw-semibold text-muted">N° DE COMMANDE</label>
-                                        <div class="fw-semibold">{{ otModel.numeroCommande || '—' }}</div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label text-xs fw-semibold text-muted">ASSURANCE</label>
-                                        <div class="fw-semibold">{{ otModel.estAssure ? 'Assuré d\'office' : 'Aucune' }}
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label text-xs fw-semibold text-muted">DÉPART /
-                                            EXPÉDITEUR</label>
-                                        <div class="fw-semibold">{{ otModel.expediteur?.nom }} {{
-                                            otModel.expediteur?.prenom }}</div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label text-xs fw-semibold text-muted">DESTINATAIRE
-                                            (CONSIGNEE)</label>
-                                        <div class="fw-semibold">{{ otModel.destinataire?.nom }} {{
-                                            otModel.destinataire?.prenom }}</div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label text-xs fw-semibold text-muted">BUREAU DE
-                                            DÉDOUANEMENT</label>
-                                        <div class="fw-semibold">{{ otModel.bureauDedouanement?.codeBureau }} - {{
-                                            otModel.bureauDedouanement?.nom }}</div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label text-xs fw-semibold text-muted">DESTINATION
-                                            FINALE</label>
-                                        <div class="fw-semibold">{{ otModel.destinationFinale || '—' }}</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Contrat de transport -->
-                            <div class="card border-0 shadow-sm p-4 mb-4">
-                                <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
-                                    <h5 class="fw-bold mb-0">Contrat de transport (B/L ou LTA)</h5>
-                                </div>
-                                <div v-if="!contrat" class="text-xs text-muted">
-                                    Aucun contrat de transport n'est associé à cet ordre de transit.
-                                </div>
-                                <div v-else class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label text-xs fw-semibold text-muted">NUMÉRO B/L OU
-                                            LTA</label>
-                                        <div class="fw-bold text-primary">{{ contrat.numero || 'Non spécifié' }}</div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label text-xs fw-semibold text-muted">COMPAGNIE /
-                                            PORTEUR</label>
-                                        <div class="fw-semibold">{{ contrat.compagnie?.nom || '—' }}</div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label text-xs fw-semibold text-muted">NAVIRE</label>
-                                        <div class="fw-semibold">{{ contrat.navire?.nom || '—' }}</div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label text-xs fw-semibold text-muted">N° DU VOL</label>
-                                        <div class="fw-semibold">{{ contrat.n_vol || contrat.numeroVol || '—' }}</div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label text-xs fw-semibold text-muted">LIEU D'ÉMISSION</label>
-                                        <div class="fw-semibold">{{ contrat.lieuEmission || '—' }}</div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label text-xs fw-semibold text-muted">DATE PRÉVUE
-                                            DÉPART/ARRIVÉE</label>
-                                        <div class="fw-semibold">{{ formatarDate(contrat.datePrevue) }}</div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label text-xs fw-semibold text-muted">DATE ARRIVÉE
-                                            CRITIQUE</label>
-                                        <div class="fw-semibold">{{ formatarDate(contrat.dateArrivee) }}</div>
-                                    </div>
-                                    <div class="col-md-12">
-                                        <label class="form-label text-xs fw-semibold text-muted">NOTIFY PARTY</label>
-                                        <div class="fw-semibold bg-light p-2 rounded text-xs">{{ contrat.notify || '—'
-                                            }}</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Col Droite: Instructions & Marchandises Summary -->
-                        <div class="col-lg-4">
-                            <div class="card border-0 shadow-sm p-4 mb-4">
-                                <h5 class="fw-bold mb-3 border-bottom pb-2">Instructions Spéciales</h5>
-                                <div class="instructions-list mb-3" style="max-height: 200px; overflow-y: auto;">
-                                    <div v-if="instructions.length === 0" class="text-xs text-muted">
-                                        Aucune instruction saisie
-                                    </div>
-                                    <div v-for="inst in instructions" :key="inst.id" class="border-bottom py-2 text-xs">
-                                        <p class="mb-1 text-dark">{{ inst.instruction }}</p>
-                                        <span class="text-muted text-xxs">Ajouté le {{ formatarDate(inst.dateCreation)
-                                            }}</span>
-                                    </div>
-                                </div>
-                                <div class="input-group input-group-sm">
-                                    <input type="text" v-model="nouvelleInstruction" class="form-control"
-                                        placeholder="Ajouter une instruction...">
-                                    <button class="btn btn-primary" type="button"
-                                        @click="ajouterInstruction">Ajouter</button>
-                                </div>
-                            </div>
-
-                            <!-- Marchandises (Placeholder/Lien vers CRUD Phase 5) -->
-                            <div class="card border-0 shadow-sm p-4">
-                                <h5 class="fw-bold mb-3 border-bottom pb-2">Marchandises associées</h5>
-                                <p class="text-muted text-xs">Les marchandises liées à cet ordre de transit sont gérées
-                                    dans le module Marchandises.</p>
-
-                                <div class="d-grid gap-2">
-                                    <router-link :to="`/marchandises?otId=${otModel.id}`"
-                                        class="btn btn-outline-primary btn-sm btn-block text-xs">
-                                        Consulter les marchandises &rarr;
-                                    </router-link>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
-</template>
-
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -242,7 +34,7 @@ async function chargerTout(id) {
     try {
         const [otData, contratData, instList] = await Promise.all([
             OrdreTransitService.getOrdreTransitById(id),
-            OrdreTransitService.getContratByOtId(id).catch(e => null), // peut être 204 no content
+            OrdreTransitService.getContratByOtId(id).catch(e => null),
             OrdreTransitService.getInstructionsByOtId(id)
         ])
         otModel.value = otData
@@ -305,27 +97,182 @@ function formatarDate(dt) {
         minute: '2-digit'
     })
 }
-
-function obtenirBadgeClasse(status) {
-    if (!status) return 'badge bg-warning-subtle text-warning border border-warning-subtle'
-    switch (status.toLowerCase()) {
-        case 'validé':
-        case 'valide':
-            return 'badge bg-success-subtle text-success border border-success-subtle'
-        case 'brouillon':
-            return 'badge bg-secondary-subtle text-secondary border border-secondary-subtle'
-        default:
-            return 'badge bg-warning-subtle text-warning border border-warning-subtle'
-    }
-}
 </script>
 
-<style scoped>
-.text-xs {
-    font-size: 0.75rem;
-}
+<template>
+    <div class="d-flex min-vh-100 bg-light">
+        <Header />
 
-.text-xxs {
-    font-size: 0.65rem;
-}
+        <main class="flex-grow-1 p-4" style="margin-left: 280px;">
+            <div class="container-fluid">
+                <div class="mb-3">
+                    <router-link to="/ordres-transit" class="text-decoration-none text-secondary">
+                        &larr; Retour à la liste des ordres de transit
+                    </router-link>
+                </div>
+
+                <div v-if="loading" class="text-center py-5">
+                    <div class="spinner-border text-secondary" role="status"></div>
+                </div>
+
+                <div v-else-if="erreur" class="alert alert-danger" role="alert">
+                    {{ erreur }}
+                </div>
+
+                <div v-else>
+                    <div class="d-flex justify-content-between align-items-start mb-4">
+                        <div>
+                            <h1 class="h4 fw-bold text-dark mb-1">
+                                Ordre de Transit: {{ otModel.numeroOrdreTransit }}
+                            </h1>
+                            <p class="text-secondary mb-0 small">
+                                Créé le {{ formatarDate(otModel.dateCreation) }} par {{ otModel.utilisateur?.nom }}
+                                (Agence: {{ otModel.agence?.nom }})
+                            </p>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button v-if="peutValider && otModel.statutOt?.id !== 3" type="button"
+                                class="btn btn-success btn-sm" @click="validerOT">
+                                Valider l'OT
+                            </button>
+                            <button v-if="peutSupprimer" type="button" class="btn btn-outline-danger btn-sm" @click="supprimerOT">Supprimer</button>
+                        </div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-lg-8">
+                            <div class="card border shadow-sm mb-3">
+                                <div class="card-header bg-white border-bottom py-2">
+                                    <h5 class="mb-0 fw-semibold text-dark">Informations Générales</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row g-3 small">
+                                        <div class="col-md-6">
+                                            <div class="text-secondary">CLIENT DONNEUR D'ORDRE</div>
+                                            <div class="fw-semibold">{{ otModel.client?.nom }} {{ otModel.client?.prenom }}</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="text-secondary">COMPTE DE FACTURATION</div>
+                                            <div class="fw-semibold">{{ otModel.destinationFacture ? `${otModel.destinationFacture.nom} ${otModel.destinationFacture.prenom || ''}` : 'Même que le client' }}</div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="text-secondary">RÉGIME DOUANIER</div>
+                                            <div class="fw-semibold">{{ otModel.typeRegime?.code }} - {{ otModel.typeRegime?.nom }}</div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="text-secondary">N° DE COMMANDE</div>
+                                            <div class="fw-semibold">{{ otModel.numeroCommande || '—' }}</div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="text-secondary">ASSURANCE</div>
+                                            <div class="fw-semibold">{{ otModel.estAssure ? 'Assuré d\'office' : 'Aucune' }}</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="text-secondary">DÉPART / EXPÉDITEUR</div>
+                                            <div class="fw-semibold">{{ otModel.expediteur?.nom }} {{ otModel.expediteur?.prenom }}</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="text-secondary">DESTINATAIRE (CONSIGNEE)</div>
+                                            <div class="fw-semibold">{{ otModel.destinataire?.nom }} {{ otModel.destinataire?.prenom }}</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="text-secondary">BUREAU DE DÉDOUANEMENT</div>
+                                            <div class="fw-semibold">{{ otModel.bureauDedouanement?.codeBureau }} - {{ otModel.bureauDedouanement?.nom }}</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="text-secondary">DESTINATION FINALE</div>
+                                            <div class="fw-semibold">{{ otModel.destinationFinale || '—' }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card border shadow-sm">
+                                <div class="card-header bg-white border-bottom py-2">
+                                    <h5 class="mb-0 fw-semibold text-dark">Contrat de transport (B/L ou LTA)</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div v-if="!contrat" class="text-secondary small">
+                                        Aucun contrat de transport n'est associé à cet ordre de transit.
+                                    </div>
+                                    <div v-else class="row g-3 small">
+                                        <div class="col-md-6">
+                                            <div class="text-secondary">NUMÉRO B/L OU LTA</div>
+                                            <div class="fw-bold text-dark">{{ contrat.numero || 'Non spécifié' }}</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="text-secondary">COMPAGNIE / PORTEUR</div>
+                                            <div class="fw-semibold">{{ contrat.compagnie?.nom || '—' }}</div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="text-secondary">NAVIRE</div>
+                                            <div class="fw-semibold">{{ contrat.navire?.nom || '—' }}</div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="text-secondary">N° DU VOL</div>
+                                            <div class="fw-semibold">{{ contrat.n_vol || contrat.numeroVol || '—' }}</div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="text-secondary">LIEU D'ÉMISSION</div>
+                                            <div class="fw-semibold">{{ contrat.lieuEmission || '—' }}</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="text-secondary">DATE PRÉVUE DÉPART/ARRIVÉE</div>
+                                            <div class="fw-semibold">{{ formatarDate(contrat.datePrevue) }}</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="text-secondary">DATE ARRIVÉE CRITIQUE</div>
+                                            <div class="fw-semibold">{{ formatarDate(contrat.dateArrivee) }}</div>
+                                        </div>
+                                        <div class="col-12">
+                                            <div class="text-secondary">NOTIFY PARTY</div>
+                                            <div class="fw-semibold">{{ contrat.notify || '—' }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-4">
+                            <div class="card border shadow-sm mb-3">
+                                <div class="card-header bg-white border-bottom py-2">
+                                    <h5 class="mb-0 fw-semibold text-dark">Instructions Spéciales</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3" style="max-height: 200px; overflow-y: auto;">
+                                        <div v-if="instructions.length === 0" class="text-secondary small">
+                                            Aucune instruction saisie
+                                        </div>
+                                        <div v-for="inst in instructions" :key="inst.id" class="border-bottom py-2 small">
+                                            <p class="mb-1">{{ inst.instruction }}</p>
+                                            <span class="text-secondary">Ajouté le {{ formatarDate(inst.dateCreation) }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" v-model="nouvelleInstruction" class="form-control" placeholder="Ajouter une instruction...">
+                                        <button class="btn btn-primary" type="button" @click="ajouterInstruction">Ajouter</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card border shadow-sm">
+                                <div class="card-header bg-white border-bottom py-2">
+                                    <h5 class="mb-0 fw-semibold text-dark">Marchandises associées</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p class="text-secondary small mb-2">Les marchandises liées à cet ordre de transit sont gérées dans le module Marchandises.</p>
+                                    <router-link :to="`/marchandises?otId=${otModel.id}`" class="btn btn-outline-primary btn-sm w-100">
+                                        Consulter les marchandises &rarr;
+                                    </router-link>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</template>
+
+<style scoped>
 </style>

@@ -16,7 +16,7 @@ CREATE TABLE agence(
     nom VARCHAR(100) ,
     adresse VARCHAR(200) ,
     ville VARCHAR(100) ,
-    code_postal VARCHAR(10) ,
+    cp_client VARCHAR(10) ,
     date_creation TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -186,7 +186,7 @@ CREATE TABLE bureau(
     id SERIAL PRIMARY KEY,
     nom VARCHAR(100) ,
     adresse VARCHAR(200) ,
-    code_postal VARCHAR(10) ,
+    cp_client VARCHAR(10) ,
     ville VARCHAR(100) ,
     description TEXT,
     code_bureau VARCHAR(10)  UNIQUE,
@@ -203,7 +203,7 @@ CREATE TABLE clients(
     telephone VARCHAR(15),
     adresse VARCHAR(200),
     ville VARCHAR(100),
-    code_postal VARCHAR(10),
+    cp_client VARCHAR(10),
     id_pays INTEGER REFERENCES pays(id),
 
     id_type_client INTEGER  REFERENCES type_client(id),
