@@ -42,6 +42,8 @@ class AuthService {
                 localStorage.setItem('auximad_user_info', JSON.stringify({
                     nomUtilisateur: response.data.nomUtilisateur,
                     nomComplet: response.data.nomComplet,
+                    nom: response.data.nom,
+                    prenom: response.data.prenom,
                     role: response.data.role,
                     agence: response.data.agence,
                     codeAgence: response.data.codeAgence,

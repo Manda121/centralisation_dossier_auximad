@@ -58,7 +58,6 @@ class UtilisateurService {
 
         const utilisateur = new Utilisateur()
         utilisateur.chargerDonnees(userInfo)
-
         return utilisateur
     }
 

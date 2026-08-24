@@ -166,6 +166,7 @@ import Dossier from '../models/Dossier'
 import DossierService from '../services/DossierService'
 import ClientService from '../services/ClientService'
 import OrdreTransitService from '../services/OrdreTransitService'
+import UtilisateurService from '@/services/UtilisateurService.js'
 
 const router = useRouter()
 const enCours = ref(false)
@@ -179,9 +180,12 @@ const phases = ref([])
 const statuts = ref([])
 const pays = ref([])
 const incontermes = ref([])
+const utilisateur = ref();
 
 onMounted(async () => {
     try {
+        utilisateur.value = UtilisateurService.obtenirUtilisateurConnecte()
+        // console.log('user: ', utilisateur.value)
         const [cls, prods, ph, st, inc] = await Promise.all([
             ClientService.searchClients(0, 1000, 'nom', 'asc', {}),
             OrdreTransitService.getAllTypeProductions(),
@@ -209,6 +213,7 @@ async function preRemplirDepuisOt() {
             const ot = result.content[0]
             otCharge.value = ot
             // Pré-remplir les champs du dossier depuis l'OT
+            
             dossier.value.client = ot.client
             dossier.value.typeProduction = ot.typeProduction
             dossier.value.ordreTransit = ot
@@ -228,6 +233,9 @@ async function creerDossier() {
     }
     enCours.value = true
     try {
+        dossier.value.agence = utilisateur.value.idAgence;
+        console.log('agence dossier: ', dossier.value.agence);
+        console.log('agence utilisateur: ', utilisateur.value.agence);
         const result = await DossierService.createDossier(dossier.value.toJSON())
         alert(`Dossier ${result.numeroDossier} créé avec succès.`)
         router.push(`/dossiers/${result.id}`)

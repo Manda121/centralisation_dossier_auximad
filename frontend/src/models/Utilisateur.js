@@ -11,7 +11,8 @@ export class Utilisateur {
         this.email = data.email || ''
         this.motDePasse = data.motDePasse || ''
         this.role = data.role || null
-        this.agence = data.agence || null
+        this.agence = data.agence || null 
+        this.agenceobj = data.agenceobj || null
         this.dateCreation = data.dateCreation || null
         this.dateModification = data.dateModification || null
     }
@@ -111,6 +112,7 @@ export class Utilisateur {
      * @param {object} data - Données à charger
      */
     chargerDonnees(data) {
+        console.log(data)
         if (data.id) this.id = data.id
         if (data.nomUtilisateur) this.nomUtilisateur = data.nomUtilisateur
         if (data.nom) this.nom = data.nom
@@ -119,6 +121,7 @@ export class Utilisateur {
         if (data.motDePasse) this.motDePasse = data.motDePasse
         if (data.role) this.role = data.role
         if (data.agence) this.agence = data.agence
+        if (data.idAgence) this.idAgence = data.idAgence
         if (data.dateCreation) this.dateCreation = data.dateCreation
         if (data.dateModification) this.dateModification = data.dateModification
     }
@@ -128,6 +131,7 @@ export class Utilisateur {
      * @returns {object}
      */
     toJSON() {
+        // console.log(this)
         return {
             id: this.id,
             nomUtilisateur: this.nomUtilisateur,
@@ -137,6 +141,7 @@ export class Utilisateur {
             motDePasse: this.motDePasse,
             role: this.role,
             agence: this.agence,
+            idAgence: this.idAgence,
             dateCreation: this.dateCreation,
             dateModification: this.dateModification
         }

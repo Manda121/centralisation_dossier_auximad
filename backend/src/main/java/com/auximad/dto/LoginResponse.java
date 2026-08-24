@@ -15,6 +15,8 @@ public class LoginResponse {
     private Long expiration;
     private String nomUtilisateur;
     private String nomComplet;
+    private String nom;
+    private String prenom;
     private String role;
     private String agence;
     private Integer codeAgence;

@@ -30,6 +30,7 @@ export class Dossier {
 
     valider() {
         const erreurs = []
+        if (!this.agence) erreurs.push('L\'agence est requise.')
         if (!this.client) erreurs.push('Le client est requis.')
         if (!this.typeProduction) erreurs.push('Le type de production est requis.')
         if (!this.phaseDossier) erreurs.push('La phase du dossier est requise.')
@@ -40,6 +41,8 @@ export class Dossier {
         return {
             id: this.id,
             client: this.client ? { id: this.client.id } : null,
+            agence: this.agence ? { id: this.agence.id } : null,           // ✅ Ajouté
+            utilisateur: this.utilisateur ? { id: this.utilisateur.id } : null,
             typeProduction: this.typeProduction ? { id: this.typeProduction.id } : null,
             ordreTransit: this.ordreTransit ? { id: this.ordreTransit.id } : null,
             estGroupage: this.estGroupage,
