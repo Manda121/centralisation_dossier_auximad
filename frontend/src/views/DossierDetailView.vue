@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Header from '../components/inc/Header.vue'
+import PageSkeleton from '../components/inc/PageSkeleton.vue'
 import DossierService from '../services/DossierService'
 import PermissionService, { PORTEE_PROPRE_SUPPRESSION, ACTION_OT } from '../utils/permission.service'
 
@@ -54,9 +55,7 @@ function formatarDate(dt) {
                     <router-link to="/dossiers" class="text-decoration-none text-secondary">&larr; Retour aux dossiers</router-link>
                 </div>
 
-                <div v-if="loading" class="text-center py-5">
-                    <div class="spinner-border text-secondary"></div>
-                </div>
+                <PageSkeleton v-if="loading" variant="detail" :with-layout="false" />
                 <div v-else-if="erreur" class="alert alert-danger">{{ erreur }}</div>
                 <div v-else>
                     <div class="d-flex justify-content-between align-items-start mb-4">

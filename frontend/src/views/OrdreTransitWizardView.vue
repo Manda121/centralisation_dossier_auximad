@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import Header from '../components/inc/Header.vue'
+import PageSkeleton from '../components/inc/PageSkeleton.vue'
 import OrdreTransit from '../models/OrdreTransit'
 import OrdreTransitService from '../services/OrdreTransitService'
 import ClientService from '../services/ClientService'
@@ -9,6 +10,7 @@ import ClientService from '../services/ClientService'
 const router = useRouter()
 const currentStep = ref(1)
 const sauvegardeEnCours = ref(false)
+const chargement = ref(true)
 
 const otModel = ref(new OrdreTransit())
 const contratModel = ref({
@@ -59,6 +61,8 @@ onMounted(async () => {
         compagnies.value = comps
     } catch (e) {
         console.error('Erreur chargement wizard', e)
+    } finally {
+        chargement.value = false
     }
 })
 
@@ -158,6 +162,9 @@ async function creerOrdreTransit() {
                     </router-link>
                 </div>
 
+                <PageSkeleton v-if="chargement" variant="form" :with-layout="false" />
+
+                <template v-else>
                 <div class="card border shadow-sm mb-3">
                     <div class="card-body p-3">
                         <div class="d-flex justify-content-between align-items-center">
@@ -419,6 +426,7 @@ async function creerOrdreTransit() {
                         </div>
                     </div>
                 </div>
+                </template>
             </div>
         </main>
     </div>

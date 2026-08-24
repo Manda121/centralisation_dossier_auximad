@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import Header from '../components/inc/Header.vue'
+import Skeleton from '../components/inc/Skeleton.vue'
 import Marchandise from '../models/Marchandise'
 import MarchandiseService from '../services/MarchandiseService'
 import OrdreTransitService from '../services/OrdreTransitService'
@@ -178,6 +179,7 @@ async function supprimerMarchandise(m) {
                                         placeholder="Saisissez un numéro d'OT (ex: 10001)..."
                                         @keyup.enter="rechercherOt">
                                     <button class="btn btn-primary" type="button" @click="rechercherOt" :disabled="rechercheLoading">
+                                        <span v-if="rechercheLoading" class="spinner-border spinner-border-sm me-1" role="status"></span>
                                         Rechercher
                                     </button>
                                 </div>
@@ -202,8 +204,16 @@ async function supprimerMarchandise(m) {
                         </button>
                     </div>
                     <div class="card-body p-0">
-                        <div v-if="loadingMarchandises" class="text-center py-4">
-                            <div class="spinner-border text-secondary" role="status"></div>
+                        <div v-if="loadingMarchandises" class="p-3">
+                            <div v-for="n in 5" :key="'msk-' + n" class="d-flex gap-3 align-items-center py-2 border-bottom">
+                                <Skeleton width="28%" height="12px" />
+                                <Skeleton width="14%" height="12px" />
+                                <Skeleton width="18%" height="12px" />
+                                <Skeleton width="8%" height="12px" />
+                                <Skeleton width="8%" height="12px" />
+                                <Skeleton width="8%" height="12px" />
+                                <Skeleton width="10%" height="12px" />
+                            </div>
                         </div>
 
                         <div v-else-if="marchandises.length === 0" class="text-center py-5 text-secondary small">
@@ -297,7 +307,10 @@ async function supprimerMarchandise(m) {
                             </div>
                             <div class="d-flex justify-content-end gap-2 mt-4">
                                 <button type="button" class="btn btn-secondary btn-sm" @click="fermerModal">Annuler</button>
-                                <button type="submit" class="btn btn-primary btn-sm" :disabled="formEnCours">Enregistrer</button>
+                                <button type="submit" class="btn btn-primary btn-sm" :disabled="formEnCours">
+                                    <span v-if="formEnCours" class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                    Enregistrer
+                                </button>
                             </div>
                         </form>
                     </div>

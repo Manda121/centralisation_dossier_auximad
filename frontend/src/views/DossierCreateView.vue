@@ -9,7 +9,9 @@
                         dossiers</router-link>
                 </div>
 
-                <div class="card border-0 shadow-sm p-4 mb-4">
+                <PageSkeleton v-if="chargement" variant="form" :with-layout="false" />
+
+                <div v-else class="card border-0 shadow-sm p-4 mb-4">
                     <h1 class="h4 fw-bold text-primary mb-4">Créer un nouveau Dossier</h1>
 
                     <!-- Pré-remplissage depuis un OT validé -->
@@ -22,8 +24,10 @@
                             <label class="form-label text-xs fw-semibold">N° Ordre de Transit (pour pré-remplir)</label>
                             <div class="input-group input-group-sm">
                                 <input type="number" v-model="rechercheOt" class="form-control" placeholder="ex: 10001">
-                                <button class="btn btn-outline-secondary" @click="preRemplirDepuisOt">Charger
-                                    OT</button>
+                                <button class="btn btn-outline-secondary" :disabled="chargementOt" @click="preRemplirDepuisOt">
+                                    <span v-if="chargementOt" class="spinner-border spinner-border-sm me-1"></span>
+                                    Charger OT
+                                </button>
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -162,6 +166,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import Header from '../components/inc/Header.vue'
+import PageSkeleton from '../components/inc/PageSkeleton.vue'
 import Dossier from '../models/Dossier'
 import DossierService from '../services/DossierService'
 import ClientService from '../services/ClientService'
@@ -170,6 +175,8 @@ import UtilisateurService from '@/services/UtilisateurService.js'
 
 const router = useRouter()
 const enCours = ref(false)
+const chargement = ref(true)
+const chargementOt = ref(false)
 const rechercheOt = ref('')
 const otCharge = ref(null)
 
@@ -202,11 +209,14 @@ onMounted(async () => {
         pays.value = ps || []
     } catch (e) {
         console.error('Erreur chargement formulaire dossier', e)
+    } finally {
+        chargement.value = false
     }
 })
 
 async function preRemplirDepuisOt() {
     if (!rechercheOt.value) return
+    chargementOt.value = true
     try {
         const result = await OrdreTransitService.searchOrdreTransits(0, 1, 'date_creation', 'desc', {
             numero: rechercheOt.value
@@ -234,6 +244,8 @@ async function preRemplirDepuisOt() {
         }
     } catch (e) {
         alert("Erreur technique lors de la recherche de l'OT.")
+    } finally {
+        chargementOt.value = false
     }
 }
 

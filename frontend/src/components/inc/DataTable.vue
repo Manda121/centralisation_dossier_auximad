@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import Skeleton from './Skeleton.vue'
 
 const props = defineProps({
     columns: {
@@ -35,7 +36,7 @@ const props = defineProps({
 const emit = defineEmits(['row-click'])
 
 const data = ref([])
-const loading = ref(false)
+const loading = ref(true)
 const currentPage = ref(0)
 const totalElements = ref(0)
 const totalPages = ref(0)
@@ -244,13 +245,14 @@ defineExpose({ refresh })
                     </tr>
                 </thead>
                 <tbody class="datatable__tbody">
-                    <!-- Loading -->
-                    <tr v-if="loading">
-                        <td :colspan="columns.length" class="datatable__empty">
-                            <span class="datatable__spinner"></span>
-                            Chargement...
-                        </td>
-                    </tr>
+                    <!-- Loading skeleton -->
+                    <template v-if="loading">
+                        <tr v-for="n in 8" :key="'sk-' + n" class="datatable__row datatable__row--skeleton">
+                            <td v-for="col in columns" :key="col.key" class="datatable__td">
+                                <Skeleton :width="n % 2 === 0 ? '72%' : '88%'" height="12px" />
+                            </td>
+                        </tr>
+                    </template>
 
                     <!-- Empty -->
                     <tr v-else-if="data.length === 0">

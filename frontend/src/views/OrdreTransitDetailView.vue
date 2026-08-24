@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Header from '../components/inc/Header.vue'
+import PageSkeleton from '../components/inc/PageSkeleton.vue'
 import OrdreTransitService from '../services/OrdreTransitService'
 import PermissionService, { PORTEE_PROPRE_VALIDATION, PORTEE_PROPRE_SUPPRESSION, ACTION_OT } from '../utils/permission.service'
 
@@ -111,9 +112,7 @@ function formatarDate(dt) {
                     </router-link>
                 </div>
 
-                <div v-if="loading" class="text-center py-5">
-                    <div class="spinner-border text-secondary" role="status"></div>
-                </div>
+                <PageSkeleton v-if="loading" variant="detail" :with-layout="false" />
 
                 <div v-else-if="erreur" class="alert alert-danger" role="alert">
                     {{ erreur }}
