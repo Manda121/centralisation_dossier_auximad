@@ -2,6 +2,8 @@ package com.auximad.controller;
 
 import com.auximad.dto.PageResponse;
 import com.auximad.entity.*;
+import com.auximad.security.AutorisationHelper;
+import com.auximad.security.JwtSecurityContext;
 import com.auximad.service.DossierService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,7 +25,7 @@ public class DossierController {
     }
 
     @GetMapping
-    @Operation(summary = "Rechercher les dossiers (FTS + filtres)")
+    @Operation(summary = "Rechercher les dossiers (FTS + filtres + filtre agence automatique)")
     public ResponseEntity<PageResponse<Dossier>> search(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "15") int size,
@@ -37,11 +39,21 @@ public class DossierController {
             @RequestParam(required = false) Integer otId,
             @RequestParam(required = false) Boolean estGroupage,
             @RequestParam(required = false) String dateMin,
-            @RequestParam(required = false) String dateMax
+            @RequestParam(required = false) String dateMax,
+            @RequestParam(required = false) String typeDossier  // "MERE", "SOUS_DOSSIER", ou null = tous
     ) {
+        // Filtre automatique par agence si l'utilisateur n'a pas la portée TOUTES
+        Integer agenceId = null;
+        boolean peutVoirTout = JwtSecurityContext.aPermission(
+                AutorisationHelper.PORTEE_TOUTES_LECTURE, AutorisationHelper.ACTION_OT);
+        if (!peutVoirTout) {
+            agenceId = JwtSecurityContext.getIdAgence();
+        }
+
         return ResponseEntity.ok(dossierService.searchDossiers(
                 page, size, sortBy, sortDir, query, phaseId, statutId,
-                clientId, typeProductionId, otId, estGroupage, dateMin, dateMax
+                clientId, typeProductionId, otId, estGroupage, dateMin, dateMax,
+                agenceId, typeDossier
         ));
     }
 

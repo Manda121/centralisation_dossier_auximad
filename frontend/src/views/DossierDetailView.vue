@@ -4,7 +4,11 @@ import { useRoute, useRouter } from 'vue-router'
 import Header from '../components/inc/Header.vue'
 import PageSkeleton from '../components/inc/PageSkeleton.vue'
 import DossierService from '../services/DossierService'
-import PermissionService, { PORTEE_PROPRE_SUPPRESSION, ACTION_OT } from '../utils/permission.service'
+import InterAgenceService from '../services/InterAgenceService'
+import PermissionService, {
+    PORTEE_PROPRE_SUPPRESSION, PORTEE_PROPRE_ECRITURE,
+    ACTION_OT, ACTION_SOUS_DOSSIER
+} from '../utils/permission.service'
 
 const route = useRoute()
 const router = useRouter()
@@ -12,12 +16,28 @@ const router = useRouter()
 const loading = ref(true)
 const erreur = ref(null)
 const dossier = ref({})
+const dossierMereLien = ref(null)   // lien interagence si ce dossier est un sous-dossier
+const sousDossiers = ref([])         // sous-dossiers de ce dossier
 
 const peutSupprimer = computed(() => PermissionService.verifierPermission(PORTEE_PROPRE_SUPPRESSION, ACTION_OT))
+const peutCreerSousDossier = computed(() => PermissionService.verifierPermission(PORTEE_PROPRE_ECRITURE, ACTION_SOUS_DOSSIER))
 
 onMounted(async () => {
     try {
         dossier.value = await DossierService.getDossierById(route.params.id)
+
+        // Charger les données interagences en parallèle
+        const [merenLien, enfants] = await Promise.allSettled([
+            InterAgenceService.getDossierMere(route.params.id),
+            InterAgenceService.getSousDossiers(route.params.id)
+        ])
+
+        if (merenLien.status === 'fulfilled') {
+            dossierMereLien.value = merenLien.value
+        }
+        if (enfants.status === 'fulfilled') {
+            sousDossiers.value = enfants.value
+        }
     } catch (e) {
         erreur.value = "Impossible de récupérer ce dossier."
     } finally {
@@ -150,6 +170,30 @@ function formatarDate(dt) {
                         </div>
 
                         <div class="col-lg-4">
+                            <!-- Dossier mère (si sous-dossier) -->
+                            <div v-if="dossierMereLien" class="card border-warning shadow-sm mb-3">
+                                <div class="card-header bg-warning-subtle border-bottom py-2 d-flex align-items-center gap-2">
+                                    <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14" class="text-warning-emphasis">
+                                        <path d="M1 0 0 1l2.2 3.081a1 1 0 0 0 .815.419h.07a1 1 0 0 1 .708.293l2.675 2.675-2.617 2.654A3.003 3.003 0 0 0 0 13a3 3 0 1 0 5.878-.851l2.654-2.617.968.968-.305.914a1 1 0 0 0 .242 1.023l3.27 3.27a.997.997 0 0 0 1.414 0l1.586-1.586a.997.997 0 0 0 0-1.414l-3.27-3.27a1 1 0 0 0-1.023-.242L10.5 9.5l-.96-.96 2.68-2.643A3.005 3.005 0 0 0 16 3q0-.405-.102-.777l-2.14 2.141L12 4l-.364-1.757L13.777.102a3 3 0 0 0-3.675 3.68L7.462 6.46 4.793 3.793a1 1 0 0 1-.293-.707v-.071a1 1 0 0 0-.419-.814z"/>
+                                    </svg>
+                                    <span class="fw-semibold text-warning-emphasis small">Sous-dossier de</span>
+                                </div>
+                                <div class="card-body small">
+                                    <div class="fw-bold text-dark mb-1">
+                                        <router-link :to="`/dossiers/${dossierMereLien.dossierMere.id}`" class="text-decoration-none text-primary">
+                                            {{ dossierMereLien.dossierMere.numeroDossier }}
+                                        </router-link>
+                                    </div>
+                                    <div v-if="dossierMereLien.motif" class="text-secondary mt-1">
+                                        <strong>Motif :</strong> {{ dossierMereLien.motif }}
+                                    </div>
+                                    <div class="text-secondary mt-1">
+                                        <strong>Agence mère :</strong> {{ dossierMereLien.dossierMere.agence?.nom || '—' }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- OT lié -->
                             <div class="card border shadow-sm mb-3">
                                 <div class="card-header bg-white border-bottom py-2">
                                     <h5 class="mb-0 fw-semibold text-dark">Ordre de Transit lié</h5>
@@ -165,6 +209,39 @@ function formatarDate(dt) {
                                 </div>
                             </div>
 
+                            <!-- Sous-dossiers inter-agences -->
+                            <div class="card border shadow-sm mb-3">
+                                <div class="card-header bg-white border-bottom py-2 d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0 fw-semibold text-dark">Sous-Dossiers</h5>
+                                    <router-link
+                                        v-if="peutCreerSousDossier && !dossierMereLien"
+                                        :to="`/dossiers/${dossier.id}/sous-dossier/creer`"
+                                        class="btn btn-outline-primary btn-sm"
+                                    >
+                                        + Inter-agence
+                                    </router-link>
+                                </div>
+                                <div class="card-body small">
+                                    <div v-if="sousDossiers.length === 0" class="text-secondary">Aucun sous-dossier.</div>
+                                    <div v-else class="d-flex flex-column gap-2">
+                                        <div v-for="lien in sousDossiers" :key="lien.id"
+                                             class="d-flex justify-content-between align-items-center border rounded px-2 py-2">
+                                            <div>
+                                                <router-link :to="`/dossiers/${lien.sousDossier.id}`"
+                                                    class="fw-semibold text-primary text-decoration-none">
+                                                    {{ lien.sousDossier.numeroDossier }}
+                                                </router-link>
+                                                <div class="text-secondary" style="font-size:0.75rem">
+                                                    {{ lien.sousDossier.agence?.nom || '—' }}
+                                                    <span v-if="lien.motif"> — {{ lien.motif }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Marchandises -->
                             <div class="card border shadow-sm">
                                 <div class="card-header bg-white border-bottom py-2">
                                     <h5 class="mb-0 fw-semibold text-dark">Marchandises</h5>

@@ -57,16 +57,37 @@
         Marchandises
       </router-link>
 
-      <router-link
-        to="/dossiers"
-        class="sidebar__nav-link"
-        active-class="sidebar__nav-link--active"
-      >
-        <svg viewBox="0 0 16 16" fill="currentColor" class="sidebar__icon">
-          <path d="M.54 3.87.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.826a2 2 0 0 1-1.991-1.819l-.637-7a2 2 0 0 1 .342-1.31M2.19 4a1 1 0 0 0-.996 1.09l.637 7a1 1 0 0 0 .995.91h10.348a1 1 0 0 0 .995-.91l.637-7A1 1 0 0 0 13.81 4zm4.69-1.707A1 1 0 0 0 6.172 2H2.5a1 1 0 0 0-1 .981l.006.139h5.17l-.828-.827z"/>
-        </svg>
-        Dossiers
-      </router-link>
+      <div class="sidebar__nav-group">
+        <div
+          class="sidebar__nav-link"
+          @click="toggleDossiers"
+          :class="{ 'sidebar__nav-link--active': isDossierActive }"
+        >
+          <svg viewBox="0 0 16 16" fill="currentColor" class="sidebar__icon">
+            <path d="M.54 3.87.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.826a2 2 0 0 1-1.991-1.819l-.637-7a2 2 0 0 1 .342-1.31M2.19 4a1 1 0 0 0-.996 1.09l.637 7a1 1 0 0 0 .995.91h10.348a1 1 0 0 0 .995-.91l.637-7A1 1 0 0 0 13.81 4zm4.69-1.707A1 1 0 0 0 6.172 2H2.5a1 1 0 0 0-1 .981l.006.139h5.17l-.828-.827z"/>
+          </svg>
+          <span style="flex-grow: 1;">Dossiers</span>
+          <svg viewBox="0 0 16 16" fill="currentColor" class="sidebar__chevron" :class="{ 'sidebar__chevron--rotated': dossiersExpanded }">
+            <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+          </svg>
+        </div>
+        <div v-show="dossiersExpanded" class="sidebar__submenu">
+          <router-link
+            to="/dossiers"
+            class="sidebar__submenu-link"
+            :class="{ 'sidebar__submenu-link--active': isListeDossiersActive }"
+          >
+            Liste des dossiers
+          </router-link>
+          <router-link
+            to="/dossiers?typeDossier=SOUS_DOSSIER"
+            class="sidebar__submenu-link"
+            :class="{ 'sidebar__submenu-link--active': isInteragenceActive }"
+          >
+            Inter-agences
+          </router-link>
+        </div>
+      </div>
     </nav>
 
     <hr v-if="isLoggedIn" class="sidebar__divider" />
@@ -97,11 +118,13 @@
 
 <script setup>
 import { computed, ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import UtilisateurService from '../../services/UtilisateurService'
 
 const router = useRouter()
+const route = useRoute()
 const utilisateur = ref(null)
+const dossiersExpanded = ref(false)
 
 const isLoggedIn = computed(() => UtilisateurService.estConnecte())
 
@@ -114,7 +137,28 @@ const chargerUtilisateur = () => {
   utilisateur.value = UtilisateurService.obtenirUtilisateurConnecte()
 }
 
-onMounted(chargerUtilisateur)
+const toggleDossiers = () => {
+  dossiersExpanded.value = !dossiersExpanded.value
+}
+
+const isDossierActive = computed(() => {
+  return route.path.startsWith('/dossiers')
+})
+
+const isListeDossiersActive = computed(() => {
+  return route.path === '/dossiers' && !route.query.typeDossier
+})
+
+const isInteragenceActive = computed(() => {
+  return route.path === '/dossiers' && route.query.typeDossier === 'SOUS_DOSSIER'
+})
+
+onMounted(() => {
+  chargerUtilisateur()
+  if (route.path.startsWith('/dossiers')) {
+    dossiersExpanded.value = true
+  }
+})
 
 const handleLogout = () => {
   UtilisateurService.deconnecter()
@@ -230,6 +274,49 @@ const handleLogout = () => {
   height: 18px;
   flex-shrink: 0;
   opacity: 0.7;
+}
+
+.sidebar__chevron {
+  width: 14px;
+  height: 14px;
+  opacity: 0.7;
+  transition: transform 0.2s ease;
+}
+
+.sidebar__chevron--rotated {
+  transform: rotate(90deg);
+}
+
+.sidebar__submenu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 28px;
+  margin-top: 4px;
+  margin-bottom: 6px;
+}
+
+.sidebar__submenu-link {
+  display: block;
+  padding: 6px 12px;
+  border-radius: var(--sb-radius);
+  color: var(--sb-text-muted);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 13px;
+  transition: background 0.15s, color 0.15s;
+  cursor: pointer;
+}
+
+.sidebar__submenu-link:hover {
+  background: var(--sb-hover-bg);
+  color: var(--sb-text);
+}
+
+.sidebar__submenu-link--active {
+  background: var(--sb-active-bg);
+  color: var(--sb-active-text);
+  font-weight: 600;
 }
 
 .sidebar__nav-link--active .sidebar__icon {

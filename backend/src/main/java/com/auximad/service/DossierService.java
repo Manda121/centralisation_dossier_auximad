@@ -47,17 +47,26 @@ public class DossierService {
                                                  String query, Integer phaseId, Integer statutId,
                                                  Integer clientId, Integer typeProductionId,
                                                  Integer otId, Boolean estGroupage,
-                                                 String dateMin, String dateMax) {
+                                                 String dateMin, String dateMax,
+                                                 Integer agenceId, String typeDossier) {
         Sort sort = sortDir != null && sortDir.equalsIgnoreCase("asc")
                 ? Sort.by(sortBy != null ? sortBy : "date_creation").ascending()
                 : Sort.by(sortBy != null ? sortBy : "date_creation").descending();
 
         Pageable pageable = PageRequest.of(page, size, sort);
 
+        // Traduire typeDossier en flags SQL
+        Boolean isSousDossier = null;
+        if ("SOUS_DOSSIER".equalsIgnoreCase(typeDossier)) {
+            isSousDossier = true;
+        } else if ("MERE".equalsIgnoreCase(typeDossier)) {
+            isSousDossier = false;
+        }
+
         Page<Dossier> result = dossierRepository.searchDossiers(
                 (query == null || query.isBlank()) ? null : query,
                 phaseId, statutId, clientId, typeProductionId, otId,
-                estGroupage, dateMin, dateMax, pageable
+                estGroupage, dateMin, dateMax, agenceId, isSousDossier, pageable
         );
 
         return PageResponse.of(result);
