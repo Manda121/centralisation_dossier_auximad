@@ -10,16 +10,3 @@ lecture tous agences: 1000
 ecriture tous agences: 2000
 suppression tous agences: 3000
 validation tous agences: 4000
-
-autorisation des actions a faire:
-10: ordre de transit
-10: contrat de transport
-10: marchandise
-10: dossier
-20: sous_dossier - interagence
-
-30: traitement
-30: embarquement/debarquement
-40: comptabilite
-
-50: modification autorisation et role

@@ -1,0 +1,12 @@
+ok, l application marche deja bien, mais on vas ajouter des fonctionnalites:
+on vas gerer les permission des utilisateurs soit lecture seul(superviseur) pour sont agence propre, il a le droit d ecrire pour son agence propre,  et soit il a le droit de superviser tous ce qu il y a dans tous les agences, et d ecrire dans tous les agences.
+on vas aussi creer une autre fonctionnalite: creer des dossier interagences.
+exemple de dossier interagence: une agence A fait creer un dossier, et il y a des operation qu il ne peu pas fairealors c est l agence B qui le fait, 
+alors l agence B creer un dossier qui est appeler sous dossier avec son propre numero de dossier mais le contenu est la meme et l ordre de transit aussi,
+on distingue les sous dossier par le numero du dossier mere en afficher en dessus, si le dossier n est pas dans sousdossier de interagence, alors ce n est pas un sous dossier alors son numero de dossiermere est vide.
+
+ce que tu doit faire c est de creer un interface pour creer un sous dossier avec les info necessaire, mais son contenu reste la meme sauf l agence.
+
+aussi de creer un module pour demander ou accepter un interagence a un agence, l agence receveur recoit un notification pour l accepter
+
+dans la liste des dossier il faut ajouter le filtre sous dossier ou dossier mere.

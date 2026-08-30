@@ -68,6 +68,12 @@ const router = createRouter({
       name: 'dossier-detail',
       component: () => import('../views/DossierDetailView.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/dossiers/:id/sous-dossier/creer',
+      name: 'sous-dossier-creer',
+      component: () => import('../views/SousDossierCreateView.vue'),
+      meta: { requiresAuth: true }
     }
   ]
 })

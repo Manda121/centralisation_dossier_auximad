@@ -24,19 +24,43 @@ public class DossierService {
     private final IncontermeRepository incontermeRepository;
     private final AgenceRepository agenceRepository;
     private final TypeProductionRepository typeProductionRepository;
+    private final DossierInteragenceRepository interagenceRepository;
 
     public DossierService(DossierRepository dossierRepository,
                           PhaseDossierRepository phaseDossierRepository,
                           StatutDossierRepository statutDossierRepository,
                           IncontermeRepository incontermeRepository,
                           AgenceRepository agenceRepository,
-                          TypeProductionRepository typeProductionRepository) {
+                          TypeProductionRepository typeProductionRepository,
+                          DossierInteragenceRepository interagenceRepository) {
         this.dossierRepository = dossierRepository;
         this.phaseDossierRepository = phaseDossierRepository;
         this.statutDossierRepository = statutDossierRepository;
         this.incontermeRepository = incontermeRepository;
         this.agenceRepository = agenceRepository;
         this.typeProductionRepository = typeProductionRepository;
+        this.interagenceRepository = interagenceRepository;
+    }
+
+    /**
+     * Remplit les champs transitoires d'interagence (estDossierMere, estSousDossier, etc.)
+     */
+    public void enrichirInteragence(Dossier d) {
+        if (d == null) return;
+        // 1. Est-ce un sous-dossier ?
+        Optional<DossierInteragence> sousDossierLien = interagenceRepository.findBySousDossierId(d.getId());
+        if (sousDossierLien.isPresent()) {
+            d.setEstSousDossier(true);
+            d.setMotifInteragence(sousDossierLien.get().getMotif());
+            if (sousDossierLien.get().getDossierMere() != null) {
+                d.setNumeroDossierMere(sousDossierLien.get().getDossierMere().getNumeroDossier());
+            }
+        }
+        // 2. Est-ce un dossier mère ?
+        List<DossierInteragence> sousDossiers = interagenceRepository.findByDossierMereId(d.getId());
+        if (!sousDossiers.isEmpty()) {
+            d.setEstDossierMere(true);
+        }
     }
 
     /**
@@ -47,7 +71,8 @@ public class DossierService {
                                                  String query, Integer phaseId, Integer statutId,
                                                  Integer clientId, Integer typeProductionId,
                                                  Integer otId, Boolean estGroupage,
-                                                 String dateMin, String dateMax) {
+                                                 String dateMin, String dateMax,
+                                                 Integer agenceId, String typeDossier) {
         Sort sort = sortDir != null && sortDir.equalsIgnoreCase("asc")
                 ? Sort.by(sortBy != null ? sortBy : "date_creation").ascending()
                 : Sort.by(sortBy != null ? sortBy : "date_creation").descending();
@@ -57,15 +82,20 @@ public class DossierService {
         Page<Dossier> result = dossierRepository.searchDossiers(
                 (query == null || query.isBlank()) ? null : query,
                 phaseId, statutId, clientId, typeProductionId, otId,
-                estGroupage, dateMin, dateMax, pageable
+                estGroupage, dateMin, dateMax, agenceId, typeDossier, pageable
         );
+
+        // Enrichir chaque dossier récupéré avec ses données inter-agences
+        result.getContent().forEach(this::enrichirInteragence);
 
         return PageResponse.of(result);
     }
 
     @Transactional(readOnly = true)
     public Optional<Dossier> getById(Integer id) {
-        return dossierRepository.findById(id);
+        Optional<Dossier> dossierOpt = dossierRepository.findById(id);
+        dossierOpt.ifPresent(this::enrichirInteragence);
+        return dossierOpt;
     }
 
     /**

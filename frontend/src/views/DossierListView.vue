@@ -1,18 +1,29 @@
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import Header from '../components/inc/Header.vue'
 import DataTable from '../components/inc/DataTable.vue'
 import DossierService from '../services/DossierService'
+import PermissionService, { PORTEE_PROPRE_ECRITURE, ACTION_OT } from '../utils/permission.service'
 
+const route = useRoute()
 const datatableRef = ref(null)
 
 const filters = reactive({
     query: '', phaseId: '', statutId: '', clientId: '',
-    typeProductionId: '', otId: '', estGroupage: '', dateMin: '', dateMax: ''
+    typeProductionId: '', otId: '', estGroupage: '', dateMin: '', dateMax: '',
+    typeDossier: route.query.typeDossier || ''
 })
 
 const phases = ref([])
 const statuts = ref([])
+
+const peutCreer = computed(() => PermissionService.verifierPermission(PORTEE_PROPRE_ECRITURE, ACTION_OT))
+
+watch(() => route.query.typeDossier, (newVal) => {
+    filters.typeDossier = newVal || ''
+    datatableRef.value?.refresh()
+})
 
 onMounted(async () => {
     try {
@@ -27,13 +38,20 @@ onMounted(async () => {
     }
 })
 
-const columns = [
-    { key: 'numeroDossier', label: 'N° Dossier', sortable: true },
-    { key: 'dateCreation', label: 'Date', sortable: true },
-    { key: 'client.nom', label: 'Client', sortable: false },
-    { key: 'phaseDossier.nom', label: 'Phase', sortable: false },
-    { key: 'estGroupage', label: 'Groupage', sortable: true }
-]
+const columns = computed(() => {
+    const list = [
+        { key: 'numeroDossier', label: 'N° Dossier', sortable: true },
+        { key: 'dateCreation', label: 'Date', sortable: true },
+        { key: 'client.nom', label: 'Client', sortable: false },
+        { key: 'phaseDossier.nom', label: 'Phase', sortable: false }
+    ]
+    if (filters.typeDossier === 'INTERAGENCE' || filters.typeDossier === 'MERE' || filters.typeDossier === 'SOUS_DOSSIER') {
+        list.push({ key: 'typeInteragence', label: 'Type Inter-agence', sortable: false })
+    } else {
+        list.push({ key: 'estGroupage', label: 'Groupage', sortable: true })
+    }
+    return list
+})
 
 async function chargerDossiers(page, size, sortBy, sortDir, filters) {
     return await DossierService.searchDossiers(page, size, sortBy, sortDir, filters)
@@ -67,7 +85,7 @@ function formatarDate(dt) {
                         <h1 class="h4 fw-bold text-dark mb-1">Dossiers de Transit</h1>
                         <p class="text-secondary mb-0 small">Gestion centralisée des dossiers de dédouanement.</p>
                     </div>
-                    <router-link to="/dossiers/creer" class="btn btn-primary btn-sm">
+                    <router-link v-if="peutCreer" to="/dossiers/creer" class="btn btn-primary btn-sm">
                         Nouveau Dossier
                     </router-link>
                 </div>
@@ -95,12 +113,14 @@ function formatarDate(dt) {
                                         </select>
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label small fw-semibold text-secondary">Date création Min</label>
-                                        <input type="date" v-model="filters.dateMin" class="form-control form-control-sm">
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label small fw-semibold text-secondary">Date création Max</label>
-                                        <input type="date" v-model="filters.dateMax" class="form-control form-control-sm">
+                                        <label class="form-label small fw-semibold text-secondary">Type dossier</label>
+                                        <select v-model="filters.typeDossier" class="form-select form-select-sm"
+                                                @change="datatableRef?.refresh()">
+                                            <option value="">Tous les dossiers</option>
+                                            <option value="INTERAGENCE">Tous les inter-agences</option>
+                                            <option value="MERE">Dossiers mère</option>
+                                            <option value="SOUS_DOSSIER">Sous-dossiers</option>
+                                        </select>
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label small fw-semibold text-secondary">Groupage</label>
@@ -109,6 +129,14 @@ function formatarDate(dt) {
                                             <option value="true">Oui</option>
                                             <option value="false">Non</option>
                                         </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small fw-semibold text-secondary">Date création Min</label>
+                                        <input type="date" v-model="filters.dateMin" class="form-control form-control-sm">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small fw-semibold text-secondary">Date création Max</label>
+                                        <input type="date" v-model="filters.dateMax" class="form-control form-control-sm">
                                     </div>
                                 </div>
                             </template>
@@ -129,6 +157,19 @@ function formatarDate(dt) {
 
                             <template #cell-estGroupage="{ row }">
                                 {{ row.estGroupage ? 'Groupage' : 'FCL' }}
+                            </template>
+
+                            <template #cell-typeInteragence="{ row }">
+                                <span v-if="row.estDossierMere" class="badge bg-primary text-white">
+                                    Mère
+                                </span>
+                                <span v-else-if="row.estSousDossier" class="badge bg-info text-dark" :title="row.motifInteragence">
+                                    Sous-dossier
+                                    <span v-if="row.numeroDossierMere" class="small d-block text-muted">
+                                        (de {{ row.numeroDossierMere }})
+                                    </span>
+                                </span>
+                                <span v-else class="text-secondary">—</span>
                             </template>
                         </DataTable>
                     </div>

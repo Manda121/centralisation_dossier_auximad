@@ -94,4 +94,16 @@ public class Dossier {
 
     @Column(name = "date_creation", nullable = false)
     private LocalDateTime dateCreation = LocalDateTime.now();
+
+    @Transient
+    private Boolean estDossierMere = false;
+
+    @Transient
+    private Boolean estSousDossier = false;
+
+    @Transient
+    private String motifInteragence;
+
+    @Transient
+    private String numeroDossierMere;
 }
