@@ -29,7 +29,7 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
      * Recherche paginée et filtrée avec FTS.
      * Paramètres ajoutés :
      *   - agenceId  : si non null, filtre sur id_agence (portée propre agence)
-     *   - isSousDossier : null = tous, true = sous-dossiers, false = dossiers mère
+     *   - typeDossier : 'INTERAGENCE' (mere ou sous-dossier), 'MERE' (mere unique), 'SOUS_DOSSIER' (sous-dossier unique) ou null/vide (tous)
      */
     @Query(value = """
         SELECT d.* FROM dossier d
@@ -54,9 +54,13 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
           AND (:dateMax IS NULL OR d.date_creation <= CAST(:dateMax AS TIMESTAMPTZ))
           AND (:agenceId IS NULL OR d.id_agence = :agenceId)
           AND (
-            :isSousDossier IS NULL
-            OR (:isSousDossier = true  AND EXISTS (SELECT 1 FROM dossier_interagence di WHERE di.id_sous_dossier = d.id))
-            OR (:isSousDossier = false AND NOT EXISTS (SELECT 1 FROM dossier_interagence di WHERE di.id_sous_dossier = d.id))
+            :typeDossier IS NULL OR :typeDossier = '' OR
+            (:typeDossier = 'INTERAGENCE' AND (
+               EXISTS (SELECT 1 FROM dossier_interagence di WHERE di.id_sous_dossier = d.id) OR
+               EXISTS (SELECT 1 FROM dossier_interagence di WHERE di.id_dossier_mere = d.id)
+            )) OR
+            (:typeDossier = 'MERE' AND EXISTS (SELECT 1 FROM dossier_interagence di WHERE di.id_dossier_mere = d.id)) OR
+            (:typeDossier = 'SOUS_DOSSIER' AND EXISTS (SELECT 1 FROM dossier_interagence di WHERE di.id_sous_dossier = d.id))
           )
         """,
         countQuery = """
@@ -79,9 +83,13 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
           AND (:dateMax IS NULL OR d.date_creation <= CAST(:dateMax AS TIMESTAMPTZ))
           AND (:agenceId IS NULL OR d.id_agence = :agenceId)
           AND (
-            :isSousDossier IS NULL
-            OR (:isSousDossier = true  AND EXISTS (SELECT 1 FROM dossier_interagence di WHERE di.id_sous_dossier = d.id))
-            OR (:isSousDossier = false AND NOT EXISTS (SELECT 1 FROM dossier_interagence di WHERE di.id_sous_dossier = d.id))
+            :typeDossier IS NULL OR :typeDossier = '' OR
+            (:typeDossier = 'INTERAGENCE' AND (
+               EXISTS (SELECT 1 FROM dossier_interagence di WHERE di.id_sous_dossier = d.id) OR
+               EXISTS (SELECT 1 FROM dossier_interagence di WHERE di.id_dossier_mere = d.id)
+            )) OR
+            (:typeDossier = 'MERE' AND EXISTS (SELECT 1 FROM dossier_interagence di WHERE di.id_dossier_mere = d.id)) OR
+            (:typeDossier = 'SOUS_DOSSIER' AND EXISTS (SELECT 1 FROM dossier_interagence di WHERE di.id_sous_dossier = d.id))
           )
         """,
         nativeQuery = true)
@@ -96,7 +104,7 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
             @Param("dateMin") String dateMin,
             @Param("dateMax") String dateMax,
             @Param("agenceId") Integer agenceId,
-            @Param("isSousDossier") Boolean isSousDossier,
+            @Param("typeDossier") String typeDossier,
             Pageable pageable
     );
 }

@@ -80,7 +80,7 @@
             Liste des dossiers
           </router-link>
           <router-link
-            to="/dossiers?typeDossier=SOUS_DOSSIER"
+            to="/dossiers?typeDossier=INTERAGENCE"
             class="sidebar__submenu-link"
             :class="{ 'sidebar__submenu-link--active': isInteragenceActive }"
           >
@@ -150,7 +150,7 @@ const isListeDossiersActive = computed(() => {
 })
 
 const isInteragenceActive = computed(() => {
-  return route.path === '/dossiers' && route.query.typeDossier === 'SOUS_DOSSIER'
+  return route.path === '/dossiers' && route.query.typeDossier === 'INTERAGENCE'
 })
 
 onMounted(() => {

@@ -38,25 +38,20 @@ onMounted(async () => {
     }
 })
 
-const baseColumns = [
-    { key: 'numeroDossier', label: 'N° Dossier', sortable: true },
-    { key: 'dateCreation', label: 'Date', sortable: true },
-    { key: 'client.nom', label: 'Client', sortable: false },
-    { key: 'phaseDossier.nom', label: 'Phase', sortable: false },
-    { key: 'estGroupage', label: 'Groupage', sortable: true }
-]
-
-const sousDossierColumns = [
-    { key: 'numeroDossier', label: 'N° Dossier', sortable: true },
-    { key: 'agence.nom', label: 'Agence', sortable: false },
-    { key: 'dateCreation', label: 'Date', sortable: true },
-    { key: 'client.nom', label: 'Client', sortable: false },
-    { key: 'phaseDossier.nom', label: 'Phase', sortable: false }
-]
-
-const columns = computed(() =>
-    filters.typeDossier === 'SOUS_DOSSIER' ? sousDossierColumns : baseColumns
-)
+const columns = computed(() => {
+    const list = [
+        { key: 'numeroDossier', label: 'N° Dossier', sortable: true },
+        { key: 'dateCreation', label: 'Date', sortable: true },
+        { key: 'client.nom', label: 'Client', sortable: false },
+        { key: 'phaseDossier.nom', label: 'Phase', sortable: false }
+    ]
+    if (filters.typeDossier === 'INTERAGENCE' || filters.typeDossier === 'MERE' || filters.typeDossier === 'SOUS_DOSSIER') {
+        list.push({ key: 'typeInteragence', label: 'Type Inter-agence', sortable: false })
+    } else {
+        list.push({ key: 'estGroupage', label: 'Groupage', sortable: true })
+    }
+    return list
+})
 
 async function chargerDossiers(page, size, sortBy, sortDir, filters) {
     return await DossierService.searchDossiers(page, size, sortBy, sortDir, filters)
@@ -121,7 +116,8 @@ function formatarDate(dt) {
                                         <label class="form-label small fw-semibold text-secondary">Type dossier</label>
                                         <select v-model="filters.typeDossier" class="form-select form-select-sm"
                                                 @change="datatableRef?.refresh()">
-                                            <option value="">Tous</option>
+                                            <option value="">Tous les dossiers</option>
+                                            <option value="INTERAGENCE">Tous les inter-agences</option>
                                             <option value="MERE">Dossiers mère</option>
                                             <option value="SOUS_DOSSIER">Sous-dossiers</option>
                                         </select>
@@ -161,6 +157,19 @@ function formatarDate(dt) {
 
                             <template #cell-estGroupage="{ row }">
                                 {{ row.estGroupage ? 'Groupage' : 'FCL' }}
+                            </template>
+
+                            <template #cell-typeInteragence="{ row }">
+                                <span v-if="row.estDossierMere" class="badge bg-primary text-white">
+                                    Mère
+                                </span>
+                                <span v-else-if="row.estSousDossier" class="badge bg-info text-dark" :title="row.motifInteragence">
+                                    Sous-dossier
+                                    <span v-if="row.numeroDossierMere" class="small d-block text-muted">
+                                        (de {{ row.numeroDossierMere }})
+                                    </span>
+                                </span>
+                                <span v-else class="text-secondary">—</span>
                             </template>
                         </DataTable>
                     </div>
