@@ -465,6 +465,22 @@ CREATE TABLE dossier_interagence(
     date_creation TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE demande_interagence(
+    id SERIAL PRIMARY KEY,
+    id_dossier INTEGER NOT NULL REFERENCES dossier(id),
+    id_agence_demandeuse INTEGER NOT NULL REFERENCES agence(id),
+    id_agence_destinataire INTEGER NOT NULL REFERENCES agence(id),
+    id_utilisateur_demande INTEGER NOT NULL REFERENCES utilisateur(id),
+    id_utilisateur_reponse INTEGER REFERENCES utilisateur(id),
+    motif TEXT,
+    reponse_motif TEXT,
+    statut VARCHAR(20) NOT NULL DEFAULT 'EN_ATTENTE',
+    est_vue BOOLEAN NOT NULL DEFAULT FALSE,
+    date_demande TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    date_reponse TIMESTAMPTZ
+);
+
+
 CREATE TABLE mvt_dossier(
     id SERIAL PRIMARY KEY,
     id_dossier INTEGER  REFERENCES dossier(id),

@@ -3,10 +3,13 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\config\Ope
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\config\SecurityConfig.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\AuthentificationController.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\ClientController.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\DemandeInteragenceController.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\DossierController.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\InterAgenceController.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\MarchandiseController.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\OrdreTransitController.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\DemandeInteragenceReponseRequest.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\DemandeInteragenceRequest.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\LoginRequest.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\LoginResponse.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\PageResponse.java
@@ -17,6 +20,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Bur
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Client.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Compagnie.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\ContratTransport.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\DemandeInteragence.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Dossier.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\DossierInteragence.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Inconterme.java
@@ -43,6 +47,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\ClientRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\CompagnieRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\ContratTransportRepository.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\DemandeInteragenceRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\DossierInteragenceRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\DossierRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\IncontermeRepository.java
@@ -67,6 +72,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\security\J
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\security\JwtUtil.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\AuthentificationService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\ClientService.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\DemandeInteragenceService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\DossierService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\InterAgenceService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\MarchandiseService.java
