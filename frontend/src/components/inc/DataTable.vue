@@ -115,6 +115,9 @@ function toggleSort(key) {
 
 function applyFilters() {
     currentPage.value = 0
+    if (props.filters && typeof props.filters === 'object') {
+        Object.assign(props.filters, localFilters.value)
+    }
     fetchData()
 }
 
@@ -122,6 +125,9 @@ function resetFilters() {
     Object.keys(localFilters.value).forEach(key => {
         localFilters.value[key] = ''
     })
+    if (props.filters && typeof props.filters === 'object') {
+        Object.assign(props.filters, localFilters.value)
+    }
     currentPage.value = 0
     fetchData()
 }
@@ -149,12 +155,20 @@ function formatCellValue(value, col) {
     return value
 }
 
-function refresh() {
+function refresh(resetPage = false) {
+    if (resetPage) {
+        currentPage.value = 0
+    }
+    if (props.filters && typeof props.filters === 'object') {
+        Object.assign(localFilters.value, props.filters)
+    }
     fetchData()
 }
 
 watch(() => props.filters, (newFilters) => {
-    localFilters.value = { ...newFilters }
+    if (newFilters && typeof newFilters === 'object') {
+        localFilters.value = { ...newFilters }
+    }
 }, { deep: true })
 
 onMounted(() => {

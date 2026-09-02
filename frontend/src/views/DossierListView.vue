@@ -22,8 +22,13 @@ const peutCreer = computed(() => PermissionService.verifierPermission(PORTEE_PRO
 
 watch(() => route.query.typeDossier, (newVal) => {
     filters.typeDossier = newVal || ''
-    datatableRef.value?.refresh()
+    datatableRef.value?.refresh(true)
 })
+
+function onTypeDossierChange(val) {
+    filters.typeDossier = val
+    datatableRef.value?.refresh(true)
+}
 
 onMounted(async () => {
     try {
@@ -60,12 +65,12 @@ async function chargerDossiers(page, size, sortBy, sortDir, filters) {
 let searchTimeout = null
 function declencherRecherche() {
     clearTimeout(searchTimeout)
-    searchTimeout = setTimeout(() => datatableRef.value?.refresh(), 450)
+    searchTimeout = setTimeout(() => datatableRef.value?.refresh(true), 450)
 }
 
 function reinitialiserFiltres() {
     Object.keys(filters).forEach(k => { filters[k] = '' })
-    datatableRef.value?.refresh()
+    datatableRef.value?.refresh(true)
 }
 
 function formatarDate(dt) {
@@ -96,26 +101,27 @@ function formatarDate(dt) {
                         <DataTable ref="datatableRef" :columns="columns" :fetch-function="chargerDossiers"
                             :filters="filters" default-sort="date_creation" default-sort-dir="desc" :pageSize="15">
 
-                            <template #filters="{ filters }">
+                            <template #filters="{ filters: slotFilters }">
                                 <div class="row g-2">
                                     <div class="col-md-3">
                                         <label class="form-label small fw-semibold text-secondary">Phase</label>
-                                        <select v-model="filters.phaseId" class="form-select form-select-sm">
+                                        <select v-model="slotFilters.phaseId" class="form-select form-select-sm">
                                             <option value="">Toutes</option>
                                             <option v-for="p in phases" :key="p.id" :value="p.id">{{ p.nom }}</option>
                                         </select>
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label small fw-semibold text-secondary">Statut</label>
-                                        <select v-model="filters.statutId" class="form-select form-select-sm">
+                                        <select v-model="slotFilters.statutId" class="form-select form-select-sm">
                                             <option value="">Tous</option>
                                             <option v-for="s in statuts" :key="s.id" :value="s.id">{{ s.nom }}</option>
                                         </select>
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label small fw-semibold text-secondary">Type dossier</label>
-                                        <select v-model="filters.typeDossier" class="form-select form-select-sm"
-                                                @change="datatableRef?.refresh()">
+                                        <select :value="slotFilters.typeDossier"
+                                                @change="onTypeDossierChange($event.target.value)"
+                                                class="form-select form-select-sm">
                                             <option value="">Tous les dossiers</option>
                                             <option value="INTERAGENCE">Tous les inter-agences</option>
                                             <option value="MERE">Dossiers mère</option>
@@ -124,7 +130,7 @@ function formatarDate(dt) {
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label small fw-semibold text-secondary">Groupage</label>
-                                        <select v-model="filters.estGroupage" class="form-select form-select-sm">
+                                        <select v-model="slotFilters.estGroupage" class="form-select form-select-sm">
                                             <option value="">Tous</option>
                                             <option value="true">Oui</option>
                                             <option value="false">Non</option>
@@ -132,11 +138,11 @@ function formatarDate(dt) {
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label small fw-semibold text-secondary">Date création Min</label>
-                                        <input type="date" v-model="filters.dateMin" class="form-control form-control-sm">
+                                        <input type="date" v-model="slotFilters.dateMin" class="form-control form-control-sm">
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label small fw-semibold text-secondary">Date création Max</label>
-                                        <input type="date" v-model="filters.dateMax" class="form-control form-control-sm">
+                                        <input type="date" v-model="slotFilters.dateMax" class="form-control form-control-sm">
                                     </div>
                                 </div>
                             </template>
