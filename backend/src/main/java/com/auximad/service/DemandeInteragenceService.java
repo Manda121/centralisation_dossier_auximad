@@ -135,30 +135,30 @@ public class DemandeInteragenceService {
             Integer agenceDemandeuseId, Integer agenceDestinataireId,
             String query) {
 
+        String sortColumn = "date_demande";
+        if ("statut".equalsIgnoreCase(sortBy)) sortColumn = "statut";
+        else if ("id".equalsIgnoreCase(sortBy)) sortColumn = "id";
+
         Sort sort = sortDir != null && sortDir.equalsIgnoreCase("asc")
-                ? Sort.by(sortBy != null ? sortBy : "dateDemande").ascending()
-                : Sort.by(sortBy != null ? sortBy : "dateDemande").descending();
+                ? Sort.by(sortColumn).ascending()
+                : Sort.by(sortColumn).descending();
 
         Pageable pageable = PageRequest.of(page, size, sort);
 
-        LocalDateTime dateMin = null;
+        String dateMinISO = null;
         if (dateMinStr != null && !dateMinStr.isBlank()) {
-            try {
-                String clean = dateMinStr.trim();
-                if (clean.length() >= 10) {
-                    dateMin = LocalDate.parse(clean.substring(0, 10)).atStartOfDay();
-                }
-            } catch (Exception ignored) {}
+            String clean = dateMinStr.trim();
+            if (clean.length() >= 10) {
+                dateMinISO = clean.substring(0, 10) + " 00:00:00";
+            }
         }
 
-        LocalDateTime dateMax = null;
+        String dateMaxISO = null;
         if (dateMaxStr != null && !dateMaxStr.isBlank()) {
-            try {
-                String clean = dateMaxStr.trim();
-                if (clean.length() >= 10) {
-                    dateMax = LocalDate.parse(clean.substring(0, 10)).atTime(LocalTime.MAX);
-                }
-            } catch (Exception ignored) {}
+            String clean = dateMaxStr.trim();
+            if (clean.length() >= 10) {
+                dateMaxISO = clean.substring(0, 10) + " 23:59:59";
+            }
         }
 
         // Filtre par agence de l'utilisateur si restreint
@@ -170,7 +170,7 @@ public class DemandeInteragenceService {
         }
 
         Page<DemandeInteragence> result = demandeRepository.searchDemandes(
-                dateMin, dateMax,
+                dateMinISO, dateMaxISO,
                 (statut != null && !statut.isBlank()) ? statut : null,
                 agenceDemandeuseId, agenceDestinataireId,
                 agenceConcerneeId,
