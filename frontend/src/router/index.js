@@ -74,6 +74,12 @@ const router = createRouter({
       name: 'sous-dossier-creer',
       component: () => import('../views/SousDossierCreateView.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/demandes-interagence',
+      name: 'demandes-interagence',
+      component: () => import('../views/DemandeInteragenceListView.vue'),
+      meta: { requiresAuth: true }
     }
   ]
 })

@@ -12,79 +12,70 @@
 
     <!-- Navigation -->
     <nav v-if="isLoggedIn" class="sidebar__nav">
-      <router-link
-        to="/"
-        class="sidebar__nav-link"
-        active-class="sidebar__nav-link--active"
-      >
+      <router-link to="/" class="sidebar__nav-link" active-class="sidebar__nav-link--active">
         <svg viewBox="0 0 16 16" fill="currentColor" class="sidebar__icon">
-          <path d="M8.707 1.5a1 1 0 0 0-1.414 0L.646 8.146a.5.5 0 0 0 .708.708L2 8.207V13.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V8.207l.646.647a.5.5 0 0 0 .708-.708L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293zM13 7.207V13.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V7.207l5-5z"/>
+          <path
+            d="M8.707 1.5a1 1 0 0 0-1.414 0L.646 8.146a.5.5 0 0 0 .708.708L2 8.207V13.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V8.207l.646.647a.5.5 0 0 0 .708-.708L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293zM13 7.207V13.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V7.207l5-5z" />
         </svg>
         Tableau de bord
       </router-link>
 
-      <router-link
-        to="/clients"
-        class="sidebar__nav-link"
-        active-class="sidebar__nav-link--active"
-      >
+      <router-link to="/clients" class="sidebar__nav-link" active-class="sidebar__nav-link--active">
         <svg viewBox="0 0 16 16" fill="currentColor" class="sidebar__icon">
-          <path d="M15 14s1 0 1-1-1-4-5-4-5 3-5 4 1 1 1 1zm-7.978-1L7 12.996c.001-.264.167-1.03.76-1.72C8.312 10.629 9.282 10 11 10c1.717 0 2.687.63 3.24 1.276.593.69.758 1.457.76 1.72l-.008.002-.014.002zM11 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4m3-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0M6.936 9.28a6 6 0 0 0-1.23-.247A7 7 0 0 0 5 9c-4 0-5 3-5 4q0 1 1 1h4.216A2.24 2.24 0 0 1 5 13c0-1.01.377-2.047 1.09-2.904.243-.294.526-.569.846-.816M4.92 7.01a4 4 0 1 0 0-6 4 4 0 0 0 0 6"/>
+          <path
+            d="M15 14s1 0 1-1-1-4-5-4-5 3-5 4 1 1 1 1zm-7.978-1L7 12.996c.001-.264.167-1.03.76-1.72C8.312 10.629 9.282 10 11 10c1.717 0 2.687.63 3.24 1.276.593.69.758 1.457.76 1.72l-.008.002-.014.002zM11 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4m3-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0M6.936 9.28a6 6 0 0 0-1.23-.247A7 7 0 0 0 5 9c-4 0-5 3-5 4q0 1 1 1h4.216A2.24 2.24 0 0 1 5 13c0-1.01.377-2.047 1.09-2.904.243-.294.526-.569.846-.816M4.92 7.01a4 4 0 1 0 0-6 4 4 0 0 0 0 6" />
         </svg>
         Clients
       </router-link>
 
-      <router-link
-        to="/ordres-transit"
-        class="sidebar__nav-link"
-        active-class="sidebar__nav-link--active"
-      >
+      <router-link to="/ordres-transit" class="sidebar__nav-link" active-class="sidebar__nav-link--active">
         <svg viewBox="0 0 16 16" fill="currentColor" class="sidebar__icon">
-          <path d="M5.5 7a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1zM5 9.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m0 2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5"/>
-          <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5z"/>
+          <path
+            d="M5.5 7a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1zM5 9.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m0 2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5" />
+          <path
+            d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5z" />
         </svg>
         Ordres de Transit
       </router-link>
 
-      <router-link
-        to="/marchandises"
-        class="sidebar__nav-link"
-        active-class="sidebar__nav-link--active"
-      >
+      <router-link to="/marchandises" class="sidebar__nav-link" active-class="sidebar__nav-link--active">
         <svg viewBox="0 0 16 16" fill="currentColor" class="sidebar__icon">
-          <path d="M8.186 1.113a.5.5 0 0 0-.372 0L1.846 3.5l2.404.961L10.404 2zm3.564 1.426L5.596 5 8 5.961 14.154 3.5zm.325 1.283L6 6.136V13.5l6-2.4zm-7.075 2.3L1 3.824v6.865l5 2zm-1.5-.724v5.44L1.8 9.528zM8 7.062 14 4.662v5.438l-6 2.4z"/>
+          <path
+            d="M8.186 1.113a.5.5 0 0 0-.372 0L1.846 3.5l2.404.961L10.404 2zm3.564 1.426L5.596 5 8 5.961 14.154 3.5zm.325 1.283L6 6.136V13.5l6-2.4zm-7.075 2.3L1 3.824v6.865l5 2zm-1.5-.724v5.44L1.8 9.528zM8 7.062 14 4.662v5.438l-6 2.4z" />
         </svg>
         Marchandises
       </router-link>
 
       <div class="sidebar__nav-group">
-        <div
-          class="sidebar__nav-link"
-          @click="toggleDossiers"
-          :class="{ 'sidebar__nav-link--active': isDossierActive }"
-        >
+        <div class="sidebar__nav-link" @click="toggleDossiers"
+          :class="{ 'sidebar__nav-link--active': isDossierActive }">
           <svg viewBox="0 0 16 16" fill="currentColor" class="sidebar__icon">
-            <path d="M.54 3.87.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.826a2 2 0 0 1-1.991-1.819l-.637-7a2 2 0 0 1 .342-1.31M2.19 4a1 1 0 0 0-.996 1.09l.637 7a1 1 0 0 0 .995.91h10.348a1 1 0 0 0 .995-.91l.637-7A1 1 0 0 0 13.81 4zm4.69-1.707A1 1 0 0 0 6.172 2H2.5a1 1 0 0 0-1 .981l.006.139h5.17l-.828-.827z"/>
+            <path
+              d="M.54 3.87.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.826a2 2 0 0 1-1.991-1.819l-.637-7a2 2 0 0 1 .342-1.31M2.19 4a1 1 0 0 0-.996 1.09l.637 7a1 1 0 0 0 .995.91h10.348a1 1 0 0 0 .995-.91l.637-7A1 1 0 0 0 13.81 4zm4.69-1.707A1 1 0 0 0 6.172 2H2.5a1 1 0 0 0-1 .981l.006.139h5.17l-.828-.827z" />
           </svg>
           <span style="flex-grow: 1;">Dossiers</span>
-          <svg viewBox="0 0 16 16" fill="currentColor" class="sidebar__chevron" :class="{ 'sidebar__chevron--rotated': dossiersExpanded }">
-            <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+          <svg viewBox="0 0 16 16" fill="currentColor" class="sidebar__chevron"
+            :class="{ 'sidebar__chevron--rotated': dossiersExpanded }">
+            <path fill-rule="evenodd"
+              d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z" />
           </svg>
         </div>
         <div v-show="dossiersExpanded" class="sidebar__submenu">
-          <router-link
-            to="/dossiers"
-            class="sidebar__submenu-link"
-            :class="{ 'sidebar__submenu-link--active': isListeDossiersActive }"
-          >
+          <router-link to="/dossiers" class="sidebar__submenu-link"
+            :class="{ 'sidebar__submenu-link--active': isListeDossiersActive }">
             Liste des dossiers
           </router-link>
-          <router-link
-            to="/dossiers?typeDossier=INTERAGENCE"
-            class="sidebar__submenu-link"
-            :class="{ 'sidebar__submenu-link--active': isInteragenceActive }"
-          >
+          <router-link to="/dossiers?typeDossier=INTERAGENCE" class="sidebar__submenu-link"
+            :class="{ 'sidebar__submenu-link--active': isInteragenceActive }">
             Inter-agences
+          </router-link>
+          <router-link to="/demandes-interagence"
+            class="sidebar__submenu-link d-flex justify-content-between align-items-center"
+            :class="{ 'sidebar__submenu-link--active': isDemandeInteragenceActive }">
+            <span>Demandes interagences</span>
+            <span v-if="demandesBadge > 0" class="badge bg-danger rounded-pill ms-1" style="font-size: 0.7rem;">
+              {{ demandesBadge }}
+            </span>
           </router-link>
         </div>
       </div>
@@ -107,8 +98,10 @@
       <hr class="sidebar__divider" />
       <button @click="handleLogout" class="sidebar__logout-btn">
         <svg viewBox="0 0 16 16" fill="currentColor" class="sidebar__icon">
-          <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0z"/>
-          <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708z"/>
+          <path fill-rule="evenodd"
+            d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0z" />
+          <path fill-rule="evenodd"
+            d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708z" />
         </svg>
         <span>Déconnexion</span>
       </button>
@@ -117,14 +110,17 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import UtilisateurService from '../../services/UtilisateurService'
+import DemandeInteragenceService from '../../services/DemandeInteragenceService'
 
 const router = useRouter()
 const route = useRoute()
 const utilisateur = ref(null)
 const dossiersExpanded = ref(false)
+const demandesBadge = ref(0)
+let timer = null
 
 const isLoggedIn = computed(() => UtilisateurService.estConnecte())
 
@@ -137,12 +133,18 @@ const chargerUtilisateur = () => {
   utilisateur.value = UtilisateurService.obtenirUtilisateurConnecte()
 }
 
+const chargerBadges = async () => {
+  if (isLoggedIn.value) {
+    demandesBadge.value = await DemandeInteragenceService.getNonVuesCount()
+  }
+}
+
 const toggleDossiers = () => {
   dossiersExpanded.value = !dossiersExpanded.value
 }
 
 const isDossierActive = computed(() => {
-  return route.path.startsWith('/dossiers')
+  return route.path.startsWith('/dossiers') || route.path.startsWith('/demandes-interagence')
 })
 
 const isListeDossiersActive = computed(() => {
@@ -153,11 +155,21 @@ const isInteragenceActive = computed(() => {
   return route.path === '/dossiers' && route.query.typeDossier === 'INTERAGENCE'
 })
 
+const isDemandeInteragenceActive = computed(() => {
+  return route.path === '/demandes-interagence'
+})
+
 onMounted(() => {
   chargerUtilisateur()
-  if (route.path.startsWith('/dossiers')) {
+  chargerBadges()
+  if (route.path.startsWith('/dossiers') || route.path.startsWith('/demandes-interagence')) {
     dossiersExpanded.value = true
   }
+  timer = setInterval(chargerBadges, 15000) // Rafraîchir les notifications toutes les 15s
+})
+
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
 })
 
 const handleLogout = () => {
@@ -390,10 +402,12 @@ const handleLogout = () => {
 .sidebar::-webkit-scrollbar {
   width: 4px;
 }
+
 .sidebar::-webkit-scrollbar-thumb {
   background: #ccd2db;
   border-radius: 4px;
 }
+
 .sidebar::-webkit-scrollbar-track {
   background: transparent;
 }

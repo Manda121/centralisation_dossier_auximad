@@ -40,10 +40,11 @@ public class SecurityConfig {
                                 "/api/auth/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
-                                "/v3/api-docs/**")
+                                "/v3/api-docs/**",
+                                "/error")
                         .permitAll()
-                        // ✅ Autorise explicitement toutes les sous-routes d'ordres-transit
-                        .requestMatchers("/api/ordres-transit/**").authenticated()
+                        // ✅ Autorise toutes les API authentifiées (sauf /api/auth/**)
+                        .requestMatchers("/api/**").authenticated()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -54,7 +55,6 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // ✅ Autorise localhost ET toutes les URL Ngrok (http/https, subdomains)
         configuration.setAllowedOriginPatterns(List.of(
                 "http://localhost:5173",
                 "https://*.ngrok-free.app",
@@ -65,7 +65,7 @@ public class SecurityConfig {
         configuration
                 .setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"));
         configuration.setExposedHeaders(List.of("Authorization"));
-        configuration.setAllowCredentials(true); // Recommandé si vous transmettez des cookies/headers d'auth
+        configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
