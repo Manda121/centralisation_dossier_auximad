@@ -5,9 +5,19 @@ import Header from '../components/inc/Header.vue'
 import DataTable from '../components/inc/DataTable.vue'
 import DemandeInteragenceService from '../services/DemandeInteragenceService'
 import UtilisateurService from '../services/UtilisateurService'
+import AgenceService from '../services/AgenceService'
 
 const router = useRouter()
 const datatableRef = ref(null)
+const agences = ref([])
+
+onMounted(async () => {
+    try {
+        agences.value = await AgenceService.getAllAgences()
+    } catch (e) {
+        console.error("Impossible de charger les agences", e)
+    }
+})
 
 // Obtenir la date du jour au format YYYY-MM-DD
 const aujourdhui = new Date().toISOString().split('T')[0]
@@ -113,9 +123,14 @@ function formatarDate(dt) {
                         <p class="text-secondary mb-0 small">Suivi et traitement des demandes de délégation / partage
                             inter-agences.</p>
                     </div>
-                    <button class="btn btn-outline-secondary btn-sm" @click="appliquerAujourdhui">
-                        📅 Demandes du jour
-                    </button>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" @click="reinitialiserFiltres">
+                            🔄 Tous les filtres
+                        </button>
+                        <button class="btn btn-primary btn-sm" @click="appliquerAujourdhui">
+                            📅 Demandes du jour
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Carte principale -->
@@ -127,17 +142,17 @@ function formatarDate(dt) {
 
                             <template #filters="{ filters: slotFilters }">
                                 <div class="row g-2">
-                                    <div class="col-md-3">
+                                    <div class="col-md-2">
                                         <label class="form-label small fw-semibold text-secondary">Date début</label>
                                         <input type="date" v-model="slotFilters.dateMin"
                                             class="form-control form-control-sm">
                                     </div>
-                                    <div class="col-md-3">
+                                    <div class="col-md-2">
                                         <label class="form-label small fw-semibold text-secondary">Date fin</label>
                                         <input type="date" v-model="slotFilters.dateMax"
                                             class="form-control form-control-sm">
                                     </div>
-                                    <div class="col-md-3">
+                                    <div class="col-md-2">
                                         <label class="form-label small fw-semibold text-secondary">Statut</label>
                                         <select v-model="slotFilters.statut" class="form-select form-select-sm">
                                             <option value="">Tous les statuts</option>
@@ -146,7 +161,24 @@ function formatarDate(dt) {
                                             <option value="REFUSEE">Refusée</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-3">
+                                    <div class="col-md-2">
+                                        <label class="form-label small fw-semibold text-secondary">Agence
+                                            Émettrice</label>
+                                        <select v-model="slotFilters.agenceDemandeuseId"
+                                            class="form-select form-select-sm">
+                                            <option value="">Toutes</option>
+                                            <option v-for="a in agences" :key="a.id" :value="a.id">{{ a.nom }}</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label small fw-semibold text-secondary">Agence Cible</label>
+                                        <select v-model="slotFilters.agenceDestinataireId"
+                                            class="form-select form-select-sm">
+                                            <option value="">Toutes</option>
+                                            <option v-for="a in agences" :key="a.id" :value="a.id">{{ a.nom }}</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
                                         <label class="form-label small fw-semibold text-secondary">Recherche</label>
                                         <input type="text" v-model="slotFilters.query"
                                             class="form-control form-control-sm"

@@ -3,8 +3,8 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Header from '../components/inc/Header.vue'
 import DossierService from '../services/DossierService'
-import InterAgenceService from '../services/InterAgenceService'
-import axios from 'axios'
+import DemandeInteragenceService from '../services/DemandeInteragenceService'
+import AgenceService from '../services/AgenceService'
 
 const route = useRoute()
 const router = useRouter()
@@ -23,16 +23,11 @@ const form = ref({
     idTypeProduction: ''
 })
 
-function authHeader() {
-    const token = localStorage.getItem('auximad_token')
-    return token ? { Authorization: `Bearer ${token}` } : {}
-}
-
 onMounted(async () => {
     try {
         const [dossier, agencesList] = await Promise.all([
             DossierService.getDossierById(idDossierMere),
-            axios.get('http://localhost:8080/api/agences', { headers: authHeader() }).then(r => r.data)
+            AgenceService.getAllAgences()
         ])
         dossierMere.value = dossier
         agences.value = agencesList
@@ -54,18 +49,18 @@ async function soumettre() {
     submitting.value = true
     try {
         const payload = {
-            idAgence: parseInt(form.value.idAgence),
-            motif: form.value.motif || null,
-            idTypeProduction: form.value.idTypeProduction ? parseInt(form.value.idTypeProduction) : null
+            idDossier: parseInt(idDossierMere),
+            idAgenceDestinataire: parseInt(form.value.idAgence),
+            motif: form.value.motif || null
         }
-        const resultat = await InterAgenceService.creerSousDossier(idDossierMere, payload)
-        succes.value = `Sous-dossier créé : ${resultat.sousDossier.numeroDossier}`
-        // Rediriger vers le sous-dossier créé après 1.5s
+        await DemandeInteragenceService.creerDemande(payload)
+        succes.value = "Demande d'inter-agence soumise avec succès !"
+        // Rediriger vers la liste des demandes après 1.5s
         setTimeout(() => {
-            router.push(`/dossiers/${resultat.sousDossier.id}`)
+            router.push('/demandes-interagence')
         }, 1500)
     } catch (e) {
-        erreur.value = e.response?.data || "Erreur lors de la création du sous-dossier."
+        erreur.value = e.response?.data || "Erreur lors de la soumission de la demande d'inter-agence."
     } finally {
         submitting.value = false
     }
@@ -129,11 +124,13 @@ function formatDate(dt) {
                                 </div>
                                 <div class="col-md-4">
                                     <div class="text-secondary">CLIENT</div>
-                                    <div class="fw-semibold">{{ dossierMere?.client?.nom }} {{ dossierMere?.client?.prenom }}</div>
+                                    <div class="fw-semibold">{{ dossierMere?.client?.nom }} {{
+                                        dossierMere?.client?.prenom }}</div>
                                 </div>
                                 <div class="col-md-4">
                                     <div class="text-secondary">OT LIÉ</div>
-                                    <div class="fw-semibold">{{ dossierMere?.ordreTransit?.numeroOrdreTransit || '—' }}</div>
+                                    <div class="fw-semibold">{{ dossierMere?.ordreTransit?.numeroOrdreTransit || '—' }}
+                                    </div>
                                 </div>
                                 <div class="col-md-4">
                                     <div class="text-secondary">PHASE</div>
@@ -169,18 +166,15 @@ function formatDate(dt) {
                                         </option>
                                     </select>
                                     <div class="form-text text-muted">
-                                        L'agence du dossier mère ({{ dossierMere?.agence?.nom }}) est exclue de la liste.
+                                        L'agence du dossier mère ({{ dossierMere?.agence?.nom }}) est exclue de la
+                                        liste.
                                     </div>
                                 </div>
 
                                 <div class="mb-4">
                                     <label class="form-label fw-semibold text-dark">Motif de la délégation</label>
-                                    <textarea
-                                        v-model="form.motif"
-                                        class="form-control"
-                                        rows="3"
-                                        placeholder="Ex: Opérations de dédouanement à Tamatave — agence locale compétente…"
-                                    ></textarea>
+                                    <textarea v-model="form.motif" class="form-control" rows="3"
+                                        placeholder="Ex: Opérations de dédouanement à Tamatave — agence locale compétente…"></textarea>
                                 </div>
 
                                 <div class="d-flex gap-2 justify-content-end">
@@ -202,6 +196,11 @@ function formatDate(dt) {
 </template>
 
 <style scoped>
-.bg-primary-subtle { background-color: #e6edf6; }
-.text-primary-emphasis { color: #2c5f8a; }
+.bg-primary-subtle {
+    background-color: #e6edf6;
+}
+
+.text-primary-emphasis {
+    color: #2c5f8a;
+}
 </style>
