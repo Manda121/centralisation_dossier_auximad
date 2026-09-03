@@ -8,7 +8,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,20 +20,44 @@ public interface DemandeInteragenceRepository extends JpaRepository<DemandeInter
 
     long countByAgenceDestinataireIdAndStatutAndEstVueFalse(Integer agenceDestinataireId, String statut);
 
-    @Query("SELECT d FROM DemandeInteragence d " +
-           "LEFT JOIN d.dossier dos " +
-           "LEFT JOIN dos.client c " +
-           "WHERE " +
-           "(:dateMin IS NULL OR d.dateDemande >= :dateMin) AND " +
-           "(:dateMax IS NULL OR d.dateDemande <= :dateMax) AND " +
-           "(:statut IS NULL OR LOWER(d.statut) = LOWER(:statut)) AND " +
-           "(:agenceDemandeuseId IS NULL OR d.agenceDemandeuse.id = :agenceDemandeuseId) AND " +
-           "(:agenceDestinataireId IS NULL OR d.agenceDestinataire.id = :agenceDestinataireId) AND " +
-           "(:agenceConcerneeId IS NULL OR d.agenceDemandeuse.id = :agenceConcerneeId OR d.agenceDestinataire.id = :agenceConcerneeId) AND " +
-           "(:query IS NULL OR LOWER(dos.numeroDossier) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(d.motif) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(c.nom) LIKE LOWER(CONCAT('%', :query, '%')))")
+    @Query(value = """
+        SELECT d.* FROM demande_interagence d
+        LEFT JOIN dossier dos ON d.id_dossier = dos.id
+        LEFT JOIN clients c ON dos.id_client = c.id
+        WHERE
+          (:dateMin IS NULL OR :dateMin = '' OR d.date_demande >= CAST(:dateMin AS TIMESTAMPTZ))
+          AND (:dateMax IS NULL OR :dateMax = '' OR d.date_demande <= CAST(:dateMax AS TIMESTAMPTZ))
+          AND (:statut IS NULL OR :statut = '' OR LOWER(d.statut) = LOWER(:statut))
+          AND (:agenceDemandeuseId IS NULL OR d.id_agence_demandeuse = :agenceDemandeuseId)
+          AND (:agenceDestinataireId IS NULL OR d.id_agence_destinataire = :agenceDestinataireId)
+          AND (:agenceConcerneeId IS NULL OR d.id_agence_demandeuse = :agenceConcerneeId OR d.id_agence_destinataire = :agenceConcerneeId)
+          AND (:query IS NULL OR :query = '' OR
+               LOWER(COALESCE(dos.numero_dossier, '')) LIKE LOWER(CONCAT('%', :query, '%')) OR
+               LOWER(COALESCE(d.motif, '')) LIKE LOWER(CONCAT('%', :query, '%')) OR
+               LOWER(COALESCE(c.nom, '')) LIKE LOWER(CONCAT('%', :query, '%'))
+              )
+        """,
+        countQuery = """
+        SELECT COUNT(*) FROM demande_interagence d
+        LEFT JOIN dossier dos ON d.id_dossier = dos.id
+        LEFT JOIN clients c ON dos.id_client = c.id
+        WHERE
+          (:dateMin IS NULL OR :dateMin = '' OR d.date_demande >= CAST(:dateMin AS TIMESTAMPTZ))
+          AND (:dateMax IS NULL OR :dateMax = '' OR d.date_demande <= CAST(:dateMax AS TIMESTAMPTZ))
+          AND (:statut IS NULL OR :statut = '' OR LOWER(d.statut) = LOWER(:statut))
+          AND (:agenceDemandeuseId IS NULL OR d.id_agence_demandeuse = :agenceDemandeuseId)
+          AND (:agenceDestinataireId IS NULL OR d.id_agence_destinataire = :agenceDestinataireId)
+          AND (:agenceConcerneeId IS NULL OR d.id_agence_demandeuse = :agenceConcerneeId OR d.id_agence_destinataire = :agenceConcerneeId)
+          AND (:query IS NULL OR :query = '' OR
+               LOWER(COALESCE(dos.numero_dossier, '')) LIKE LOWER(CONCAT('%', :query, '%')) OR
+               LOWER(COALESCE(d.motif, '')) LIKE LOWER(CONCAT('%', :query, '%')) OR
+               LOWER(COALESCE(c.nom, '')) LIKE LOWER(CONCAT('%', :query, '%'))
+              )
+        """,
+        nativeQuery = true)
     Page<DemandeInteragence> searchDemandes(
-            @Param("dateMin") LocalDateTime dateMin,
-            @Param("dateMax") LocalDateTime dateMax,
+            @Param("dateMin") String dateMin,
+            @Param("dateMax") String dateMax,
             @Param("statut") String statut,
             @Param("agenceDemandeuseId") Integer agenceDemandeuseId,
             @Param("agenceDestinataireId") Integer agenceDestinataireId,
