@@ -40,7 +40,8 @@ public class SecurityConfig {
                                 "/api/auth/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
-                                "/v3/api-docs/**")
+                                "/v3/api-docs/**",
+                                "/error")
                         .permitAll()
                         // ✅ Autorise toutes les API authentifiées (sauf /api/auth/**)
                         .requestMatchers("/api/**").authenticated()

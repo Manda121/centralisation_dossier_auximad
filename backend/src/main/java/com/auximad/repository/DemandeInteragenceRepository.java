@@ -21,14 +21,17 @@ public interface DemandeInteragenceRepository extends JpaRepository<DemandeInter
 
     long countByAgenceDestinataireIdAndStatutAndEstVueFalse(Integer agenceDestinataireId, String statut);
 
-    @Query("SELECT d FROM DemandeInteragence d WHERE " +
+    @Query("SELECT d FROM DemandeInteragence d " +
+           "LEFT JOIN d.dossier dos " +
+           "LEFT JOIN dos.client c " +
+           "WHERE " +
            "(:dateMin IS NULL OR d.dateDemande >= :dateMin) AND " +
            "(:dateMax IS NULL OR d.dateDemande <= :dateMax) AND " +
            "(:statut IS NULL OR LOWER(d.statut) = LOWER(:statut)) AND " +
            "(:agenceDemandeuseId IS NULL OR d.agenceDemandeuse.id = :agenceDemandeuseId) AND " +
            "(:agenceDestinataireId IS NULL OR d.agenceDestinataire.id = :agenceDestinataireId) AND " +
            "(:agenceConcerneeId IS NULL OR d.agenceDemandeuse.id = :agenceConcerneeId OR d.agenceDestinataire.id = :agenceConcerneeId) AND " +
-           "(:query IS NULL OR LOWER(d.dossier.numeroDossier) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(d.motif) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(d.dossier.client.nom) LIKE LOWER(CONCAT('%', :query, '%')))")
+           "(:query IS NULL OR LOWER(dos.numeroDossier) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(d.motif) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(c.nom) LIKE LOWER(CONCAT('%', :query, '%')))")
     Page<DemandeInteragence> searchDemandes(
             @Param("dateMin") LocalDateTime dateMin,
             @Param("dateMax") LocalDateTime dateMax,

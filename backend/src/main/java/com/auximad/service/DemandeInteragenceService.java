@@ -143,12 +143,22 @@ public class DemandeInteragenceService {
 
         LocalDateTime dateMin = null;
         if (dateMinStr != null && !dateMinStr.isBlank()) {
-            dateMin = LocalDate.parse(dateMinStr.substring(0, 10)).atStartOfDay();
+            try {
+                String clean = dateMinStr.trim();
+                if (clean.length() >= 10) {
+                    dateMin = LocalDate.parse(clean.substring(0, 10)).atStartOfDay();
+                }
+            } catch (Exception ignored) {}
         }
 
         LocalDateTime dateMax = null;
         if (dateMaxStr != null && !dateMaxStr.isBlank()) {
-            dateMax = LocalDate.parse(dateMaxStr.substring(0, 10)).atTime(LocalTime.MAX);
+            try {
+                String clean = dateMaxStr.trim();
+                if (clean.length() >= 10) {
+                    dateMax = LocalDate.parse(clean.substring(0, 10)).atTime(LocalTime.MAX);
+                }
+            } catch (Exception ignored) {}
         }
 
         // Filtre par agence de l'utilisateur si restreint
