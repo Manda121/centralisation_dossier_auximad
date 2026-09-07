@@ -205,7 +205,7 @@ async function creerOrdreTransit() {
                                     <label class="form-label small fw-semibold text-secondary">Type de Production / Transport Mode <span class="text-danger">*</span></label>
                                     <select v-model="otModel.typeProduction" class="form-select form-select-sm" required>
                                         <option :value="null">Sélectionnez type production</option>
-                                        <option v-for="p in typeProductions" :key="p.id" :value="p">{{ p.nom }}</option>
+                                        <option v-for="p in typeProductions" :key="p.id" :value="p">{{ p.nom }} {{ p.modeTransport.nom }}</option>
                                     </select>
                                 </div>
                                 <div class="col-md-6">
