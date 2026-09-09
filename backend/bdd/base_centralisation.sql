@@ -529,6 +529,7 @@ CREATE TABLE historique(
     id_utilisateur INTEGER  REFERENCES utilisateur(id),
     hostname VARCHAR(100) ,
     url VARCHAR(200) ,
+    logiciel VARCHAR(200),
     id_action INTEGER  REFERENCES action(id),
     details TEXT ,
     date_action TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP
