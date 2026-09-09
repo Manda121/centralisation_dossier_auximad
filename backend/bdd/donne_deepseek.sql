@@ -357,6 +357,15 @@ INSERT INTO unite_mesure (nom, rapport_m_cube, description) VALUES
 ('Metre cube', 1.00, 'Metre cube'),
 ('Litre', 0.001, 'Litre');
 
+-- Insertion des actions de base
+INSERT INTO action (nom, description) VALUES
+    ('visualisation', 'Visualisation d''un dossier ou d''une ressource'),
+    ('creation', 'Création d''un dossier ou d''une ressource'),
+    ('modification', 'Modification d''un dossier ou d''une ressource'),
+    ('suppression', 'Suppression d''un dossier ou d''une ressource'),
+    ('validation', 'Validation d''un dossier ou d''une ressource')
+ON CONFLICT (nom) DO NOTHING;
+
 -- ============================================================
 -- 2. GENERATION DE DONNEES EN MASSE
 -- ============================================================
