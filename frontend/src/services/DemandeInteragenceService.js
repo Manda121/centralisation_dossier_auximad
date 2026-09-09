@@ -42,6 +42,11 @@ class DemandeInteragenceService {
         return response.data
     }
 
+    async modifierDemande(id, payload) {
+        const response = await axios.put(`${API_URL}/${id}`, payload, { headers: authHeader() })
+        return response.data
+    }
+
     async getNonVuesCount() {
         try {
             const response = await axios.get(`${API_URL}/non-vues-count`, { headers: authHeader() })

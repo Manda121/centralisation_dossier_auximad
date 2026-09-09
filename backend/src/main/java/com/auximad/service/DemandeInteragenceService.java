@@ -96,6 +96,13 @@ public class DemandeInteragenceService {
             throw new IllegalArgumentException("Cette demande a déjà été traitée (" + demande.getStatut() + ").");
         }
 
+        Integer idAgenceUser = JwtSecurityContext.getIdAgence();
+        boolean peutToutValider = JwtSecurityContext.aPermission(
+                AutorisationHelper.PORTEE_TOUTES_ECRITURE, AutorisationHelper.ACTION_SOUS_DOSSIER);
+        if (!peutToutValider && idAgenceUser != null && !idAgenceUser.equals(demande.getAgenceDestinataire().getId())) {
+            throw new SecurityException("Seule l'agence destinataire peut répondre à cette demande.");
+        }
+
         demande.setUtilisateurReponse(user);
         demande.setReponseMotif(reponseReq.getMotifReponse());
         demande.setDateReponse(LocalDateTime.now());
@@ -110,6 +117,38 @@ public class DemandeInteragenceService {
             interAgenceService.creerSousDossier(demande.getDossier().getId(), subReq);
         } else {
             demande.setStatut("REFUSEE");
+        }
+
+        return demandeRepository.save(demande);
+    }
+
+    @Transactional
+    public DemandeInteragence modifierDemande(Integer idDemande, DemandeInteragenceRequest request) {
+        DemandeInteragence demande = demandeRepository.findById(idDemande)
+                .orElseThrow(() -> new IllegalArgumentException("Demande introuvable : " + idDemande));
+
+        if (!"EN_ATTENTE".equalsIgnoreCase(demande.getStatut())) {
+            throw new IllegalArgumentException("Seule une demande en attente peut être modifiée.");
+        }
+
+        Integer idAgenceUser = JwtSecurityContext.getIdAgence();
+        boolean peutToutModifier = JwtSecurityContext.aPermission(
+                AutorisationHelper.PORTEE_TOUTES_ECRITURE, AutorisationHelper.ACTION_SOUS_DOSSIER);
+        if (!peutToutModifier && idAgenceUser != null && !idAgenceUser.equals(demande.getAgenceDemandeuse().getId())) {
+            throw new SecurityException("Seule l'agence émettrice peut modifier cette demande.");
+        }
+
+        if (request.getIdAgenceDestinataire() != null) {
+            Agence agenceDest = agenceRepository.findById(request.getIdAgenceDestinataire())
+                    .orElseThrow(() -> new IllegalArgumentException("Agence destinataire introuvable : " + request.getIdAgenceDestinataire()));
+            if (demande.getAgenceDemandeuse().getId().equals(agenceDest.getId())) {
+                throw new IllegalArgumentException("L'agence destinataire doit être différente de l'agence du dossier.");
+            }
+            demande.setAgenceDestinataire(agenceDest);
+        }
+
+        if (request.getMotif() != null) {
+            demande.setMotif(request.getMotif());
         }
 
         return demandeRepository.save(demande);

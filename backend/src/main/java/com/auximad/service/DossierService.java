@@ -10,6 +10,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.auximad.security.JwtSecurityContext;
+
 import java.time.LocalDateTime;
 
 import java.util.List;
@@ -140,10 +142,19 @@ public class DossierService {
             return;
         }
         Integer otId = dossier.getOrdreTransit().getId();
-        Optional<Dossier> existant = dossierRepository.findByOrdreTransitId(otId);
+        Integer agenceId = dossier.getAgence() != null ? dossier.getAgence().getId() : null;
+
+        if (agenceId == null) {
+            agenceId = JwtSecurityContext.getIdAgence();
+        }
+
+        Optional<Dossier> existant = (agenceId != null)
+                ? dossierRepository.findByOrdreTransitIdAndAgenceId(otId, agenceId)
+                : dossierRepository.findByOrdreTransitId(otId);
+
         if (existant.isPresent() && (dossier.getId() == null || !existant.get().getId().equals(dossier.getId()))) {
             throw new IllegalArgumentException(
-                    "Un dossier existe déjà pour cet ordre de transit (" +
+                    "Un dossier existe déjà pour cet ordre de transit au sein de cette agence (" +
                             (existant.get().getNumeroDossier() != null ? existant.get().getNumeroDossier() : existant.get().getId()) +
                             ")."
             );

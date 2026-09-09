@@ -38,10 +38,18 @@ const submittingReponse = ref(false)
 const messageAction = ref(null)
 const erreurAction = ref(null)
 
+const modeEdition = ref(false)
+const editForm = reactive({
+    idAgenceDestinataire: '',
+    motif: ''
+})
+const submittingEdit = ref(false)
+
 const userConnecte = computed(() => UtilisateurService.obtenirUtilisateurConnecte())
 
 const columns = [
     { key: 'dossier.numeroDossier', label: 'N° Dossier', sortable: true },
+    { key: 'direction', label: 'Rôle', sortable: false },
     { key: 'agenceDemandeuse.nom', label: 'Agence Émettrice', sortable: false },
     { key: 'agenceDestinataire.nom', label: 'Agence Cible', sortable: false },
     { key: 'motif', label: 'Motif', sortable: false },
@@ -74,11 +82,12 @@ async function ouvrirDetail(row) {
     reponseMotif.value = ''
     erreurAction.value = null
     messageAction.value = null
+    modeEdition.value = false
     showDetailModal.value = true
 }
 
 async function traiterDemande(acceptee) {
-    if (!selectedDemande.value) return
+    if (!selectedDemande.value) return 
     submittingReponse.value = true
     erreurAction.value = null
     messageAction.value = null
@@ -99,9 +108,55 @@ async function traiterDemande(acceptee) {
     }
 }
 
+function estAgenceDemandeuse(demande) {
+    if (!userConnecte.value || !userConnecte.value.idAgence) return false
+    return userConnecte.value.idAgence === demande?.agenceDemandeuse?.id
+}
+
 function estAgenceDestinataire(demande) {
-    if (!userConnecte.value || !userConnecte.value.agence) return false
-    return userConnecte.value.agence.id === demande?.agenceDestinataire?.id
+    console.log('test: ', userConnecte.value);
+    if (!userConnecte.value || !userConnecte.value.idAgence) return false
+    return userConnecte.value.idAgence === demande?.agenceDestinataire?.id
+}
+
+function peutModifier(demande) {
+    return estAgenceDemandeuse(demande) && demande?.statut === 'EN_ATTENTE'
+}
+
+function meFormaterAgencesEdition() {
+    if (!selectedDemande.value) return []
+    return agences.value.filter(a => a.id !== selectedDemande.value.agenceDemandeuse?.id)
+}
+
+function activerEdition() {
+    if (!selectedDemande.value) return
+    editForm.idAgenceDestinataire = selectedDemande.value.agenceDestinataire?.id || ''
+    editForm.motif = selectedDemande.value.motif || ''
+    modeEdition.value = true
+    erreurAction.value = null
+    messageAction.value = null
+}
+
+async function enregistrerModification() {
+    if (!selectedDemande.value) return
+    submittingEdit.value = true
+    erreurAction.value = null
+    messageAction.value = null
+    try {
+        const payload = {
+            idAgenceDestinataire: parseInt(editForm.idAgenceDestinataire),
+            motif: editForm.motif || null
+        }
+        const updated = await DemandeInteragenceService.modifierDemande(selectedDemande.value.id, payload)
+        selectedDemande.value = updated
+        modeEdition.value = false
+        messageAction.value = "Demande modifiée avec succès !"
+        datatableRef.value?.refresh()
+    } catch (e) {
+        erreurAction.value = e.response?.data || "Erreur lors de la modification de la demande."
+    } finally {
+        submittingEdit.value = false
+    }
 }
 
 function formatarDate(dt) {
@@ -198,6 +253,20 @@ function formatarDate(dt) {
                                 </div>
                             </template>
 
+                            <template #cell-direction="{ row }">
+                                <span v-if="estAgenceDemandeuse(row)"
+                                    class="badge bg-primary-subtle text-primary border">
+                                    📤 Notre demande
+                                </span>
+                                <span v-else-if="estAgenceDestinataire(row)"
+                                    class="badge bg-info-subtle text-dark border">
+                                    📥 Adressée à nous
+                                </span>
+                                <span v-else class="badge bg-light text-muted border">
+                                    🌐 Autre agence
+                                </span>
+                            </template>
+
                             <template #cell-motif="{ row }">
                                 <span class="text-truncate d-inline-block" style="max-width: 220px;" :title="row.motif">
                                     {{ row.motif || '—' }}
@@ -226,7 +295,7 @@ function formatarDate(dt) {
             </div>
         </main>
 
-        <!-- Modal de détail / traitement -->
+        <!-- Modal de détail / édition / traitement -->
         <div v-if="showDetailModal" class="modal fade show d-block tab-modal-backdrop" tabindex="-1"
             style="background: rgba(0,0,0,0.5)">
             <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -289,7 +358,7 @@ function formatarDate(dt) {
                                     selectedDemande.agenceDestinataire?.ville }})</div>
                             </div>
 
-                            <div class="col-12" v-if="selectedDemande.motif">
+                            <div class="col-12" v-if="selectedDemande.motif && !modeEdition">
                                 <div class="text-secondary">MOTIF / DESCRIPTION DE LA DEMANDE</div>
                                 <div class="p-2 bg-white border rounded text-dark mt-1">{{ selectedDemande.motif }}
                                 </div>
@@ -307,6 +376,45 @@ function formatarDate(dt) {
                                     <div v-if="selectedDemande.reponseMotif" class="mt-2">
                                         <strong>Commentaire :</strong> {{ selectedDemande.reponseMotif }}
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Formulaire de modification pour l'agence émettrice -->
+                        <div v-if="peutModifier(selectedDemande)" class="p-3 border rounded bg-light mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="fw-bold text-dark mb-0">Gestion de votre demande</h6>
+                                <button v-if="!modeEdition" type="button" class="btn btn-outline-primary btn-sm"
+                                    @click="activerEdition">
+                                    ✏️ Modifier la demande
+                                </button>
+                            </div>
+
+                            <div v-if="modeEdition" class="mt-3">
+                                <div class="mb-3">
+                                    <label class="form-label small text-secondary fw-semibold">Changer l'agence
+                                        cible</label>
+                                    <select v-model="editForm.idAgenceDestinataire" class="form-select form-select-sm">
+                                        <option v-for="a in meFormaterAgencesEdition()" :key="a.id" :value="a.id">
+                                            {{ a.nom }} ({{ a.ville }})
+                                        </option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small text-secondary fw-semibold">Motif de la
+                                        demande</label>
+                                    <textarea v-model="editForm.motif" class="form-control form-control-sm" rows="3"
+                                        placeholder="Explication ou motif…"></textarea>
+                                </div>
+                                <div class="d-flex gap-2 justify-content-end">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm"
+                                        @click="modeEdition = false">
+                                        Annuler
+                                    </button>
+                                    <button type="button" class="btn btn-primary btn-sm" :disabled="submittingEdit"
+                                        @click="enregistrerModification">
+                                        💾 Enregistrer les modifications
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -346,5 +454,13 @@ function formatarDate(dt) {
 <style scoped>
 .bg-warning-subtle {
     background-color: #fff8e6;
+}
+
+.bg-primary-subtle {
+    background-color: #e7f1ff;
+}
+
+.bg-info-subtle {
+    background-color: #e0f7fa;
 }
 </style>

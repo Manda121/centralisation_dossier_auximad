@@ -250,7 +250,7 @@ async function supprimerClient() {
                                             <input type="text" v-model="clientModel.ville" class="form-control form-control-sm" :disabled="!editionMode">
                                         </div>
                                         <div class="col-md-6">
-                                            <label class="form-label small fw-semibold text-secondary">Code Postal</label>
+                                            <label class="form-label small fw-semibold text-secondary">CP-client</label>
                                             <input type="text" v-model="clientModel.cpClient" class="form-control form-control-sm" :disabled="!editionMode">
                                         </div>
                                         <div class="col-12">

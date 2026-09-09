@@ -10,3 +10,17 @@ lecture tous agences: 1000
 ecriture tous agences: 2000
 suppression tous agences: 3000
 validation tous agences: 4000
+
+
+dossier interagence:
+on ne voit que les demandes ciblee vers notre agence ou tous (selon autorisation).
+seul le chef peut creer directement un sous dossier
+lorsqu on valide un demande, il vas y  avoir un dossier dans l agence cible qui a pour mere le dossier de l'emetrice.
+lorsqu on creer directement un sous dossier, il y aurait un demande qui serait directement valide.
+pour le notification ce sera les demande qui ne sont pas encore vue, il faut mettre un statu (vue, en attente, accepte, ... dans un table distinct);
+
+creation dossier:
+il faudrait mettre le module document, avec les remise si ils sont incomplets
+
+creation ordre de transit:
+changement destination de l expedition: ajouter un id ordre de transit dans l expedition.

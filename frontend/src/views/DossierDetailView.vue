@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Header from '../components/inc/Header.vue'
 import PageSkeleton from '../components/inc/PageSkeleton.vue'
@@ -40,7 +40,16 @@ function authHeader() {
     return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-onMounted(async () => {
+async function fetchDossier(id) {
+    loading.value = true
+    erreur.value = null
+
+    loading.value = true
+    erreur.value = null
+    dossier.value = {}
+    dossierMereLien.value = null
+    sousDossiers.value = []
+    demandesInteragence.value = []
     try {
         dossier.value = await DossierService.getDossierById(route.params.id)
 
@@ -65,7 +74,45 @@ onMounted(async () => {
     } finally {
         loading.value = false
     }
+}
+onMounted(async () => {
+
+    await fetchDossier(route.params.id)
+
+    // try {
+    //     dossier.value = await DossierService.getDossierById(route.params.id)
+
+    //     // Charger les données interagences et demandes en parallèle
+    //     const [merenLien, enfants, demandesRes] = await Promise.allSettled([
+    //         InterAgenceService.getDossierMere(route.params.id),
+    //         InterAgenceService.getSousDossiers(route.params.id),
+    //         DemandeInteragenceService.getDemandesParDossier(route.params.id)
+    //     ])
+
+    //     if (merenLien.status === 'fulfilled') {
+    //         dossierMereLien.value = merenLien.value
+    //     }
+    //     if (enfants.status === 'fulfilled') {
+    //         sousDossiers.value = enfants.value
+    //     }
+    //     if (demandesRes.status === 'fulfilled') {
+    //         demandesInteragence.value = demandesRes.value || []
+    //     }
+    // } catch (e) {
+    //     erreur.value = "Impossible de récupérer ce dossier."
+    // } finally {
+    //     loading.value = false
+    // }
 })
+
+watch(
+  () => route.params.id,
+  (newId) => {
+    if (newId) {
+      fetchDossier(newId)
+    }
+  }
+)
 
 async function ouvrirDemandeModal() {
     demandeErreur.value = null

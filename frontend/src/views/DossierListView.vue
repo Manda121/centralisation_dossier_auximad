@@ -9,10 +9,14 @@ import PermissionService, { PORTEE_PROPRE_ECRITURE, ACTION_OT } from '../utils/p
 const route = useRoute()
 const datatableRef = ref(null)
 
+const aujourdhui = new Date().toISOString().split('T')[0]
+
 const filters = reactive({
     query: '', phaseId: '', statutId: '', clientId: '',
     typeProductionId: '', otId: '', estGroupage: '', dateMin: '', dateMax: '',
-    typeDossier: route.query.typeDossier || ''
+    typeDossier: route.query.typeDossier || '',
+    // dateMax: aujourdhui || '',
+    // dateMin: aujourdhui || ''
 })
 
 const phases = ref([])
