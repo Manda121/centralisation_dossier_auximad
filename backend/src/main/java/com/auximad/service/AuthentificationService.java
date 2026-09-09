@@ -10,6 +10,7 @@ import com.auximad.repository.SuspensionConnexionRepository;
 import com.auximad.repository.UtilisateurRepository;
 import com.auximad.security.JwtUtil;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,7 @@ public class AuthentificationService {
     private final AutorisationRepository autorisationRepository;
     private final JwtUtil jwtUtil;
     private final PasswordEncoder passwordEncoder;
+    private final HistorisationService historisationService;
 
     @Value("${login.max-tentatives}")
     private int maxTentatives;
@@ -36,12 +38,14 @@ public class AuthentificationService {
                                     SuspensionConnexionRepository suspensionRepository,
                                     AutorisationRepository autorisationRepository,
                                     JwtUtil jwtUtil,
-                                    PasswordEncoder passwordEncoder) {
+                                    PasswordEncoder passwordEncoder,
+                                    @Lazy HistorisationService historisationService) {
         this.utilisateurRepository = utilisateurRepository;
         this.suspensionRepository = suspensionRepository;
         this.autorisationRepository = autorisationRepository;
         this.jwtUtil = jwtUtil;
         this.passwordEncoder = passwordEncoder;
+        this.historisationService = historisationService;
     }
 
     /**
@@ -58,6 +62,10 @@ public class AuthentificationService {
                 .orElse(null);
 
         if (utilisateur == null) {
+            historisationService.enregistrerPourUtilisateur(null, "connexion echouee",
+                    "Échec de connexion — identifiants inconnus (nom=" + request.getNomUtilisateur()
+                            + ", codeAgence=" + request.getCodeAgence() + ")",
+                    "Utilisateur", request.getNomUtilisateur(), 401);
             resultat.put("erreur", "Nom d'utilisateur, code agence ou mot de passe incorrect");
             resultat.put("status", 401);
             return resultat;
@@ -73,6 +81,9 @@ public class AuthentificationService {
 
         if (suspension.estSuspendu()) {
             long minutesRestantes = suspension.getTempsRestantMinutes();
+            historisationService.enregistrerPourUtilisateur(utilisateur.getId(), "connexion echouee",
+                    "Échec de connexion — compte suspendu (nom=" + utilisateur.getNomUtilisateur() + ")",
+                    "Utilisateur", utilisateur.getNomUtilisateur(), 423);
             resultat.put("erreur", "Compte suspendu. Réessayez dans " + minutesRestantes + " minute(s)");
             resultat.put("status", 423);
             resultat.put("minutesRestantes", minutesRestantes);
@@ -85,6 +96,11 @@ public class AuthentificationService {
             suspensionRepository.save(suspension);
 
             int tentativesRestantes = maxTentatives - suspension.getTentativesEchouees();
+
+            historisationService.enregistrerPourUtilisateur(utilisateur.getId(), "connexion echouee",
+                    "Échec de connexion — mot de passe incorrect (nom=" + utilisateur.getNomUtilisateur()
+                            + ", restant=" + tentativesRestantes + ")",
+                    "Utilisateur", utilisateur.getNomUtilisateur(), 401);
 
             if (suspension.estSuspendu()) {
                 resultat.put("erreur", "Trop de tentatives échouées. Compte suspendu pour "
@@ -119,6 +135,11 @@ public class AuthentificationService {
         );
 
         System.out.println("Niveau autorisation pour l'utilisateur " + utilisateur.getId() + ": " + niveauAutorisation + " token: "+ token);
+
+        // Audit : connexion réussie
+        historisationService.enregistrerPourUtilisateur(utilisateur.getId(), "connexion",
+                "Connexion réussie de " + utilisateur.getNomComplet() + " (" + utilisateur.getNomUtilisateur() + ")",
+                "Utilisateur", utilisateur.getNomUtilisateur(), 200);
 
         LoginResponse response = LoginResponse.builder()
                 .token(token)

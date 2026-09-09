@@ -531,6 +531,11 @@ CREATE TABLE historique(
     url VARCHAR(200) ,
     logiciel VARCHAR(200),
     id_action INTEGER  REFERENCES action(id),
+    adresse_ip VARCHAR(45),
+    methode_http VARCHAR(10),
+    statut_http INTEGER NOT NULL DEFAULT 200,
+    entite VARCHAR(255),
+    identifiant_entite VARCHAR(100),
     details TEXT ,
     date_action TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP
 );
@@ -619,3 +624,5 @@ CREATE INDEX idx_historique_action      ON historique(id_action);
 CREATE INDEX idx_historique_date_action ON historique(date_action);
 
 CREATE INDEX idx_historique_utilisateur_date ON historique(id_utilisateur, date_action);
+CREATE INDEX idx_historique_action ON historique(adresse_ip);
+CREATE INDEX idx_historique_entite ON historique(entite);
