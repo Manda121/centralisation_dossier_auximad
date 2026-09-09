@@ -68,6 +68,20 @@ public class DemandeInteragenceController {
     public ResponseEntity<?> repondre(@PathVariable Integer id, @RequestBody DemandeInteragenceReponseRequest reponse) {
         try {
             return ResponseEntity.ok(demandeService.repondreDemande(id, reponse));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}")
+    @Operation(summary = "Modifier une demande d'inter-agence en attente (motif ou agence destinataire)")
+    public ResponseEntity<?> modifier(@PathVariable Integer id, @RequestBody DemandeInteragenceRequest request) {
+        try {
+            return ResponseEntity.ok(demandeService.modifierDemande(id, request));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }

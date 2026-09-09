@@ -15,6 +15,8 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
 
     Optional<Dossier> findByOrdreTransitId(Integer ordreTransitId);
 
+    Optional<Dossier> findByOrdreTransitIdAndAgenceId(Integer ordreTransitId, Integer agenceId);
+
     /**
      * Chronologie max (4 derniers chiffres) des numéros au format *-NNNN
      */
