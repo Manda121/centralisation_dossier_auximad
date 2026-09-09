@@ -9,6 +9,8 @@ const actions = ref([])
 const utilisateurs = ref([])
 const filtresRef = ref({ adressesIp: [], hostnames: [], logiciels: [] })
 
+const aujourdhui = new Date().toISOString().split('T')[0]
+
 const filters = reactive({
     query: '',
     utilisateurId: '',
@@ -18,8 +20,8 @@ const filters = reactive({
     logiciel: '',
     methodeHttp: '',
     statutHttp: '',
-    dateMin: '',
-    dateMax: ''
+    dateMin: aujourdhui || '',
+    dateMax: aujourdhui || ''
 })
 
 const selected = ref(null)
