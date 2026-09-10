@@ -21,6 +21,7 @@ function getFiveMinutesAgoFormatted() {
 
 function getNowFormatted() {
     const d = new Date()
+    d.setMinutes(d.getMinutes() + 5)
     const year = d.getFullYear()
     const month = String(d.getMonth() + 1).padStart(2, '0')
     const day = String(d.getDate()).padStart(2, '0')
@@ -302,7 +303,7 @@ function nomUtilisateur(row) {
                                         :title="`${row.groupCount} actions enregistrées dans la même seconde`">
                                         +{{ row.groupCount - 1 }} action{{ row.groupCount > 2 ? 's' : '' }}
                                     </span> -->
-                                    <span v-if="row.groupCount > 1">.</span>
+                                    <span v-if="row.groupCount > 1">+</span>
 
                                 </div>
                             </template>
