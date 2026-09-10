@@ -109,8 +109,18 @@ public class HistorisationService {
         if (attrs != null) {
             HttpServletRequest request = attrs.getRequest();
             ip = extraireIpClient(request);
-            hostname = request.getRemoteHost();
-            logiciel = request.getHeader("User-Agent");
+
+            // Hostname : le lien et le port (ex: localhost:8080, 192.4.56.1:5173)
+            String hostHeader = request.getHeader("Host");
+            if (hostHeader != null && !hostHeader.isBlank()) {
+                hostname = hostHeader;
+            } else {
+                hostname = request.getServerName() + ":" + request.getServerPort();
+            }
+
+            // Logiciel : extraction dynamique du logiciel/navigateur réel à partir du User-Agent
+            logiciel = extraireNomLogiciel(request.getHeader("User-Agent"));
+
             url = request.getRequestURI()
                     + (request.getQueryString() != null ? "?" + request.getQueryString() : "");
             methode = request.getMethod();
@@ -169,7 +179,53 @@ public class HistorisationService {
                 return ip.split(",")[0].trim();
             }
         }
-        return request.getRemoteAddr();
+        String remoteAddr = request.getRemoteAddr();
+        if (remoteAddr == null || remoteAddr.isBlank()
+                || "127.0.0.1".equals(remoteAddr)
+                || "0:0:0:0:0:0:0:1".equals(remoteAddr)
+                || "::1".equals(remoteAddr)) {
+            try {
+                return java.net.InetAddress.getLocalHost().getHostAddress();
+            } catch (Exception e) {
+                return remoteAddr != null ? remoteAddr : "127.0.0.1";
+            }
+        }
+        return remoteAddr;
+    }
+
+    /**
+     * Analyse dynamiquement le User-Agent pour en déduire le nom réel du logiciel/navigateur exécutant la requête.
+     */
+    private String extraireNomLogiciel(String userAgent) {
+        if (userAgent == null || userAgent.isBlank()) {
+            return "Inconnu";
+        }
+        String ua = userAgent.toLowerCase();
+        if (ua.contains("edg/") || ua.contains("edge/")) {
+            return "Microsoft Edge";
+        } else if (ua.contains("opr/") || ua.contains("opera/")) {
+            return "Opera";
+        } else if (ua.contains("chrome/") || ua.contains("crios/")) {
+            return "Google Chrome";
+        } else if (ua.contains("firefox/") || ua.contains("fxios/")) {
+            return "Mozilla Firefox";
+        } else if (ua.contains("safari/") && !ua.contains("chrome/")) {
+            return "Apple Safari";
+        } else if (ua.contains("postman")) {
+            return "Postman";
+        } else if (ua.contains("insomnia")) {
+            return "Insomnia";
+        } else if (ua.contains("curl")) {
+            return "cURL";
+        } else if (ua.contains("swagger")) {
+            return "Swagger UI";
+        }
+
+        int slash = userAgent.indexOf('/');
+        if (slash > 0) {
+            return userAgent.substring(0, slash).trim();
+        }
+        return userAgent.length() > 50 ? userAgent.substring(0, 50) : userAgent;
     }
 
     private String tronquer(String valeur, int max) {

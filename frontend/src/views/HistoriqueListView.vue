@@ -9,7 +9,25 @@ const actions = ref([])
 const utilisateurs = ref([])
 const filtresRef = ref({ adressesIp: [], hostnames: [], logiciels: [] })
 
-const aujourdhui = new Date().toISOString().split('T')[0]
+function getFiveMinutesAgoFormatted() {
+    const d = new Date(Date.now() - 5 * 60 * 1000)
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    const hours = String(d.getHours()).padStart(2, '0')
+    const minutes = String(d.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day}T${hours}:${minutes}`
+}
+
+function getNowFormatted() {
+    const d = new Date()
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    const hours = String(d.getHours()).padStart(2, '0')
+    const minutes = String(d.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day}T${hours}:${minutes}`
+}
 
 const filters = reactive({
     query: '',
@@ -20,8 +38,8 @@ const filters = reactive({
     logiciel: '',
     methodeHttp: '',
     statutHttp: '',
-    dateMin: aujourdhui || '',
-    dateMax: aujourdhui || ''
+    dateMin: getFiveMinutesAgoFormatted(),
+    dateMax: getNowFormatted()
 })
 
 const selected = ref(null)
@@ -57,12 +75,53 @@ onMounted(async () => {
     }
 })
 
+function formatDateKey(dt) {
+    if (!dt) return 'inconnu'
+    const d = new Date(dt)
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    const hours = String(d.getHours()).padStart(2, '0')
+    const minutes = String(d.getMinutes()).padStart(2, '0')
+    const seconds = String(d.getSeconds()).padStart(2, '0')
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+}
+
 async function chargerHistoriques(page, size, sortBy, sortDir, filters) {
-    return await HistoriqueService.searchHistoriques(page, size, sortBy, sortDir, filters)
+    const res = await HistoriqueService.searchHistoriques(page, size, sortBy, sortDir, filters)
+    if (!res || !res.content) return res
+
+    // Regroupement par seconde (hh:mm:ss)
+    const groupedMap = new Map()
+    for (const item of res.content) {
+        const secondKey = formatDateKey(item.dateAction)
+        if (!groupedMap.has(secondKey)) {
+            groupedMap.set(secondKey, [])
+        }
+        groupedMap.get(secondKey).push(item)
+    }
+
+    const groupedContent = []
+    for (const [secondKey, items] of groupedMap.entries()) {
+        const premier = items[0]
+        groupedContent.push({
+            ...premier,
+            groupItems: items,
+            groupCount: items.length,
+            secondKey: secondKey
+        })
+    }
+
+    return {
+        ...res,
+        content: groupedContent
+    }
 }
 
 function reinitialiserFiltres() {
     Object.keys(filters).forEach(k => { filters[k] = '' })
+    filters.dateMin = getFiveMinutesAgoFormatted()
+    filters.dateMax = getNowFormatted()
     datatableRef.value?.refresh(true)
 }
 
@@ -133,7 +192,7 @@ function nomUtilisateur(row) {
                 <div class="card border shadow-sm">
                     <div class="card-body p-3">
                         <DataTable ref="datatableRef" :columns="columns" :fetch-function="chargerHistoriques"
-                            :filters="filters" default-sort="dateAction" default-sort-dir="desc" :pageSize="15"
+                            :filters="filters" default-sort="dateAction" default-sort-dir="desc" :pageSize="50"
                             row-clickable @row-click="ouvrirDetail">
 
                             <template #filters="{ filters: f }">
@@ -163,21 +222,25 @@ function nomUtilisateur(row) {
                                         <label class="form-label small fw-semibold text-secondary">Adresse IP</label>
                                         <select v-model="f.adresseIp" class="form-select form-select-sm">
                                             <option value="">Toutes</option>
-                                            <option v-for="ip in filtresRef.adressesIp" :key="ip" :value="ip">{{ ip }}</option>
+                                            <option v-for="ip in filtresRef.adressesIp" :key="ip" :value="ip">{{ ip }}
+                                            </option>
                                         </select>
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label small fw-semibold text-secondary">Hostname</label>
                                         <select v-model="f.hostname" class="form-select form-select-sm">
                                             <option value="">Tous</option>
-                                            <option v-for="h in filtresRef.hostnames" :key="h" :value="h">{{ h }}</option>
+                                            <option v-for="h in filtresRef.hostnames" :key="h" :value="h">{{ h }}
+                                            </option>
                                         </select>
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label small fw-semibold text-secondary">Logiciel (User-Agent)</label>
+                                        <label class="form-label small fw-semibold text-secondary">Logiciel
+                                            (User-Agent)</label>
                                         <select v-model="f.logiciel" class="form-select form-select-sm">
                                             <option value="">Tous</option>
-                                            <option v-for="l in filtresRef.logiciels" :key="l" :value="l">{{ l }}</option>
+                                            <option v-for="l in filtresRef.logiciels" :key="l" :value="l">{{ l }}
+                                            </option>
                                         </select>
                                     </div>
                                     <div class="col-md-2">
@@ -189,16 +252,18 @@ function nomUtilisateur(row) {
                                     </div>
                                     <div class="col-md-2">
                                         <label class="form-label small fw-semibold text-secondary">Statut HTTP</label>
-                                        <input type="number" v-model="f.statutHttp"
-                                            class="form-control form-control-sm" placeholder="ex: 200">
+                                        <input type="number" v-model="f.statutHttp" class="form-control form-control-sm"
+                                            placeholder="ex: 200">
                                     </div>
                                     <div class="col-md-2">
                                         <label class="form-label small fw-semibold text-secondary">Date début</label>
-                                        <input type="date" v-model="f.dateMin" class="form-control form-control-sm">
+                                        <input type="datetime-local" v-model="f.dateMin"
+                                            class="form-control form-control-sm">
                                     </div>
                                     <div class="col-md-2">
                                         <label class="form-label small fw-semibold text-secondary">Date fin</label>
-                                        <input type="date" v-model="f.dateMax" class="form-control form-control-sm">
+                                        <input type="datetime-local" v-model="f.dateMax"
+                                            class="form-control form-control-sm">
                                     </div>
                                 </div>
                             </template>
@@ -229,7 +294,17 @@ function nomUtilisateur(row) {
                             </template>
 
                             <template #cell-dateAction="{ row }">
-                                {{ formatDate(row.dateAction) }}
+                                <div class="d-flex align-items-center gap-2">
+                                    <span>{{ formatDate(row.dateAction) }}</span>
+                                    <!-- <span v-if="row.groupCount > 1"
+                                        class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill font-monospace"
+                                        style="font-size: 0.72rem;"
+                                        :title="`${row.groupCount} actions enregistrées dans la même seconde`">
+                                        +{{ row.groupCount - 1 }} action{{ row.groupCount > 2 ? 's' : '' }}
+                                    </span> -->
+                                    <span v-if="row.groupCount > 1">.</span>
+
+                                </div>
                             </template>
 
                             <template #cell-logiciel="{ row }">
@@ -244,18 +319,96 @@ function nomUtilisateur(row) {
             </div>
         </main>
 
-        <!-- Modal détail -->
+        <!-- Modal détail (Individuel ou Groupé) -->
         <div v-if="showDetailModal" class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5)">
-            <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-dialog modal-dialog-centered" :class="selected?.groupCount > 1 ? 'modal-xl' : 'modal-lg'">
                 <div class="modal-content border-0 shadow">
                     <div class="modal-header bg-light py-3">
-                        <h5 class="modal-title h6 fw-bold text-dark mb-0">
-                            Détail de l'action #{{ selected?.id }}
-                        </h5>
+                        <div>
+                            <h5 class="modal-title h6 fw-bold text-dark mb-0">
+                                <template v-if="selected?.groupCount > 1">
+                                    Groupe d'actions à {{ formatDate(selected?.dateAction) }}
+                                    <span class="badge bg-primary ms-2">{{ selected.groupCount }} actions
+                                        regroupées</span>
+                                </template>
+                                <template v-else>
+                                    Détail de l'action #{{ selected?.id }}
+                                </template>
+                            </h5>
+                            <small class="text-muted" v-if="selected?.groupCount > 1">
+                                Actions exécutées dans la même seconde ({{ selected?.secondKey }})
+                            </small>
+                        </div>
                         <button type="button" class="btn-close" @click="showDetailModal = false"></button>
                     </div>
+
                     <div class="modal-body p-4" v-if="selected">
-                        <div class="row g-3 small">
+                        <!-- VUE GROUPÉE (Plusieurs actions dans la même seconde) -->
+                        <div v-if="selected.groupCount > 1">
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0 border">
+                                    <thead class="table-light small text-uppercase">
+                                        <tr>
+                                            <th>#ID</th>
+                                            <th>Action</th>
+                                            <th>Entité</th>
+                                            <th>Méthode &amp; URL</th>
+                                            <th>Statut</th>
+                                            <th>Utilisateur</th>
+                                            <th>IP / Hostname</th>
+                                            <th>Logiciel</th>
+                                            <th>Détails</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="small">
+                                        <tr v-for="item in selected.groupItems" :key="item.id">
+                                            <td class="fw-bold font-monospace text-secondary">#{{ item.id }}</td>
+                                            <td>
+                                                <span :class="actionBadgeClass(item.action?.nom)">
+                                                    {{ item.action?.nom || '—' }}
+                                                </span>
+                                            </td>
+                                            <td class="fw-semibold">
+                                                {{ item.entite || '—' }}
+                                                <span v-if="item.identifiantEntite" class="text-muted small">({{
+                                                    item.identifiantEntite }})</span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-light text-dark font-monospace border me-1">{{
+                                                    item.methodeHttp }}</span>
+                                                <span class="font-monospace text-truncate d-inline-block"
+                                                    style="max-width: 220px;" :title="item.url">{{ item.url }}</span>
+                                            </td>
+                                            <td>
+                                                <span :class="statutClass(item.statutHttp)">{{ item.statutHttp }}</span>
+                                            </td>
+                                            <td>{{ nomUtilisateur(item) }}</td>
+                                            <td class="font-monospace text-muted small">
+                                                {{ item.adresseIp }}
+                                                <div class="text-secondary small" style="font-size: 0.75rem;">{{
+                                                    item.hostname
+                                                }}</div>
+                                            </td>
+                                            <td>
+                                                <span class="text-truncate d-inline-block" style="max-width: 120px;"
+                                                    :title="item.logiciel">
+                                                    {{ item.logiciel || '—' }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="text-muted text-truncate d-inline-block"
+                                                    style="max-width: 180px;" :title="item.details">
+                                                    {{ item.details || '—' }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- VUE SINGLE (Une seule action) -->
+                        <div v-else class="row g-3 small">
                             <div class="col-md-6">
                                 <div class="text-secondary">DATE &amp; HEURE</div>
                                 <div class="fw-semibold text-dark">{{ formatDate(selected.dateAction) }}</div>
@@ -272,8 +425,8 @@ function nomUtilisateur(row) {
                             <div class="col-md-6">
                                 <div class="text-secondary">TYPE D'ACTION</div>
                                 <div><span :class="actionBadgeClass(selected.action?.nom)">
-                                    {{ selected.action?.nom || '—' }}
-                                </span></div>
+                                        {{ selected.action?.nom || '—' }}
+                                    </span></div>
                             </div>
                             <div class="col-md-6">
                                 <div class="text-secondary">ENTITÉ CONCERNÉE</div>

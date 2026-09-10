@@ -23,13 +23,17 @@ class HistoriqueService {
             const v = filters[key]
             if (v !== '' && v !== null && v !== undefined) {
                 if ((key === 'dateMin' || key === 'dateMax') && v) {
-                    // Le backend attend du LocalDateTime ISO (sans Z)
                     const d = new Date(v)
-                    if (key === 'dateMax') {
-                        // Inclure toute la journée de fin (23:59:59)
+                    if (key === 'dateMax' && typeof v === 'string' && v.length === 10) {
                         d.setHours(23, 59, 59, 999)
                     }
-                    params.append(key, d.toISOString().replace('Z', ''))
+                    const year = d.getFullYear()
+                    const month = String(d.getMonth() + 1).padStart(2, '0')
+                    const day = String(d.getDate()).padStart(2, '0')
+                    const hours = String(d.getHours()).padStart(2, '0')
+                    const minutes = String(d.getMinutes()).padStart(2, '0')
+                    const seconds = String(d.getSeconds()).padStart(2, '0')
+                    params.append(key, `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`)
                 } else {
                     params.append(key, v)
                 }
