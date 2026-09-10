@@ -65,7 +65,7 @@
             :class="{ 'sidebar__submenu-link--active': isListeDossiersActive }">
             Liste des dossiers
           </router-link>
-          <router-link to="/dossiers?typeDossier=INTERAGENCE" class="sidebar__submenu-link"
+          <router-link to="/dossiers-interagence" class="sidebar__submenu-link"
             :class="{ 'sidebar__submenu-link--active': isInteragenceActive }">
             Inter-agences
           </router-link>
@@ -84,8 +84,7 @@
         <svg viewBox="0 0 16 16" fill="currentColor" class="sidebar__icon">
           <path
             d="M8.515 1.019A7 7 0 0 0 8 4c-.335 0-.66.026-.98.075a6.993 6.993 0 0 1-.497-3.077A7 7 0 0 0 2.49 4.743a7 7 0 0 0-.497 3.34c-.02-.02-.038-.04-.056-.06A7 7 0 1 0 8.515 1.02zM8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0-14.5A7 7 0 0 0 1.5 8c0 .42.037.83.108 1.229.107-.466.27-.91.483-1.325A6.49 6.49 0 0 1 8 1.5z" />
-          <path
-            d="M8.5 4.5a.5.5 0 0 0-1 0v3.25a.5.5 0 0 0 .354.354l2.25.75a.5.5 0 0 0 .292-.958L8.5 7.42z" />
+          <path d="M8.5 4.5a.5.5 0 0 0-1 0v3.25a.5.5 0 0 0 .354.354l2.25.75a.5.5 0 0 0 .292-.958L8.5 7.42z" />
         </svg>
         Historiques
       </router-link>
@@ -163,7 +162,7 @@ const isListeDossiersActive = computed(() => {
 })
 
 const isInteragenceActive = computed(() => {
-  return route.path === '/dossiers' && route.query.typeDossier === 'INTERAGENCE'
+  return route.path === '/dossiers-interagence' || (route.path === '/dossiers' && route.query.typeDossier === 'INTERAGENCE')
 })
 
 const isDemandeInteragenceActive = computed(() => {

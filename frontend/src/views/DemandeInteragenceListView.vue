@@ -28,7 +28,8 @@ const filters = reactive({
     dateMin: aujourdhui,
     dateMax: aujourdhui,
     agenceDemandeuseId: '',
-    agenceDestinataireId: ''
+    agenceDestinataireId: '',
+    sens: ''
 })
 
 const selectedDemande = ref(null)
@@ -57,8 +58,21 @@ const columns = [
     { key: 'dateDemande', label: 'Date Demande', sortable: true }
 ]
 
-async function chargerDemandes(page, size, sortBy, sortDir, filters) {
-    return await DemandeInteragenceService.searchDemandes(page, size, sortBy, sortDir, filters)
+async function chargerDemandes(page, size, sortBy, sortDir, queryFilters) {
+    const activeFilters = { ...queryFilters }
+
+    // Gérer le filtrage par rôle / sens d'agence si sélectionné
+    if (activeFilters.sens === 'EMISES' && userConnecte.value?.idAgence) {
+        activeFilters.agenceDemandeuseId = userConnecte.value.idAgence
+        activeFilters.agenceDestinataireId = ''
+    } else if (activeFilters.sens === 'RECUES' && userConnecte.value?.idAgence) {
+        activeFilters.agenceDestinataireId = userConnecte.value.idAgence
+        activeFilters.agenceDemandeuseId = ''
+    }
+    delete activeFilters.sens
+
+    // Appel API avec pagination et filtres côté backend
+    return await DemandeInteragenceService.searchDemandes(page, size, sortBy, sortDir, activeFilters)
 }
 
 function reinitialiserFiltres() {
@@ -68,13 +82,52 @@ function reinitialiserFiltres() {
     filters.dateMax = ''
     filters.agenceDemandeuseId = ''
     filters.agenceDestinataireId = ''
+    filters.sens = ''
     datatableRef.value?.refresh(true)
 }
 
 function appliquerAujourdhui() {
+    filters.query = ''
     filters.dateMin = aujourdhui
     filters.dateMax = aujourdhui
+    filters.sens = ''
     datatableRef.value?.refresh(true)
+}
+
+function filtrerRecuesAValider() {
+    filters.query = ''
+    filters.statut = 'EN_ATTENTE'
+    filters.dateMin = ''
+    filters.dateMax = ''
+    filters.sens = 'RECUES'
+    filters.agenceDemandeuseId = ''
+    filters.agenceDestinataireId = userConnecte.value?.idAgence || ''
+    datatableRef.value?.refresh(true)
+}
+
+function filtrerEmisesEnAttente() {
+    filters.query = ''
+    filters.statut = 'EN_ATTENTE'
+    filters.dateMin = ''
+    filters.dateMax = ''
+    filters.sens = 'EMISES'
+    filters.agenceDemandeuseId = userConnecte.value?.idAgence || ''
+    filters.agenceDestinataireId = ''
+    datatableRef.value?.refresh(true)
+}
+
+function onSensChange(val, slotFilters) {
+    slotFilters.sens = val
+    if (val === 'EMISES' && userConnecte.value?.idAgence) {
+        slotFilters.agenceDemandeuseId = userConnecte.value.idAgence
+        slotFilters.agenceDestinataireId = ''
+    } else if (val === 'RECUES' && userConnecte.value?.idAgence) {
+        slotFilters.agenceDestinataireId = userConnecte.value.idAgence
+        slotFilters.agenceDemandeuseId = ''
+    } else {
+        slotFilters.agenceDemandeuseId = ''
+        slotFilters.agenceDestinataireId = ''
+    }
 }
 
 async function ouvrirDetail(row) {
@@ -87,7 +140,7 @@ async function ouvrirDetail(row) {
 }
 
 async function traiterDemande(acceptee) {
-    if (!selectedDemande.value) return 
+    if (!selectedDemande.value) return
     submittingReponse.value = true
     erreurAction.value = null
     messageAction.value = null
@@ -114,7 +167,6 @@ function estAgenceDemandeuse(demande) {
 }
 
 function estAgenceDestinataire(demande) {
-    console.log('test: ', userConnecte.value);
     if (!userConnecte.value || !userConnecte.value.idAgence) return false
     return userConnecte.value.idAgence === demande?.agenceDestinataire?.id
 }
@@ -172,18 +224,24 @@ function formatarDate(dt) {
         <main class="flex-grow-1 p-4" style="margin-left: 280px;">
             <div class="container-fluid">
                 <!-- En-tête de page -->
-                <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
                     <div>
                         <h1 class="h4 fw-bold text-dark mb-1">Demandes Inter-Agences</h1>
-                        <p class="text-secondary mb-0 small">Suivi et traitement des demandes de délégation / partage
-                            inter-agences.</p>
+                        <p class="text-secondary mb-0 small">Gestion, suivi et validation des partages inter-agences.
+                        </p>
                     </div>
-                    <div class="d-flex gap-2">
-                        <button class="btn btn-outline-secondary btn-sm" @click="reinitialiserFiltres">
-                            🔄 Tous les filtres
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button class="btn btn-outline-warning btn-sm fw-semibold" @click="filtrerRecuesAValider">
+                            📥 Reçues à valider
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm fw-semibold" @click="filtrerEmisesEnAttente">
+                            📤 Mes demandes émises
                         </button>
                         <button class="btn btn-primary btn-sm" @click="appliquerAujourdhui">
-                            📅 Demandes du jour
+                            📅 Aujourd'hui
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" @click="reinitialiserFiltres">
+                            🔄 Réinitialiser
                         </button>
                     </div>
                 </div>
@@ -198,6 +256,25 @@ function formatarDate(dt) {
                             <template #filters="{ filters: slotFilters }">
                                 <div class="row g-2">
                                     <div class="col-md-2">
+                                        <label class="form-label small fw-semibold text-secondary">Rôle / Sens</label>
+                                        <select :value="slotFilters.sens || ''"
+                                            @change="e => onSensChange(e.target.value, slotFilters)"
+                                            class="form-select form-select-sm">
+                                            <option value="">Tous les rôles</option>
+                                            <option value="RECUES">📥 Adressées à notre agence</option>
+                                            <option value="EMISES">📤 Émises par notre agence</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label small fw-semibold text-secondary">Statut</label>
+                                        <select v-model="slotFilters.statut" class="form-select form-select-sm">
+                                            <option value="">Tous les statuts</option>
+                                            <option value="EN_ATTENTE">⏳ En attente</option>
+                                            <option value="ACCEPTEE">✓ Acceptée</option>
+                                            <option value="REFUSEE">✕ Refusée</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
                                         <label class="form-label small fw-semibold text-secondary">Date début</label>
                                         <input type="date" v-model="slotFilters.dateMin"
                                             class="form-control form-control-sm">
@@ -208,36 +285,30 @@ function formatarDate(dt) {
                                             class="form-control form-control-sm">
                                     </div>
                                     <div class="col-md-2">
-                                        <label class="form-label small fw-semibold text-secondary">Statut</label>
-                                        <select v-model="slotFilters.statut" class="form-select form-select-sm">
-                                            <option value="">Tous les statuts</option>
-                                            <option value="EN_ATTENTE">En attente</option>
-                                            <option value="ACCEPTEE">Acceptée</option>
-                                            <option value="REFUSEE">Refusée</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-2">
                                         <label class="form-label small fw-semibold text-secondary">Agence
                                             Émettrice</label>
                                         <select v-model="slotFilters.agenceDemandeuseId"
-                                            class="form-select form-select-sm">
-                                            <option value="">Toutes</option>
+                                            class="form-select form-select-sm"
+                                            :disabled="slotFilters.sens === 'EMISES'">
+                                            <option value="">Toutes les agences</option>
                                             <option v-for="a in agences" :key="a.id" :value="a.id">{{ a.nom }}</option>
                                         </select>
                                     </div>
                                     <div class="col-md-2">
                                         <label class="form-label small fw-semibold text-secondary">Agence Cible</label>
                                         <select v-model="slotFilters.agenceDestinataireId"
-                                            class="form-select form-select-sm">
-                                            <option value="">Toutes</option>
+                                            class="form-select form-select-sm"
+                                            :disabled="slotFilters.sens === 'RECUES'">
+                                            <option value="">Toutes les agences</option>
                                             <option v-for="a in agences" :key="a.id" :value="a.id">{{ a.nom }}</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-2">
-                                        <label class="form-label small fw-semibold text-secondary">Recherche</label>
+                                    <div class="col-12 mt-2">
+                                        <label class="form-label small fw-semibold text-secondary">Recherche
+                                            Globale</label>
                                         <input type="text" v-model="slotFilters.query"
                                             class="form-control form-control-sm"
-                                            placeholder="N° dossier, client, motif…">
+                                            placeholder="Rechercher par N° dossier, nom client ou motif de la demande…">
                                     </div>
                                 </div>
                             </template>
