@@ -6,6 +6,7 @@ import PageSkeleton from '../components/inc/PageSkeleton.vue'
 import DossierService from '../services/DossierService'
 import InterAgenceService from '../services/InterAgenceService'
 import DemandeInteragenceService from '../services/DemandeInteragenceService'
+import ListeMarchandises from '@/components/marchandise/ListeMarchandises.vue'
 import PermissionService, {
     PORTEE_PROPRE_SUPPRESSION, PORTEE_PROPRE_ECRITURE,
     ACTION_OT, ACTION_SOUS_DOSSIER
@@ -286,6 +287,24 @@ function formatarDate(dt) {
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- Marchandises -->
+                            <div class="card border shadow-sm">
+                                <div class="card-header bg-white border-bottom py-2">
+                                    <h5 class="mb-0 fw-semibold text-dark">Marchandises</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row g-3 small">
+                                        <p class="text-secondary small mb-2">Les marchandises sont gérées via le module
+                                            dédié.</p>
+                                        <router-link :to="`/marchandises?otId=${dossier.ordreTransit?.id}`"
+                                            class="btn btn-outline-primary btn-sm w-100">
+                                            modifier &rarr;
+                                        </router-link>
+                                        <ListeMarchandises :ordreTransit="dossier.ordreTransit" />
+                                    </div>
+                                </div> 
+                            </div>
                         </div>
 
                         <div class="col-lg-4">
@@ -404,20 +423,6 @@ function formatarDate(dt) {
                                 </div>
                             </div>
 
-                            <!-- Marchandises -->
-                            <div class="card border shadow-sm">
-                                <div class="card-header bg-white border-bottom py-2">
-                                    <h5 class="mb-0 fw-semibold text-dark">Marchandises</h5>
-                                </div>
-                                <div class="card-body">
-                                    <p class="text-secondary small mb-2">Les marchandises sont gérées via le module
-                                        dédié.</p>
-                                    <router-link :to="`/marchandises?otId=${dossier.ordreTransit?.id}`"
-                                        class="btn btn-outline-primary btn-sm w-100">
-                                        Consulter les marchandises &rarr;
-                                    </router-link>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>

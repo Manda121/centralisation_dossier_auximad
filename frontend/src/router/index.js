@@ -80,6 +80,12 @@ const router = createRouter({
       name: 'demandes-interagence',
       component: () => import('../views/DemandeInteragenceListView.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/historiques',
+      name: 'historiques',
+      component: () => import('../views/HistoriqueListView.vue'),
+      meta: { requiresAuth: true }
     }
   ]
 })

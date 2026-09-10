@@ -518,6 +518,28 @@ CREATE TABLE suspension_connexion(
     date_creation TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE action(
+    id SERIAL PRIMARY KEY,
+    nom VARCHAR(100)  UNIQUE,
+    description TEXT
+);
+
+CREATE TABLE historique(
+    id SERIAL PRIMARY KEY,
+    id_utilisateur INTEGER  REFERENCES utilisateur(id),
+    hostname VARCHAR(100) ,
+    url VARCHAR(200) ,
+    logiciel VARCHAR(200),
+    id_action INTEGER  REFERENCES action(id),
+    adresse_ip VARCHAR(45),
+    methode_http VARCHAR(10),
+    statut_http INTEGER NOT NULL DEFAULT 200,
+    entite VARCHAR(255),
+    identifiant_entite VARCHAR(100),
+    details TEXT ,
+    date_action TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP
+);
+
 -- =========================================================================
 -- 5. INDEX
 -- =========================================================================
@@ -595,3 +617,12 @@ CREATE INDEX idx_declaration_dossier ON declaration(id_dossier);
 CREATE INDEX idx_declaration_bureau ON declaration(id_bureau);
 CREATE INDEX idx_declaration_type_declaration ON declaration(id_type_declaration);
 CREATE INDEX idx_declaration_document ON declaration(id_document);
+
+-- Index pour historique
+CREATE INDEX idx_historique_utilisateur ON historique(id_utilisateur);
+CREATE INDEX idx_historique_action      ON historique(id_action);
+CREATE INDEX idx_historique_date_action ON historique(date_action);
+
+CREATE INDEX idx_historique_utilisateur_date ON historique(id_utilisateur, date_action);
+CREATE INDEX idx_historique_action ON historique(adresse_ip);
+CREATE INDEX idx_historique_entite ON historique(entite);

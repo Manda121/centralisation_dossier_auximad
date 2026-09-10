@@ -2,7 +2,10 @@ package com.auximad.controller;
 
 import com.auximad.dto.LoginRequest;
 import com.auximad.dto.LoginResponse;
+import com.auximad.entity.Action;
+import com.auximad.security.JwtSecurityContext;
 import com.auximad.service.AuthentificationService;
+import com.auximad.service.HistorisationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -20,9 +23,12 @@ import java.util.Map;
 public class AuthentificationController {
 
     private final AuthentificationService authentificationService;
+    private final HistorisationService historisationService;
 
-    public AuthentificationController(AuthentificationService authentificationService) {
+    public AuthentificationController(AuthentificationService authentificationService,
+                                      HistorisationService historisationService) {
         this.authentificationService = authentificationService;
+        this.historisationService = historisationService;
     }
 
     @PostMapping("/login")
@@ -62,5 +68,30 @@ public class AuthentificationController {
         }
 
         return ResponseEntity.status(status).body(erreur);
+    }
+
+    /**
+     * Déconnexion : journalise l'événement côté serveur avant que le client
+     * ne supprime son token. Le JWT reste valide jusqu'à expiration (stateless).
+     */
+    @PostMapping("/logout")
+    @Operation(summary = "Déconnexion", description = "Journalise la déconnexion de l'utilisateur connecté.")
+    public ResponseEntity<?> logout() {
+        Integer idUtilisateur = JwtSecurityContext.getIdUtilisateur();
+        String nomUtilisateur = null;
+        try {
+            var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null) {
+                nomUtilisateur = auth.getName();
+            }
+        } catch (Exception ignored) {
+        }
+
+        if (idUtilisateur != null) {
+            historisationService.enregistrerPourUtilisateur(idUtilisateur, Action.DECONNEXION,
+                    "Déconnexion de " + (nomUtilisateur != null ? nomUtilisateur : "utilisateur #" + idUtilisateur),
+                    "Utilisateur", nomUtilisateur, 200);
+        }
+        return ResponseEntity.ok(Map.of("message", "Déconnexion enregistrée"));
     }
 }

@@ -79,6 +79,16 @@
           </router-link>
         </div>
       </div>
+
+      <router-link to="/historiques" class="sidebar__nav-link" active-class="sidebar__nav-link--active">
+        <svg viewBox="0 0 16 16" fill="currentColor" class="sidebar__icon">
+          <path
+            d="M8.515 1.019A7 7 0 0 0 8 4c-.335 0-.66.026-.98.075a6.993 6.993 0 0 1-.497-3.077A7 7 0 0 0 2.49 4.743a7 7 0 0 0-.497 3.34c-.02-.02-.038-.04-.056-.06A7 7 0 1 0 8.515 1.02zM8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0-14.5A7 7 0 0 0 1.5 8c0 .42.037.83.108 1.229.107-.466.27-.91.483-1.325A6.49 6.49 0 0 1 8 1.5z" />
+          <path
+            d="M8.5 4.5a.5.5 0 0 0-1 0v3.25a.5.5 0 0 0 .354.354l2.25.75a.5.5 0 0 0 .292-.958L8.5 7.42z" />
+        </svg>
+        Historiques
+      </router-link>
     </nav>
 
     <hr v-if="isLoggedIn" class="sidebar__divider" />
@@ -114,6 +124,7 @@ import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import UtilisateurService from '../../services/UtilisateurService'
 import DemandeInteragenceService from '../../services/DemandeInteragenceService'
+import HistoriqueService from '../../services/HistoriqueService'
 
 const router = useRouter()
 const route = useRoute()
@@ -172,7 +183,9 @@ onUnmounted(() => {
   if (timer) clearInterval(timer)
 })
 
-const handleLogout = () => {
+const handleLogout = async () => {
+  // Notifier le serveur (audit de déconnexion) AVANT de supprimer le token
+  await HistoriqueService.notifierDeconnexion()
   UtilisateurService.deconnecter()
   router.push('/login')
 }
