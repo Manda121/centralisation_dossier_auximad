@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -109,4 +111,38 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
             @Param("typeDossier") String typeDossier,
             Pageable pageable
     );
+    /**
+     * Dossiers qui ont des types de documents obligatoires non remis (actifs)
+     */
+    @Query(value = """
+        SELECT DISTINCT d.* FROM dossier d
+        JOIN type_production tp ON d.id_type_production = tp.id
+        JOIN type_document td ON td.id_type_production = tp.id AND td.est_obligatoire = true
+        WHERE NOT EXISTS (
+            SELECT 1 FROM document doc
+            WHERE doc.id_dossier = d.id
+              AND doc.id_type_document = td.id
+              AND doc.est_actif = true
+        )
+        AND (:agenceId IS NULL OR d.id_agence = :agenceId)
+        ORDER BY d.date_creation DESC
+        LIMIT 50
+        """, nativeQuery = true)
+    List<Dossier> findDossiersSansDocumentsComplets(@Param("agenceId") Integer agenceId);
+
+    /**
+     * Dossiers avec date_limite_remise dans les prochains N jours
+     */
+    @Query(value = """
+        SELECT d.* FROM dossier d
+        WHERE d.date_limite_remise IS NOT NULL
+          AND d.date_limite_remise >= :maintenant
+          AND d.date_limite_remise <= :limite
+          AND (:agenceId IS NULL OR d.id_agence = :agenceId)
+        ORDER BY d.date_limite_remise ASC
+        """, nativeQuery = true)
+    List<Dossier> findDossiersAvecRemiseUrgente(
+            @Param("maintenant") LocalDateTime maintenant,
+            @Param("limite") LocalDateTime limite,
+            @Param("agenceId") Integer agenceId);
 }

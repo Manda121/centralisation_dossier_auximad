@@ -14,6 +14,7 @@ import com.auximad.security.JwtSecurityContext;
 
 import java.time.LocalDateTime;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -195,5 +196,19 @@ public class DossierService {
     @Transactional(readOnly = true)
     public List<Inconterme> getAllIncontermes() {
         return incontermeRepository.findAll();
+    }
+
+    /** Dossiers ayant des documents obligatoires non remis */
+    @Transactional(readOnly = true)
+    public List<Dossier> getDossiersSansDocumentsComplets(Integer agenceId) {
+        return dossierRepository.findDossiersSansDocumentsComplets(agenceId);
+    }
+
+    /** Dossiers avec date limite de remise dans les N prochains jours */
+    @Transactional(readOnly = true)
+    public List<Dossier> getDossiersRemiseUrgente(int joursAvant, Integer agenceId) {
+        LocalDateTime maintenant = LocalDateTime.now();
+        LocalDateTime limite = maintenant.plusDays(joursAvant);
+        return dossierRepository.findDossiersAvecRemiseUrgente(maintenant, limite, agenceId);
     }
 }

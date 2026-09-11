@@ -119,4 +119,31 @@ public class DossierController {
     public ResponseEntity<List<Inconterme>> getIncontermes() {
         return ResponseEntity.ok(dossierService.getAllIncontermes());
     }
+
+    // ─── Tableaux de bord Documents ──────────────────────────────────────────
+
+    @GetMapping("/sans-documents")
+    @Operation(summary = "Lister les dossiers avec des documents obligatoires manquants")
+    public ResponseEntity<List<Dossier>> getDossiersSansDocuments() {
+        Integer agenceId = null;
+        boolean peutVoirTout = JwtSecurityContext.aPermission(
+                AutorisationHelper.PORTEE_TOUTES_LECTURE, AutorisationHelper.ACTION_OT);
+        if (!peutVoirTout) {
+            agenceId = JwtSecurityContext.getIdAgence();
+        }
+        return ResponseEntity.ok(dossierService.getDossiersSansDocumentsComplets(agenceId));
+    }
+
+    @GetMapping("/remise-urgente")
+    @Operation(summary = "Lister les dossiers avec date limite de remise proche")
+    public ResponseEntity<List<Dossier>> getDossiersRemiseUrgente(
+            @RequestParam(defaultValue = "7") int jours) {
+        Integer agenceId = null;
+        boolean peutVoirTout = JwtSecurityContext.aPermission(
+                AutorisationHelper.PORTEE_TOUTES_LECTURE, AutorisationHelper.ACTION_OT);
+        if (!peutVoirTout) {
+            agenceId = JwtSecurityContext.getIdAgence();
+        }
+        return ResponseEntity.ok(dossierService.getDossiersRemiseUrgente(jours, agenceId));
+    }
 }

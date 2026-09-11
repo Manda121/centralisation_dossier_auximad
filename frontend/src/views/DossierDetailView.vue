@@ -7,6 +7,7 @@ import DossierService from '../services/DossierService'
 import InterAgenceService from '../services/InterAgenceService'
 import DemandeInteragenceService from '../services/DemandeInteragenceService'
 import ListeMarchandises from '@/components/marchandise/ListeMarchandises.vue'
+import DocumentsSection from '@/components/DocumentsSection.vue'
 import PermissionService, {
     PORTEE_PROPRE_SUPPRESSION, PORTEE_PROPRE_ECRITURE,
     ACTION_OT, ACTION_SOUS_DOSSIER
@@ -107,12 +108,12 @@ onMounted(async () => {
 })
 
 watch(
-  () => route.params.id,
-  (newId) => {
-    if (newId) {
-      fetchDossier(newId)
+    () => route.params.id,
+    (newId) => {
+        if (newId) {
+            fetchDossier(newId)
+        }
     }
-  }
 )
 
 async function ouvrirDemandeModal() {
@@ -220,7 +221,7 @@ function formatarDate(dt) {
                                         <div class="col-md-6">
                                             <div class="text-secondary">CLIENT</div>
                                             <div class="fw-semibold">{{ dossier.client?.nom }} {{ dossier.client?.prenom
-                                                }}</div>
+                                            }}</div>
                                         </div>
                                         <div class="col-md-6">
                                             <div class="text-secondary">POUR COMPTE DE</div>
@@ -278,7 +279,8 @@ function formatarDate(dt) {
                                         </div>
                                         <div class="col-md-4">
                                             <div class="text-secondary">STATUT PROVISION</div>
-                                            <div class="fw-semibold">{{ dossier.estProvisionne ? 'Provisionné' : 'attente' }}</div>
+                                            <div class="fw-semibold">{{ dossier.estProvisionne ? 'Provisionné' :
+                                                'attente' }}</div>
                                         </div>
                                         <div class="col-md-4">
                                             <div class="text-secondary">FRET PRÉPAYÉ</div>
@@ -303,7 +305,22 @@ function formatarDate(dt) {
                                         </router-link>
                                         <ListeMarchandises :ordreTransit="dossier.ordreTransit" />
                                     </div>
-                                </div> 
+                                </div>
+                            </div>
+
+                            <!-- Documents du dossier -->
+                            <div class="card border shadow-sm mt-3">
+                                <div
+                                    class="card-header bg-white border-bottom py-2 d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0 fw-semibold text-dark">Documents</h5>
+                                    <router-link to="/documents/dossiers" class="btn btn-outline-primary btn-sm">
+                                        Gérer les documents
+                                    </router-link>
+                                </div>
+                                <div class="card-body">
+                                    <DocumentsSection :dossierId="dossier.id"
+                                        :typeProductionId="dossier.typeProduction?.id" :readOnly="true" />
+                                </div>
                             </div>
                         </div>
 
@@ -345,11 +362,11 @@ function formatarDate(dt) {
                                     <div v-if="!dossier.ordreTransit" class="text-secondary">Aucun OT lié</div>
                                     <div v-else>
                                         <div class="fw-bold text-dark mb-1">{{ dossier.ordreTransit.numeroOrdreTransit
-                                            }}</div>
+                                        }}</div>
                                         <div><strong>Expéditeur :</strong> {{ dossier.ordreTransit.expediteur?.nom }}
                                         </div>
                                         <div><strong>Destinataire :</strong> {{ dossier.ordreTransit.destinataire?.nom
-                                            }}</div>
+                                        }}</div>
                                         <div><strong>Régime :</strong> {{ dossier.ordreTransit.typeRegime?.code }}</div>
                                     </div>
                                 </div>

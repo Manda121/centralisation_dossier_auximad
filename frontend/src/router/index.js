@@ -92,6 +92,12 @@ const router = createRouter({
       name: 'historiques',
       component: () => import('../views/HistoriqueListView.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/documents/dossiers',
+      name: 'documents-dossiers',
+      component: () => import('../views/DocumentDossierView.vue'),
+      meta: { requiresAuth: true }
     }
   ]
 })

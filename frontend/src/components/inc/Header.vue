@@ -77,6 +77,15 @@
               {{ demandesBadge }}
             </span>
           </router-link>
+          <router-link to="/documents/dossiers"
+            class="sidebar__submenu-link d-flex justify-content-between align-items-center"
+            :class="{ 'sidebar__submenu-link--active': isDocumentsActive }">
+            <span>📄 Documents</span>
+            <span v-if="documentsBadge > 0" class="badge bg-warning text-dark rounded-pill ms-1"
+              style="font-size: 0.7rem;">
+              {{ documentsBadge }}
+            </span>
+          </router-link>
         </div>
       </div>
 
@@ -124,12 +133,14 @@ import { useRouter, useRoute } from 'vue-router'
 import UtilisateurService from '../../services/UtilisateurService'
 import DemandeInteragenceService from '../../services/DemandeInteragenceService'
 import HistoriqueService from '../../services/HistoriqueService'
+import DocumentService from '../../services/DocumentService'
 
 const router = useRouter()
 const route = useRoute()
 const utilisateur = ref(null)
 const dossiersExpanded = ref(false)
 const demandesBadge = ref(0)
+const documentsBadge = ref(0)
 let timer = null
 
 const isLoggedIn = computed(() => UtilisateurService.estConnecte())
@@ -146,6 +157,16 @@ const chargerUtilisateur = () => {
 const chargerBadges = async () => {
   if (isLoggedIn.value) {
     demandesBadge.value = await DemandeInteragenceService.getNonVuesCount()
+    // Badge documents : dossiers avec docs incomplets
+    try {
+      const sansDocs = await DocumentService.getDossiersSansDocuments()
+      const remiseUrgente = await DocumentService.getDossiersRemiseUrgente(7)
+      // Dédupliquer
+      const tous = new Set([...sansDocs.map(d => d.id), ...remiseUrgente.map(d => d.id)])
+      documentsBadge.value = tous.size
+    } catch (e) {
+      documentsBadge.value = 0
+    }
   }
 }
 
@@ -167,6 +188,10 @@ const isInteragenceActive = computed(() => {
 
 const isDemandeInteragenceActive = computed(() => {
   return route.path === '/demandes-interagence'
+})
+
+const isDocumentsActive = computed(() => {
+  return route.path === '/documents/dossiers'
 })
 
 onMounted(() => {
