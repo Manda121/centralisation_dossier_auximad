@@ -363,6 +363,8 @@ CREATE TABLE dossier(
 
     id_inconterme INTEGER REFERENCES inconterme(id),
 
+    date_limite_remise TIMESTAMPTZ,    -- date limite de remise des documents obligatoires
+
     date_creation TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -380,7 +382,9 @@ CREATE TABLE document(
     id_dossier INTEGER  REFERENCES dossier(id),
     id_type_document INTEGER  REFERENCES type_document(id),
     nombre INTEGER,
-    chemin_fichier VARCHAR(200) ,
+    chemin_fichier VARCHAR(200),
+    nom_fichier VARCHAR(200),          -- nom original du fichier uploadé
+    est_actif BOOLEAN  DEFAULT TRUE,   -- indique si le document est actif (non retiré)
     date_ajout TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -618,7 +622,7 @@ CREATE INDEX idx_declaration_bureau ON declaration(id_bureau);
 CREATE INDEX idx_declaration_type_declaration ON declaration(id_type_declaration);
 CREATE INDEX idx_declaration_document ON declaration(id_document);
 
--- Index pour historique
+-- Index pour 
 CREATE INDEX idx_historique_utilisateur ON historique(id_utilisateur);
 CREATE INDEX idx_historique_action      ON historique(id_action);
 CREATE INDEX idx_historique_date_action ON historique(date_action);

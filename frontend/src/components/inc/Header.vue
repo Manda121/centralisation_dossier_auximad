@@ -65,7 +65,7 @@
             :class="{ 'sidebar__submenu-link--active': isListeDossiersActive }">
             Liste des dossiers
           </router-link>
-          <router-link to="/dossiers?typeDossier=INTERAGENCE" class="sidebar__submenu-link"
+          <router-link to="/dossiers-interagence" class="sidebar__submenu-link"
             :class="{ 'sidebar__submenu-link--active': isInteragenceActive }">
             Inter-agences
           </router-link>
@@ -77,6 +77,15 @@
               {{ demandesBadge }}
             </span>
           </router-link>
+          <router-link to="/documents/dossiers"
+            class="sidebar__submenu-link d-flex justify-content-between align-items-center"
+            :class="{ 'sidebar__submenu-link--active': isDocumentsActive }">
+            <span>📄 Documents</span>
+            <span v-if="documentsBadge > 0" class="badge bg-warning text-dark rounded-pill ms-1"
+              style="font-size: 0.7rem;">
+              {{ documentsBadge }}
+            </span>
+          </router-link>
         </div>
       </div>
 
@@ -84,8 +93,7 @@
         <svg viewBox="0 0 16 16" fill="currentColor" class="sidebar__icon">
           <path
             d="M8.515 1.019A7 7 0 0 0 8 4c-.335 0-.66.026-.98.075a6.993 6.993 0 0 1-.497-3.077A7 7 0 0 0 2.49 4.743a7 7 0 0 0-.497 3.34c-.02-.02-.038-.04-.056-.06A7 7 0 1 0 8.515 1.02zM8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0-14.5A7 7 0 0 0 1.5 8c0 .42.037.83.108 1.229.107-.466.27-.91.483-1.325A6.49 6.49 0 0 1 8 1.5z" />
-          <path
-            d="M8.5 4.5a.5.5 0 0 0-1 0v3.25a.5.5 0 0 0 .354.354l2.25.75a.5.5 0 0 0 .292-.958L8.5 7.42z" />
+          <path d="M8.5 4.5a.5.5 0 0 0-1 0v3.25a.5.5 0 0 0 .354.354l2.25.75a.5.5 0 0 0 .292-.958L8.5 7.42z" />
         </svg>
         Historiques
       </router-link>
@@ -125,12 +133,14 @@ import { useRouter, useRoute } from 'vue-router'
 import UtilisateurService from '../../services/UtilisateurService'
 import DemandeInteragenceService from '../../services/DemandeInteragenceService'
 import HistoriqueService from '../../services/HistoriqueService'
+import DocumentService from '../../services/DocumentService'
 
 const router = useRouter()
 const route = useRoute()
 const utilisateur = ref(null)
 const dossiersExpanded = ref(false)
 const demandesBadge = ref(0)
+const documentsBadge = ref(0)
 let timer = null
 
 const isLoggedIn = computed(() => UtilisateurService.estConnecte())
@@ -147,6 +157,16 @@ const chargerUtilisateur = () => {
 const chargerBadges = async () => {
   if (isLoggedIn.value) {
     demandesBadge.value = await DemandeInteragenceService.getNonVuesCount()
+    // Badge documents : dossiers avec docs incomplets
+    try {
+      const sansDocs = await DocumentService.getDossiersSansDocuments()
+      const remiseUrgente = await DocumentService.getDossiersRemiseUrgente(7)
+      // Dédupliquer
+      const tous = new Set([...sansDocs.map(d => d.id), ...remiseUrgente.map(d => d.id)])
+      documentsBadge.value = tous.size
+    } catch (e) {
+      documentsBadge.value = 0
+    }
   }
 }
 
@@ -163,11 +183,15 @@ const isListeDossiersActive = computed(() => {
 })
 
 const isInteragenceActive = computed(() => {
-  return route.path === '/dossiers' && route.query.typeDossier === 'INTERAGENCE'
+  return route.path === '/dossiers-interagence' || (route.path === '/dossiers' && route.query.typeDossier === 'INTERAGENCE')
 })
 
 const isDemandeInteragenceActive = computed(() => {
   return route.path === '/demandes-interagence'
+})
+
+const isDocumentsActive = computed(() => {
+  return route.path === '/documents/dossiers'
 })
 
 onMounted(() => {

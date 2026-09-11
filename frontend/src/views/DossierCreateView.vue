@@ -24,7 +24,8 @@
                             <label class="form-label text-xs fw-semibold">N° Ordre de Transit (pour pré-remplir)</label>
                             <div class="input-group input-group-sm">
                                 <input type="number" v-model="rechercheOt" class="form-control" placeholder="ex: 10001">
-                                <button class="btn btn-outline-secondary" :disabled="chargementOt" @click="preRemplirDepuisOt">
+                                <button class="btn btn-outline-secondary" :disabled="chargementOt"
+                                    @click="preRemplirDepuisOt">
                                     <span v-if="chargementOt" class="spinner-border spinner-border-sm me-1"></span>
                                     Charger OT
                                 </button>
@@ -129,6 +130,12 @@
                                 <input type="text" v-model="dossier.adresseLivraison"
                                     class="form-control form-control-sm">
                             </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Date limite de remise docs</label>
+                                <input type="datetime-local" v-model="dossier.dateLimiteRemise"
+                                    class="form-control form-control-sm"
+                                    title="Date limite de remise des documents obligatoires">
+                            </div>
                             <div class="col-md-4 d-flex flex-column gap-2 mt-3">
                                 <div class="form-check form-switch">
                                     <input class="form-check-input" type="checkbox" id="estGroupage"
@@ -148,9 +155,26 @@
                             </div>
                         </div>
 
+                        <!-- Section Documents (lors de la création) -->
+                        <div v-if="dossier.typeProduction" class="mt-4 pt-3 border-top">
+                            <h6 class="fw-semibold mb-3">Documents nécessaires</h6>
+                            <div class="alert alert-info py-2 text-xs mb-3">
+                                Cochez les documents déjà disponibles. Les documents obligatoires <span
+                                    class="badge bg-danger-subtle text-danger border border-danger-subtle">obligatoire</span>
+                                sont requis pour créer le dossier.
+                            </div>
+                            <DocumentsSection :dossier-id="null" :type-production-id="dossier.typeProduction?.id"
+                                :read-only="false" @docs-obligatoires-complets="docsObligatoiresComplets = $event"
+                                @documents-valides="docsCreation = $event" ref="docsSectionRef" />
+                            <div v-if="!docsObligatoiresComplets" class="alert alert-warning py-2 text-xs mt-2">
+                                ⚠️ Tous les documents obligatoires doivent être cochés avant de créer le dossier.
+                            </div>
+                        </div>
+
                         <div class="d-flex justify-content-end gap-3 mt-5 pt-3 border-top">
                             <router-link to="/dossiers" class="btn btn-secondary btn-sm">Annuler</router-link>
-                            <button type="submit" class="btn btn-primary btn-sm" :disabled="enCours">
+                            <button type="submit" class="btn btn-primary btn-sm"
+                                :disabled="enCours || !docsObligatoiresComplets">
                                 <span v-if="enCours" class="spinner-border spinner-border-sm me-2"></span>
                                 Créer le Dossier
                             </button>
@@ -163,10 +187,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import Header from '../components/inc/Header.vue'
 import PageSkeleton from '../components/inc/PageSkeleton.vue'
+import DocumentsSection from '../components/DocumentsSection.vue'
 import Dossier from '../models/Dossier'
 import DossierService from '../services/DossierService'
 import ClientService from '../services/ClientService'
@@ -179,6 +204,8 @@ const chargement = ref(true)
 const chargementOt = ref(false)
 const rechercheOt = ref('')
 const otCharge = ref(null)
+const docsObligatoiresComplets = ref(true) // Par défaut true (pas de type de production sélectionné)
+const docsCreation = ref({ typeIdsCoches: [], fichiersParTypeId: {} })
 
 const dossier = ref(new Dossier())
 const clients = ref([])
@@ -256,7 +283,7 @@ async function creerDossier() {
         return
     }
     enCours.value = true
-        try {
+    try {
         // Assurer que `dossier.agence` est un objet { id: ... } attendu par toJSON()
         if (utilisateur.value) {
             if (utilisateur.value.agence && typeof utilisateur.value.agence === 'object') {
@@ -279,6 +306,17 @@ async function creerDossier() {
         console.log('agence dossier: ', dossier.value.agence)
         console.log('agence utilisateur: ', utilisateur.value.agence)
         const result = await DossierService.createDossier(dossier.value.toJSON())
+
+        // Traiter les documents sélectionnés lors de la création
+        const { typeIdsCoches, fichiersParTypeId } = docsCreation.value
+        if (typeIdsCoches && typeIdsCoches.length > 0) {
+            try {
+                await DocumentService.processerBatch(result.id, typeIdsCoches, [], fichiersParTypeId || {})
+            } catch (e) {
+                console.warn('Documents non sauvegardés :', e)
+            }
+        }
+
         alert(`Dossier ${result.numeroDossier} créé avec succès.`)
         router.push(`/dossiers/${result.id}`)
     } catch (e) {

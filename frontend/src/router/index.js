@@ -58,6 +58,12 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/dossiers-interagence',
+      name: 'dossiers-interagence',
+      component: () => import('../views/DossierInteragenceListView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/dossiers/creer',
       name: 'dossier-creer',
       component: () => import('../views/DossierCreateView.vue'),
@@ -85,6 +91,12 @@ const router = createRouter({
       path: '/historiques',
       name: 'historiques',
       component: () => import('../views/HistoriqueListView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/documents/dossiers',
+      name: 'documents-dossiers',
+      component: () => import('../views/DocumentDossierView.vue'),
       meta: { requiresAuth: true }
     }
   ]

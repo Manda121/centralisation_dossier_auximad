@@ -95,6 +95,10 @@ public class Dossier {
     @Column(name = "date_creation", nullable = false)
     private LocalDateTime dateCreation = LocalDateTime.now();
 
+    @Column(name = "date_limite_remise")
+    private LocalDateTime dateLimiteRemise;
+
+
     @Transient
     private Boolean estDossierMere = false;
 
