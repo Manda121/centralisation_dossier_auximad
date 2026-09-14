@@ -41,6 +41,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Nav
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\OrdreTransit.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Pays.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\PhaseDossier.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Remise.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Role.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\StatutDossier.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\StatutOt.java
@@ -71,6 +72,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\OrdreTransitRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\PaysRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\PhaseDossierRepository.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\RemiseRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\StatutDossierRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\StatutOtRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\SuspensionConnexionRepository.java

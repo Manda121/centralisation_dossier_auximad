@@ -26,7 +26,6 @@ export class Dossier {
         this.adresseLivraison = data.adresseLivraison || ''
         this.inconterme = data.inconterme || null
         this.dateCreation = data.dateCreation || null
-        this.dateLimiteRemise = data.dateLimiteRemise || null
     }
 
     valider() {
@@ -60,8 +59,7 @@ export class Dossier {
             depart: this.depart,
             dateLivraison: this.dateLivraison,
             adresseLivraison: this.adresseLivraison,
-            inconterme: this.inconterme ? { id: this.inconterme.id } : null,
-            dateLimiteRemise: this.dateLimiteRemise
+            inconterme: this.inconterme ? { id: this.inconterme.id } : null
         }
     }
 }

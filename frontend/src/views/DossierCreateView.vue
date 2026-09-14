@@ -130,12 +130,6 @@
                                 <input type="text" v-model="dossier.adresseLivraison"
                                     class="form-control form-control-sm">
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold">Date limite de remise docs</label>
-                                <input type="datetime-local" v-model="dossier.dateLimiteRemise"
-                                    class="form-control form-control-sm"
-                                    title="Date limite de remise des documents obligatoires">
-                            </div>
                             <div class="col-md-4 d-flex flex-column gap-2 mt-3">
                                 <div class="form-check form-switch">
                                     <input class="form-check-input" type="checkbox" id="estGroupage"
@@ -192,6 +186,7 @@ import { useRouter } from 'vue-router'
 import Header from '../components/inc/Header.vue'
 import PageSkeleton from '../components/inc/PageSkeleton.vue'
 import DocumentsSection from '../components/DocumentsSection.vue'
+import DocumentService from '../services/DocumentService'
 import Dossier from '../models/Dossier'
 import DossierService from '../services/DossierService'
 import ClientService from '../services/ClientService'
@@ -311,7 +306,8 @@ async function creerDossier() {
         const { typeIdsCoches, fichiersParTypeId } = docsCreation.value
         if (typeIdsCoches && typeIdsCoches.length > 0) {
             try {
-                await DocumentService.processerBatch(result.id, typeIdsCoches, [], fichiersParTypeId || {})
+                await DocumentService.processerBatch(result.id, typeIdsCoches, [], fichiersParTypeId || {}, null)
+                await DocumentService.assignerBatch(result.id, typeIdsCoches, null)
             } catch (e) {
                 console.warn('Documents non sauvegardés :', e)
             }

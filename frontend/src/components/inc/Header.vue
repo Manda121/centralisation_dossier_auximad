@@ -157,12 +157,13 @@ const chargerUtilisateur = () => {
 const chargerBadges = async () => {
   if (isLoggedIn.value) {
     demandesBadge.value = await DemandeInteragenceService.getNonVuesCount()
-    // Badge documents : dossiers avec docs incomplets
+    // Badge documents : dossiers sans documents complets + remises urgentes (table remise)
     try {
       const sansDocs = await DocumentService.getDossiersSansDocuments()
-      const remiseUrgente = await DocumentService.getDossiersRemiseUrgente(7)
+      const remisesUrgentes = await DocumentService.getRemisesUrgentes(7)
+      const dossiersAvecRemise = remisesUrgentes.map(r => r.dossier?.id).filter(Boolean)
       // Dédupliquer
-      const tous = new Set([...sansDocs.map(d => d.id), ...remiseUrgente.map(d => d.id)])
+      const tous = new Set([...sansDocs.map(d => d.id), ...dossiersAvecRemise])
       documentsBadge.value = tous.size
     } catch (e) {
       documentsBadge.value = 0

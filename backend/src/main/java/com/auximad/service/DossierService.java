@@ -204,11 +204,4 @@ public class DossierService {
         return dossierRepository.findDossiersSansDocumentsComplets(agenceId);
     }
 
-    /** Dossiers avec date limite de remise dans les N prochains jours */
-    @Transactional(readOnly = true)
-    public List<Dossier> getDossiersRemiseUrgente(int joursAvant, Integer agenceId) {
-        LocalDateTime maintenant = LocalDateTime.now();
-        LocalDateTime limite = maintenant.plusDays(joursAvant);
-        return dossierRepository.findDossiersAvecRemiseUrgente(maintenant, limite, agenceId);
-    }
 }

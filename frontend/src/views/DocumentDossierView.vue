@@ -19,14 +19,15 @@
                                 d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2" />
                         </svg>
                         <div class="flex-grow-1">
-                            <div class="fw-semibold">⚠️ {{ alertesRemise.length }} dossier(s) avec remise urgent</div>
+                            <div class="fw-semibold">⚠️ {{ alertesRemise.length }} remise(s) de document(s) urgente(s)</div>
                             <div class="small mt-1">
-                                <span v-for="d in alertesRemise.slice(0, 5)" :key="d.id" class="me-3">
-                                    <a href="#" @click.prevent="selectionnerDossier(d)"
+                                <span v-for="r in alertesRemise.slice(0, 5)"
+                                    :key="`${r.dossier?.id}-${r.typeDocument?.id}`" class="me-3">
+                                    <a href="#" @click.prevent="selectionnerDossier(r.dossier)"
                                         class="text-warning-emphasis fw-semibold">
-                                        {{ d.numeroDossier }}
+                                        {{ r.dossier?.numeroDossier }}
                                     </a>
-                                    — limite : {{ formatarDate(d.dateLimiteRemise) }}
+                                    — remise : {{ formatarDate(r.dateRemise) }}
                                 </span>
                             </div>
                         </div>
@@ -99,10 +100,10 @@
                                                     :class="docsComplets(d) ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning'">
                                                     {{ docsComplets(d) ? '✓ OK' : '! Docs' }}
                                                 </span>
-                                                <span v-if="d.dateLimiteRemise"
+                                                <span v-if="remisesParDossier[d.id]"
                                                     class="badge bg-danger-subtle text-danger"
                                                     style="font-size:0.65rem;">
-                                                    ⏰ {{ formatarDateCourte(d.dateLimiteRemise) }}
+                                                    ⏰ {{ formatarDateCourte(remisesParDossier[d.id]) }}
                                                 </span>
                                             </div>
                                         </div>
@@ -169,11 +170,10 @@
                                         </div>
                                     </div>
                                     <div class="col-md-4">
-                                        <div class="text-secondary text-uppercase" style="font-size:0.7rem;">Date limite
-                                            remise</div>
-                                        <div class="fw-semibold" :class="dateLimiteUrgente ? 'text-danger' : ''">
-                                            {{ dossierSelectionne.dateLimiteRemise ?
-                                                formatarDate(dossierSelectionne.dateLimiteRemise) : '—' }}
+                                        <div class="text-secondary text-uppercase" style="font-size:0.7rem;">Prochaine remise de doc</div>
+                                        <div class="fw-semibold" :class="remiseUrgenteSelection ? 'text-danger' : ''">
+                                            {{ remiseUrgenteSelection ?
+                                                formatarDate(remiseUrgenteSelection.dateRemise) : '—' }}
                                         </div>
                                     </div>
                                 </div>
@@ -206,6 +206,7 @@ import OrdreTransitService from '@/services/OrdreTransitService'
 const dossiers = ref([])
 const dossierSelectionne = ref(null)
 const alertesRemise = ref([])
+const remisesParDossier = ref({})
 const chargementDossiers = ref(false)
 const typeProductions = ref([])
 
@@ -242,7 +243,18 @@ async function chargerTypeProductions() {
 
 async function chargerAlertes() {
     try {
-        alertesRemise.value = await DocumentService.getDossiersRemiseUrgente(7)
+        // Remises urgentes depuis la table remise
+        alertesRemise.value = await DocumentService.getRemisesUrgentes(7)
+        // Prochaine remise par dossier (pour les badges ⏰ de la liste)
+        const map = {}
+        alertesRemise.value.forEach(r => {
+            const dossierId = r.dossier?.id
+            if (!dossierId) return
+            if (!map[dossierId] || new Date(r.dateRemise) < new Date(map[dossierId])) {
+                map[dossierId] = r.dateRemise
+            }
+        })
+        remisesParDossier.value = map
     } catch (e) {
         console.error('Erreur alertes', e)
     }
@@ -289,17 +301,13 @@ function changerPage(delta) {
 }
 
 function docsComplets(dossier) {
-    // On marque comme complets si pas dans la liste des incomplets
-    // (approximatif côté frontend, la vraie vérif est côté backend)
-    return !alertesRemise.value.find(a => a.id === dossier.id)
+    // Approximation côté frontend : incomplet si le dossier a des remises urgentes en attente
+    return !alertesRemise.value.some(r => r.dossier?.id === dossier.id)
 }
 
-const dateLimiteUrgente = computed(() => {
-    if (!dossierSelectionne.value?.dateLimiteRemise) return false
-    const limite = new Date(dossierSelectionne.value.dateLimiteRemise)
-    const dans7j = new Date()
-    dans7j.setDate(dans7j.getDate() + 7)
-    return limite <= dans7j
+const remiseUrgenteSelection = computed(() => {
+    const id = dossierSelectionne.value?.id
+    return id ? (remisesParDossier.value[id] || null) : null
 })
 
 function onDocumentsValides({ succes }) {

@@ -130,19 +130,4 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
         """, nativeQuery = true)
     List<Dossier> findDossiersSansDocumentsComplets(@Param("agenceId") Integer agenceId);
 
-    /**
-     * Dossiers avec date_limite_remise dans les prochains N jours
-     */
-    @Query(value = """
-        SELECT d.* FROM dossier d
-        WHERE d.date_limite_remise IS NOT NULL
-          AND d.date_limite_remise >= :maintenant
-          AND d.date_limite_remise <= :limite
-          AND (:agenceId IS NULL OR d.id_agence = :agenceId)
-        ORDER BY d.date_limite_remise ASC
-        """, nativeQuery = true)
-    List<Dossier> findDossiersAvecRemiseUrgente(
-            @Param("maintenant") LocalDateTime maintenant,
-            @Param("limite") LocalDateTime limite,
-            @Param("agenceId") Integer agenceId);
 }

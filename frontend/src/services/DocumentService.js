@@ -34,8 +34,9 @@ class DocumentService {
      * @param {number[]} typeIdsAjoutes
      * @param {number[]} typeIdsRetires
      * @param {Object} fichiersParTypeId - { [typeId]: File }
+     * @param {string|null} dateRemise - date de remise commune (ISO) stockée dans la table remise
      */
-    async processerBatch(dossierId, typeIdsAjoutes, typeIdsRetires, fichiersParTypeId = {}) {
+    async processerBatch(dossierId, typeIdsAjoutes, typeIdsRetires, fichiersParTypeId = {}, dateRemise = null) {
         const formData = new FormData()
         formData.append('dossierId', dossierId)
 
@@ -44,6 +45,9 @@ class DocumentService {
         }
         if (typeIdsRetires && typeIdsRetires.length > 0) {
             typeIdsRetires.forEach(id => formData.append('typeIdsRetires', id))
+        }
+        if (dateRemise) {
+            formData.append('dateRemise', dateRemise)
         }
 
         // Fichiers optionnels
@@ -62,6 +66,66 @@ class DocumentService {
         return res.data
     }
 
+    /** Assigner un document à un dossier avec sa date de remise (table remise) */
+    async assignerDocument(dossierId, typeDocumentId, dateRemise = null) {
+        const params = new URLSearchParams({ dossierId, typeDocumentId })
+        if (dateRemise) params.append('dateRemise', dateRemise)
+        const res = await axios.post(`${API_URL}/assigner?${params.toString()}`, {}, { headers: authHeader() })
+        return res.data
+    }
+
+    /** Assigner plusieurs documents avec une date de remise commune (table remise) */
+    async assignerBatch(dossierId, typeDocumentIds, dateRemise = null) {
+        const params = new URLSearchParams({ dossierId })
+        typeDocumentIds.forEach(id => params.append('typeDocumentIds', id))
+        if (dateRemise) params.append('dateRemise', dateRemise)
+        const res = await axios.post(`${API_URL}/assigner-batch?${params.toString()}`, {}, { headers: authHeader() })
+        return res.data
+    }
+
+    /** Mettre à jour la date de remise d'un document (table remise) */
+    async updateDateRemise(dossierId, typeDocumentId, dateRemise) {
+        const params = new URLSearchParams({ dossierId, typeDocumentId })
+        if (dateRemise) params.append('dateRemise', dateRemise)
+        const res = await axios.put(`${API_URL}/remise?${params.toString()}`, {}, { headers: authHeader() })
+        return res.data
+    }
+
+    /** Récupérer les remises d'un dossier (table remise) */
+    async getRemises(dossierId) {
+        const res = await axios.get(`${API_URL}/remises?dossierId=${dossierId}`, { headers: authHeader() })
+        return res.data
+    }
+
+    /** Ajouter/mettre à jour un document avec son fichier (crée la remise si absente) */
+    async saveDocument(dossierId, typeDocumentId, fichier) {
+        const formData = new FormData()
+        formData.append('dossierId', dossierId)
+        formData.append('typeDocumentId', typeDocumentId)
+        if (fichier) formData.append('fichier', fichier)
+        const res = await axios.post(API_URL, formData, {
+            headers: {
+                ...authHeader(),
+                'Content-Type': 'multipart/form-data'
+            }
+        })
+        return res.data
+    }
+
+    /** Retirer (désactiver) un document d'un dossier et supprimer sa remise */
+    async retirerDocument(dossierId, typeDocumentId) {
+        const res = await axios.delete(`${API_URL}/retirer?dossierId=${dossierId}&typeDocumentId=${typeDocumentId}`, { headers: authHeader() })
+        return res.data
+    }
+
+    /** Récupérer les remises urgentes (dates de remise dans les N prochains jours) */
+    async getRemisesUrgentes(jours = 7, agenceId = null) {
+        let url = `${API_URL}/remises/urgentes?jours=${jours}`
+        if (agenceId) url += `&agenceId=${agenceId}`
+        const res = await axios.get(url, { headers: authHeader() })
+        return res.data
+    }
+
     /** URL pour visualiser un fichier de document */
     getFichierUrl(documentId) {
         const token = localStorage.getItem('auximad_token')
@@ -71,12 +135,6 @@ class DocumentService {
     /** Récupérer les dossiers sans documents complets */
     async getDossiersSansDocuments() {
         const res = await axios.get(`${DOSSIER_API}/sans-documents`, { headers: authHeader() })
-        return res.data
-    }
-
-    /** Récupérer les dossiers avec remise urgente */
-    async getDossiersRemiseUrgente(jours = 7) {
-        const res = await axios.get(`${DOSSIER_API}/remise-urgente?jours=${jours}`, { headers: authHeader() })
         return res.data
     }
 }
