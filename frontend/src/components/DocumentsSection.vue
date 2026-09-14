@@ -296,6 +296,17 @@ function estCoche(typeDocId) {
     return coches.value.has(typeDocId)
 }
 
+function getDocumentActif(typeDocId) {
+    // Retourne le dernier document correspondant au type demandé.
+    for (let i = documentsActifs.value.length - 1; i >= 0; i -= 1) {
+        const doc = documentsActifs.value[i]
+        if (doc?.typeDocument?.id === typeDocId) {
+            return doc
+        }
+    }
+    return null
+}
+
 function getDateRemise(typeDocId) {
     return remises.value[typeDocId] || null
 }
