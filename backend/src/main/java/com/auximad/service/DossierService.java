@@ -28,6 +28,9 @@ public class DossierService {
     private final AgenceRepository agenceRepository;
     private final TypeProductionRepository typeProductionRepository;
     private final DossierInteragenceRepository interagenceRepository;
+    private final DocumentRepository documentRepository;
+    private final RemiseRepository remiseRepository;
+    private final DemandeInteragenceRepository demandeInteragenceRepository;
 
     public DossierService(DossierRepository dossierRepository,
                           PhaseDossierRepository phaseDossierRepository,
@@ -35,7 +38,10 @@ public class DossierService {
                           IncontermeRepository incontermeRepository,
                           AgenceRepository agenceRepository,
                           TypeProductionRepository typeProductionRepository,
-                          DossierInteragenceRepository interagenceRepository) {
+                          DossierInteragenceRepository interagenceRepository,
+                          DocumentRepository documentRepository,
+                          RemiseRepository remiseRepository,
+                          DemandeInteragenceRepository demandeInteragenceRepository) {
         this.dossierRepository = dossierRepository;
         this.phaseDossierRepository = phaseDossierRepository;
         this.statutDossierRepository = statutDossierRepository;
@@ -43,6 +49,9 @@ public class DossierService {
         this.agenceRepository = agenceRepository;
         this.typeProductionRepository = typeProductionRepository;
         this.interagenceRepository = interagenceRepository;
+        this.documentRepository = documentRepository;
+        this.remiseRepository = remiseRepository;
+        this.demandeInteragenceRepository = demandeInteragenceRepository;
     }
 
     /**
@@ -174,6 +183,35 @@ public class DossierService {
 
     @Transactional
     public void deleteDossier(Integer id) {
+        if (id == null) {
+            throw new IllegalArgumentException("L'ID du dossier ne peut pas être null");
+        }
+
+        // Vérifier que le dossier existe
+        Dossier dossier = dossierRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Dossier avec l'ID " + id + " non trouvé"));
+
+        // Supprimer les dépendances en cascade
+        // Cet ordre est important pour respecter les contraintes de clés étrangères
+        
+        // 1. Supprimer les demandes d'inter-agence
+        demandeInteragenceRepository.deleteByDossierId(id);
+        
+        // 2. Supprimer les liens de dossier inter-agence (dossier_interagence)
+        // Supprimer d'abord en tant que sous-dossier
+        interagenceRepository.findBySousDossierId(id).ifPresent(interagenceRepository::delete);
+        
+        // Puis en tant que dossier mère
+        List<DossierInteragence> interagenceLinksAsParent = interagenceRepository.findByDossierMereId(id);
+        interagenceLinksAsParent.forEach(interagenceRepository::delete);
+        
+        // 3. Supprimer les remises associées
+        remiseRepository.deleteByDossierId(id);
+        
+        // 4. Supprimer les documents associés
+        documentRepository.deleteByDossierId(id);
+        
+        // 5. Enfin, supprimer le dossier lui-même
         dossierRepository.deleteById(id);
     }
 

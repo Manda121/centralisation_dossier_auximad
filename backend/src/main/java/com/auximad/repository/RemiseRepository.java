@@ -16,6 +16,9 @@ public interface RemiseRepository extends JpaRepository<Remise, Integer> {
     /** Toutes les remises d'un dossier */
     List<Remise> findByDossierId(Integer dossierId);
 
+    /** Supprimer toutes les remises associées à un dossier */
+    void deleteByDossierId(Integer dossierId);
+
     /** Remise d'un dossier pour un type de document donné */
     Optional<Remise> findByDossierIdAndTypeDocumentId(Integer dossierId, Integer typeDocumentId);
 

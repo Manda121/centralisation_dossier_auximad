@@ -452,6 +452,7 @@ function emitObligatoiresComplets() {
 
 async function valider() {
     if (!props.dossierId) {
+        console.log('iddossier: ', props)
         // Mode création : émettre les données pour que le parent les gère
         emit('documents-valides', {
             typeIdsCoches: Array.from(coches.value),

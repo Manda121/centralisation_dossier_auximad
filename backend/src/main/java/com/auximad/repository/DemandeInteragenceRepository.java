@@ -16,6 +16,9 @@ public interface DemandeInteragenceRepository extends JpaRepository<DemandeInter
 
     List<DemandeInteragence> findByDossierIdOrderByDateDemandeDesc(Integer dossierId);
 
+    /** Supprimer toutes les demandes d'inter-agence associées à un dossier */
+    void deleteByDossierId(Integer dossierId);
+
     Optional<DemandeInteragence> findFirstByDossierIdAndStatutOrderByDateDemandeDesc(Integer dossierId, String statut);
 
     long countByAgenceDestinataireIdAndStatutAndEstVueFalse(Integer agenceDestinataireId, String statut);
