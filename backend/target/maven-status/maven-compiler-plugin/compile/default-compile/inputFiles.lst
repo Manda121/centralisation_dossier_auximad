@@ -7,6 +7,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\config\Web
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\AgenceController.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\AuthentificationController.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\ClientController.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\ConteneurController.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\DemandeInteragenceController.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\DocumentController.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\DossierController.java
@@ -26,6 +27,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Aut
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Bureau.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Client.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Compagnie.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Conteneur.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\ContratTransport.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\DemandeInteragence.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Document.java
@@ -47,6 +49,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Sta
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\StatutOt.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\SuspensionConnexion.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\TypeClient.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\TypeContainer.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\TypeDocument.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\TypeProduction.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\TypeRegime.java
@@ -58,6 +61,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\BureauRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\ClientRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\CompagnieRepository.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\ConteneurRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\ContratTransportRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\DemandeInteragenceRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\DocumentRepository.java
@@ -77,6 +81,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\StatutOtRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\SuspensionConnexionRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\TypeClientRepository.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\TypeContainerRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\TypeDocumentRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\TypeProductionRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\TypeRegimeRepository.java
@@ -89,6 +94,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\security\J
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\AgenceService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\AuthentificationService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\ClientService.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\ConteneurService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\DemandeInteragenceService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\DocumentService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\DossierService.java

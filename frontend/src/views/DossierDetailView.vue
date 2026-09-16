@@ -8,6 +8,8 @@ import InterAgenceService from '../services/InterAgenceService'
 import DemandeInteragenceService from '../services/DemandeInteragenceService'
 import ListeMarchandises from '@/components/marchandise/ListeMarchandises.vue'
 import DocumentsSection from '@/components/DocumentsSection.vue'
+import ConteneurService from '../services/ConteneurService'
+import ModalConteneur from '@/components/conteneur/ModalConteneur.vue'
 import PermissionService, {
     PORTEE_PROPRE_SUPPRESSION, PORTEE_PROPRE_ECRITURE,
     ACTION_OT, ACTION_SOUS_DOSSIER
@@ -23,6 +25,13 @@ const dossier = ref({})
 const dossierMereLien = ref(null)   // lien interagence si ce dossier est un sous-dossier
 const sousDossiers = ref([])         // sous-dossiers de ce dossier
 const demandesInteragence = ref([]) // demandes d'interagence pour ce dossier
+const conteneurs = ref([])           // conteneurs assignés
+const showConteneurModal = ref(false)
+const conteneurAEditer = ref(null)
+
+const estEligibleConteneur = computed(() => {
+    return ConteneurService.estEligibleConteneur(dossier.value)
+})
 
 const showDemandeModal = ref(false)
 const agencesDisponibles = ref([])
@@ -55,11 +64,12 @@ async function fetchDossier(id) {
     try {
         dossier.value = await DossierService.getDossierById(route.params.id)
 
-        // Charger les données interagences et demandes en parallèle
-        const [merenLien, enfants, demandesRes] = await Promise.allSettled([
+        // Charger les données interagences, demandes et conteneurs en parallèle
+        const [merenLien, enfants, demandesRes, conteneursRes] = await Promise.allSettled([
             InterAgenceService.getDossierMere(route.params.id),
             InterAgenceService.getSousDossiers(route.params.id),
-            DemandeInteragenceService.getDemandesParDossier(route.params.id)
+            DemandeInteragenceService.getDemandesParDossier(route.params.id),
+            ConteneurService.getConteneursParDossier(route.params.id)
         ])
 
         if (merenLien.status === 'fulfilled') {
@@ -71,10 +81,38 @@ async function fetchDossier(id) {
         if (demandesRes.status === 'fulfilled') {
             demandesInteragence.value = demandesRes.value || []
         }
+        if (conteneursRes.status === 'fulfilled') {
+            conteneurs.value = conteneursRes.value || []
+        }
     } catch (e) {
         erreur.value = "Impossible de récupérer ce dossier."
     } finally {
         loading.value = false
+    }
+}
+
+async function chargerConteneurs() {
+    if (!dossier.value || !dossier.value.id) return
+    try {
+        conteneurs.value = await ConteneurService.getConteneursParDossier(dossier.value.id)
+    } catch (e) {
+        console.error("Erreur de chargement des conteneurs du dossier", e)
+    }
+}
+
+function ouvrirModalConteneur(c = null) {
+    conteneurAEditer.value = c
+    showConteneurModal.value = true
+}
+
+async function supprimerConteneur(cId) {
+    if (confirm("Supprimer cette assignation de conteneur ?")) {
+        try {
+            await ConteneurService.supprimerConteneur(cId)
+            await chargerConteneurs()
+        } catch (e) {
+            alert(e.response?.data?.message || "Erreur de suppression du conteneur")
+        }
     }
 }
 onMounted(async () => {
@@ -308,6 +346,61 @@ function formatarDate(dt) {
                                 </div>
                             </div>
 
+                            <!-- Conteneurs assignés -->
+                            <div class="card border shadow-sm mt-3">
+                                <div class="card-header bg-white border-bottom py-2 d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0 fw-semibold text-dark d-flex align-items-center gap-2">
+                                        <span>📦</span> Conteneur(s)
+                                        <span v-if="conteneurs.length > 0" class="badge bg-primary rounded-pill">{{ conteneurs.length }}</span>
+                                    </h5>
+                                    <button v-if="estEligibleConteneur" class="btn btn-primary btn-sm d-flex align-items-center gap-1" @click="ouvrirModalConteneur()">
+                                        + Assigner un conteneur
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <div v-if="!estEligibleConteneur" class="alert alert-light border text-muted small mb-0">
+                                        ℹ️ L'assignation de conteneurs est réservée aux dossiers de transport maritime ou nécessitant un conteneur.
+                                    </div>
+                                    <div v-else-if="conteneurs.length === 0" class="text-secondary small py-2 text-center">
+                                        Aucun conteneur assigné pour ce dossier maritime.
+                                    </div>
+                                    <div v-else class="table-responsive">
+                                        <table class="table table-sm align-middle table-hover mb-0 small">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>N° Conteneur</th>
+                                                    <th>Type de Conteneur</th>
+                                                    <th>Volume / Poids Max</th>
+                                                    <th>Description</th>
+                                                    <th class="text-end">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr v-for="c in conteneurs" :key="c.id">
+                                                    <td class="fw-bold text-dark">📦 {{ c.numeroContainer }}</td>
+                                                    <td>
+                                                        <span class="badge bg-info-subtle text-info-emphasis border">
+                                                            {{ c.typeContainer?.nom || '—' }}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        {{ c.typeContainer?.volume ? c.typeContainer.volume + ' m³' : '—' }} 
+                                                        <span v-if="c.typeContainer?.poidsMax" class="text-muted ms-1">
+                                                            (Max {{ c.typeContainer.poidsMax }} kg)
+                                                        </span>
+                                                    </td>
+                                                    <td class="text-secondary">{{ c.description || '—' }}</td>
+                                                    <td class="text-end">
+                                                        <button class="btn btn-link btn-sm text-primary p-0 me-2" @click="ouvrirModalConteneur(c)">Modifier</button>
+                                                        <button class="btn btn-link btn-sm text-danger p-0" @click="supprimerConteneur(c.id)">Supprimer</button>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Documents du dossier -->
                             <div class="card border shadow-sm mt-3">
                                 <div
@@ -494,6 +587,14 @@ function formatarDate(dt) {
                 </div>
             </div>
         </div>
+        <!-- Modale d'assignation de conteneur -->
+        <ModalConteneur
+            :show="showConteneurModal"
+            :dossier="dossier"
+            :conteneurAEditer="conteneurAEditer"
+            @close="showConteneurModal = false"
+            @saved="chargerConteneurs"
+        />
     </div>
 </template>
 
