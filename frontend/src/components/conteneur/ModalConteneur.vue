@@ -63,13 +63,43 @@ const filteredTypesContainers = computed(() => {
   )
 })
 
-// Filtrage autocomplétion pour les numéros de conteneurs existants dans la table conteneur
+// Filtrage autocomplétion pour le numéro de conteneur :
+// 1. Uniquement quand l'utilisateur tape quelque chose (ne se charge pas à vide)
+// 2. Filtré par type de conteneur sélectionné si un type est choisi
+// 3. Uniquement les conteneurs qui ne sont PAS assignés à un dossier EN COURS (statut = 2)
 const filteredConteneursExistants = computed(() => {
-  if (!form.numeroContainer) return conteneursExistants.value
+  if (!form.numeroContainer || !form.numeroContainer.trim()) {
+    return []
+  }
+
   const q = form.numeroContainer.toLowerCase().trim()
-  return conteneursExistants.value.filter(c => 
-    c.numeroContainer && c.numeroContainer.toLowerCase().includes(q)
-  )
+
+  return conteneursExistants.value.filter(c => {
+    // Règle A : Le numéro doit correspondre à la saisie
+    const matchNumero = c.numeroContainer && c.numeroContainer.toLowerCase().includes(q)
+    if (!matchNumero) return false
+
+    // Règle B : Si un type de conteneur est sélectionné, ne proposer que les conteneurs de ce type
+    if (form.idTypeContainer) {
+      const selectedTypeId = parseInt(form.idTypeContainer)
+      if (c.typeContainer?.id !== selectedTypeId) {
+        return false
+      }
+    }
+
+    // Règle C : Exclure ceux qui sont déjà assignés à un dossier EN COURS (statutDossier.id == 2)
+    const dossierStatutId = c.dossier?.statutDossier?.id || c.dossier?.statut?.id
+    const estDossierEnCours = (dossierStatutId === 2)
+
+    // Exception : Si le conteneur appartient au dossier actuel qu'on édite, on le laisse disponible
+    const estMemeDossier = props.dossier && c.dossier && (c.dossier.id === props.dossier.id)
+
+    if (estDossierEnCours && !estMemeDossier) {
+      return false
+    }
+
+    return true
+  })
 })
 
 function selectionnerTypeContainer(type) {
@@ -113,8 +143,18 @@ function onTypeInputBlur() {
   }, 200)
 }
 
+function onNumeroInput() {
+  if (form.numeroContainer && form.numeroContainer.trim().length > 0) {
+    showNumeroDropdown.value = true
+  } else {
+    showNumeroDropdown.value = false
+  }
+}
+
 function onNumeroInputFocus() {
-  showNumeroDropdown.value = true
+  if (form.numeroContainer && form.numeroContainer.trim().length > 0) {
+    showNumeroDropdown.value = true
+  }
 }
 
 function onNumeroInputBlur() {
@@ -280,10 +320,10 @@ onMounted(() => {
           <!-- Formulaire -->
           <form @submit.prevent="enregistrer" v-if="estEligible">
 
-            <!-- Champ Numéro Conteneur avec Autocomplétion -->
+            <!-- Champ Numéro Conteneur avec Autocomplétion au cours de la saisie -->
             <div class="mb-3 position-relative">
               <label class="form-label fw-semibold text-dark small">
-                Numéro du conteneur (Autocomplétion table conteneur) <span class="text-danger">*</span>
+                Numéro du conteneur <span class="text-danger">*</span>
               </label>
 
               <div class="input-group input-group-sm">
@@ -291,6 +331,7 @@ onMounted(() => {
                 <input 
                   type="text" 
                   v-model="form.numeroContainer"
+                  @input="onNumeroInput"
                   @focus="onNumeroInputFocus"
                   @blur="onNumeroInputBlur"
                   class="form-control form-control-sm text-uppercase" 
@@ -299,7 +340,7 @@ onMounted(() => {
                 />
               </div>
 
-              <!-- Menu d'autocomplétion des conteneurs existants -->
+              <!-- Menu d'autocomplétion (S'affiche uniquement lors de la saisie d'au moins un caractère) -->
               <div 
                 v-if="showNumeroDropdown && filteredConteneursExistants.length > 0" 
                 class="dropdown-menu show w-100 shadow border-1 position-absolute mt-1"
@@ -325,14 +366,14 @@ onMounted(() => {
               </div>
 
               <div class="form-text text-muted" style="font-size: 0.75rem;">
-                Recherchez un numéro de conteneur existant dans la base ou saisissez un nouveau numéro.
+                Propose uniquement les conteneurs disponibles (non assignés à un dossier en cours).
               </div>
             </div>
             
             <!-- Champ Type Conteneur avec Autocomplétion -->
             <div class="mb-3 position-relative">
               <label class="form-label fw-semibold text-dark small">
-                Type de conteneur (Autocomplétion) <span class="text-danger">*</span>
+                Type de conteneur <span class="text-danger">*</span>
               </label>
               
               <div class="input-group input-group-sm">
