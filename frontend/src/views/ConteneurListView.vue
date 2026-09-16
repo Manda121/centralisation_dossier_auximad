@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import Header from '../components/inc/Header.vue'
 import DataTable from '../components/inc/DataTable.vue'
 import DossierService from '../services/DossierService'
@@ -28,11 +28,19 @@ const conteneurAEditer = ref(null)
 const conteneursParDossier = ref({})
 const loadingConteneurs = ref(false)
 
-// Gestion du déroulement / dépliement des conteneurs dans le tableau
+// Gestion du déroulement flottant (dropdown/popover) pour préserver la hauteur des lignes du tableau
 const expandedRows = reactive({})
 
-function toggleExpand(dossierId) {
-  expandedRows[dossierId] = !expandedRows[dossierId]
+function toggleExpand(dossierId, e) {
+  if (e) e.stopPropagation()
+  const currentlyOpen = !!expandedRows[dossierId]
+  // Fermer les autres dropdowns ouverts
+  Object.keys(expandedRows).forEach(k => { expandedRows[k] = false })
+  expandedRows[dossierId] = !currentlyOpen
+}
+
+function fermerTousDropdowns() {
+  Object.keys(expandedRows).forEach(k => { expandedRows[k] = false })
 }
 
 async function chargerTousLesConteneurs() {
@@ -57,6 +65,7 @@ async function chargerTousLesConteneurs() {
 }
 
 onMounted(async () => {
+  window.addEventListener('click', fermerTousDropdowns)
   try {
     const [ph, st] = await Promise.all([
       DossierService.getAllPhases(),
@@ -68,6 +77,10 @@ onMounted(async () => {
     console.error('Erreur chargement des référentiels', e)
   }
   await chargerTousLesConteneurs()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('click', fermerTousDropdowns)
 })
 
 const columns = [
@@ -134,7 +147,7 @@ function formatarDate(dt) {
           <div>
             <h1 class="h4 fw-bold text-dark mb-1">Gestion & Assignation des Conteneurs</h1>
             <p class="text-secondary mb-0 small">
-              Assignation simplifiée des conteneurs aux dossiers de dédedouanement maritime.
+              Assignation simplifiée des conteneurs aux dossiers de dédouanement maritime.
             </p>
           </div>
         </div>
@@ -200,67 +213,74 @@ function formatarDate(dt) {
                 </div>
               </template>
 
-              <!-- Cellule Conteneurs (Affichage sobre sans couleur, tronqué avec déroulement au clic) -->
+              <!-- Cellule Conteneurs (Affichage sobre, tronqué dans la cellule fixe, avec menu flottant au clic) -->
               <template #cell-conteneurs="{ row }">
-                <div v-if="conteneursParDossier[row.id] && conteneursParDossier[row.id].length > 0" class="conteneurs-cell">
+                <div v-if="conteneursParDossier[row.id] && conteneursParDossier[row.id].length > 0" class="position-relative">
                   
-                  <!-- Vue tronquée en une ligne si non déroulé -->
+                  <!-- En-tête tronqué en une ligne (Hauteur de ligne constante) -->
                   <div 
-                    v-if="!expandedRows[row.id]" 
-                    class="d-flex align-items-center gap-1 cursor-pointer py-1"
-                    @click="toggleExpand(row.id)"
-                    title="Cliquer pour dérouler la liste des conteneurs"
+                    class="d-flex align-items-center gap-1 cursor-pointer py-1 px-2 border rounded bg-white hover-bg-light text-nowrap"
+                    style="max-width: 220px; font-size: 0.82rem;"
+                    @click="toggleExpand(row.id, $event)"
+                    title="Cliquer pour afficher la liste des conteneurs"
                   >
-                    <span class="text-dark small text-truncate" style="max-width: 220px;">
+                    <span class="text-dark text-truncate">
                       {{ conteneursParDossier[row.id][0].numeroContainer }}
                       <span class="text-secondary">({{ conteneursParDossier[row.id][0].typeContainer?.nom || 'Conteneur' }})</span>
                     </span>
-                    
-                    <span v-if="conteneursParDossier[row.id].length > 1" class="text-primary fw-bold small ms-1">
-                      ... (+{{ conteneursParDossier[row.id].length - 1 }})
+                    <span v-if="conteneursParDossier[row.id].length > 1" class="text-primary fw-bold ms-auto" style="font-size: 0.75rem;">
+                      ... (+{{ conteneursParDossier[row.id].length - 1 }}) ▾
                     </span>
-                    <span v-else-if="conteneursParDossier[row.id][0].numeroContainer.length > 20" class="text-primary small">...</span>
+                    <span v-else class="text-secondary ms-auto" style="font-size: 0.7rem;">▾</span>
                   </div>
 
-                  <!-- Vue déroulée complète -->
-                  <div v-else class="py-1">
-                    <ul class="list-unstyled mb-1 small text-dark">
-                      <li 
-                        v-for="c in conteneursParDossier[row.id]" 
-                        :key="c.id" 
-                        class="py-1 border-bottom-subtle d-flex justify-content-between align-items-center gap-2"
-                      >
-                        <span>
-                          <strong>{{ c.numeroContainer }}</strong>
-                          <span class="text-secondary ms-1">({{ c.typeContainer?.nom || 'Conteneur' }})</span>
-                        </span>
+                  <!-- Menu déroulant flottant (Dropdown sans affecter la hauteur de la ligne du tableau) -->
+                  <div 
+                    v-if="expandedRows[row.id]" 
+                    class="position-absolute start-0 top-100 mt-1 bg-white border rounded shadow-lg p-2 dropdown-container"
+                    style="z-index: 1050; min-width: 280px; max-height: 220px; overflow-y: auto;"
+                    @click.stop
+                  >
+                    <div class="d-flex justify-content-between align-items-center pb-2 mb-2 border-bottom">
+                      <span class="fw-semibold text-dark small">Conteneurs assignés ({{ conteneursParDossier[row.id].length }})</span>
+                      <button 
+                        type="button" 
+                        class="btn-close p-0" 
+                        style="font-size: 0.65rem;" 
+                        @click="expandedRows[row.id] = false"
+                      ></button>
+                    </div>
 
-                        <div class="d-flex align-items-center gap-2">
-                          <button 
-                            class="btn btn-link btn-sm p-0 text-primary text-decoration-none" 
-                            style="font-size: 0.75rem;" 
-                            @click.stop="ouvrirModalAssignation(row, c)"
-                          >
-                            Modifier
-                          </button>
-                          <button 
-                            class="btn btn-link btn-sm p-0 text-danger text-decoration-none" 
-                            style="font-size: 0.75rem;" 
-                            @click.stop="supprimerConteneur(c.id)"
-                          >
-                            Supprimer
-                          </button>
-                        </div>
-                      </li>
-                    </ul>
-                    <a 
-                      href="javascript:void(0)" 
-                      class="text-secondary small text-decoration-none d-inline-block mt-1" 
-                      style="font-size: 0.75rem;" 
-                      @click="toggleExpand(row.id)"
+                    <div 
+                      v-for="c in conteneursParDossier[row.id]" 
+                      :key="c.id"
+                      class="py-1 px-2 mb-1 border-bottom-subtle d-flex justify-content-between align-items-center gap-2 hover-bg-light rounded small"
                     >
-                      ▲ Réduire
-                    </a>
+                      <div class="text-truncate">
+                        <strong class="text-dark">{{ c.numeroContainer }}</strong>
+                        <span class="text-secondary ms-1">({{ c.typeContainer?.nom || 'Conteneur' }})</span>
+                        <div v-if="c.description" class="text-muted" style="font-size: 0.7rem;">
+                          {{ c.description }}
+                        </div>
+                      </div>
+
+                      <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                        <button 
+                          class="btn btn-link btn-sm p-0 text-primary text-decoration-none" 
+                          style="font-size: 0.75rem;" 
+                          @click="ouvrirModalAssignation(row, c); expandedRows[row.id] = false"
+                        >
+                          Edit
+                        </button>
+                        <button 
+                          class="btn btn-link btn-sm p-0 text-danger text-decoration-none" 
+                          style="font-size: 0.75rem;" 
+                          @click="supprimerConteneur(c.id)"
+                        >
+                          Suppr.
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
                 </div>
@@ -307,10 +327,13 @@ function formatarDate(dt) {
 .cursor-pointer {
   cursor: pointer;
 }
-.conteneurs-cell {
-  user-select: none;
+.hover-bg-light:hover {
+  background-color: #f8fafc;
 }
 .border-bottom-subtle {
   border-bottom: 1px dashed #e2e8f0;
+}
+.dropdown-container {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 </style>
