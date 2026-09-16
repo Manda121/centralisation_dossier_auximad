@@ -20,6 +20,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'saved'])
 
 const typesContainers = ref([])
+const conteneursExistants = ref([])
 const submitting = ref(false)
 const meErreur = ref(null)
 const meSucces = ref(null)
@@ -28,6 +29,9 @@ const meSucces = ref(null)
 const typeSearchQuery = ref('')
 const showTypeDropdown = ref(false)
 const selectedTypeContainer = ref(null)
+
+// Autocomplete state pour le numéro de conteneur
+const showNumeroDropdown = ref(false)
 
 const form = reactive({
   id: null,
@@ -48,7 +52,7 @@ const modeTransportLabel = computed(() => {
          'Non défini'
 })
 
-// Filtrage pour l'autocomplétion
+// Filtrage autocomplétion pour les types de conteneurs
 const filteredTypesContainers = computed(() => {
   if (!typeSearchQuery.value) return typesContainers.value
   const q = typeSearchQuery.value.toLowerCase().trim()
@@ -56,6 +60,15 @@ const filteredTypesContainers = computed(() => {
     t.nom.toLowerCase().includes(q) || 
     (t.description && t.description.toLowerCase().includes(q)) ||
     (t.volume && String(t.volume).includes(q))
+  )
+})
+
+// Filtrage autocomplétion pour les numéros de conteneurs existants dans la table conteneur
+const filteredConteneursExistants = computed(() => {
+  if (!form.numeroContainer) return conteneursExistants.value
+  const q = form.numeroContainer.toLowerCase().trim()
+  return conteneursExistants.value.filter(c => 
+    c.numeroContainer && c.numeroContainer.toLowerCase().includes(q)
   )
 })
 
@@ -73,22 +86,53 @@ function reinitialiserTypeSelection() {
   showTypeDropdown.value = true
 }
 
+function selectionnerConteneurExistant(c) {
+  form.numeroContainer = c.numeroContainer
+  showNumeroDropdown.value = false
+  
+  // Auto-remplissage du type de conteneur s'il est défini
+  if (c.typeContainer) {
+    selectedTypeContainer.value = c.typeContainer
+    form.idTypeContainer = c.typeContainer.id
+    typeSearchQuery.value = c.typeContainer.nom
+  }
+
+  // Auto-remplissage de la description si non remplie
+  if (c.description && !form.description) {
+    form.description = c.description
+  }
+}
+
 function onTypeInputFocus() {
   showTypeDropdown.value = true
 }
 
 function onTypeInputBlur() {
-  // Léger délai pour permettre le clic sur une option de la liste déroulante
   setTimeout(() => {
     showTypeDropdown.value = false
   }, 200)
 }
 
-async function chargerTypes() {
+function onNumeroInputFocus() {
+  showNumeroDropdown.value = true
+}
+
+function onNumeroInputBlur() {
+  setTimeout(() => {
+    showNumeroDropdown.value = false
+  }, 200)
+}
+
+async function chargerDonnees() {
   try {
-    typesContainers.value = await ConteneurService.getTypesContainers()
+    const [types, conteneurs] = await Promise.all([
+      ConteneurService.getTypesContainers(),
+      ConteneurService.getTousConteneurs()
+    ])
+    typesContainers.value = types
+    conteneursExistants.value = conteneurs
   } catch (e) {
-    console.error("Erreur de chargement des types de conteneur", e)
+    console.error("Erreur de chargement des référentiels conteneurs", e)
   }
 }
 
@@ -99,7 +143,8 @@ watch(
       meErreur.value = null
       meSucces.value = null
       showTypeDropdown.value = false
-      chargerTypes()
+      showNumeroDropdown.value = false
+      chargerDonnees()
 
       if (props.conteneurAEditer) {
         form.id = props.conteneurAEditer.id
@@ -133,7 +178,7 @@ async function enregistrer() {
   }
 
   if (!form.idTypeContainer) {
-    meErreur.value = "Veuillez sélectionner un type de conteneur en autocomplétion."
+    meErreur.value = "Veuillez sélectionner un type de conteneur."
     return
   }
 
@@ -171,7 +216,7 @@ async function enregistrer() {
 
 onMounted(() => {
   if (props.show) {
-    chargerTypes()
+    chargerDonnees()
   }
 })
 </script>
@@ -234,6 +279,55 @@ onMounted(() => {
 
           <!-- Formulaire -->
           <form @submit.prevent="enregistrer" v-if="estEligible">
+
+            <!-- Champ Numéro Conteneur avec Autocomplétion -->
+            <div class="mb-3 position-relative">
+              <label class="form-label fw-semibold text-dark small">
+                Numéro du conteneur (Autocomplétion table conteneur) <span class="text-danger">*</span>
+              </label>
+
+              <div class="input-group input-group-sm">
+                <span class="input-group-text bg-white">📦</span>
+                <input 
+                  type="text" 
+                  v-model="form.numeroContainer"
+                  @focus="onNumeroInputFocus"
+                  @blur="onNumeroInputBlur"
+                  class="form-control form-control-sm text-uppercase" 
+                  placeholder="Tapez pour rechercher (ex: CONT-2026-001...)"
+                  required
+                />
+              </div>
+
+              <!-- Menu d'autocomplétion des conteneurs existants -->
+              <div 
+                v-if="showNumeroDropdown && filteredConteneursExistants.length > 0" 
+                class="dropdown-menu show w-100 shadow border-1 position-absolute mt-1"
+                style="max-height: 200px; overflow-y: auto; z-index: 1060;"
+              >
+                <button 
+                  v-for="c in filteredConteneursExistants" 
+                  :key="c.id"
+                  type="button"
+                  class="dropdown-item py-2 px-3 small border-bottom-light d-flex justify-content-between align-items-center"
+                  @mousedown="selectionnerConteneurExistant(c)"
+                >
+                  <div>
+                    <strong class="text-dark">{{ c.numeroContainer }}</strong>
+                    <span v-if="c.dossier?.numeroDossier" class="text-muted ms-2" style="font-size: 0.75rem;">
+                      (Dossier: {{ c.dossier.numeroDossier }})
+                    </span>
+                  </div>
+                  <span class="badge bg-light text-dark border ms-2">
+                    {{ c.typeContainer?.nom || 'Conteneur' }}
+                  </span>
+                </button>
+              </div>
+
+              <div class="form-text text-muted" style="font-size: 0.75rem;">
+                Recherchez un numéro de conteneur existant dans la base ou saisissez un nouveau numéro.
+              </div>
+            </div>
             
             <!-- Champ Type Conteneur avec Autocomplétion -->
             <div class="mb-3 position-relative">
@@ -263,7 +357,7 @@ onMounted(() => {
                 </button>
               </div>
 
-              <!-- Menu d'autocomplétion -->
+              <!-- Menu d'autocomplétion des types -->
               <div 
                 v-if="showTypeDropdown && filteredTypesContainers.length > 0" 
                 class="dropdown-menu show w-100 shadow border-1 position-absolute mt-1"
@@ -288,10 +382,6 @@ onMounted(() => {
                 </button>
               </div>
 
-              <div v-else-if="showTypeDropdown && filteredTypesContainers.length === 0" class="dropdown-menu show w-100 p-2 text-center text-muted small position-absolute mt-1">
-                Aucun type de conteneur correspondant.
-              </div>
-
               <!-- Informations sur le type sélectionné -->
               <div v-if="selectedTypeContainer" class="mt-2 p-2 bg-light border rounded small d-flex justify-content-between align-items-center">
                 <span>
@@ -301,23 +391,6 @@ onMounted(() => {
                   </span>
                 </span>
                 <span class="text-success small fw-semibold">✓ Valide</span>
-              </div>
-            </div>
-
-            <!-- Numéro du conteneur -->
-            <div class="mb-3">
-              <label class="form-label fw-semibold text-dark small">
-                Numéro du conteneur <span class="text-danger">*</span>
-              </label>
-              <input 
-                type="text" 
-                v-model="form.numeroContainer" 
-                class="form-control form-control-sm text-uppercase" 
-                placeholder="Ex: CONT-2026-00123" 
-                required
-              />
-              <div class="form-text text-muted" style="font-size: 0.75rem;">
-                Numéro d'identification unique du conteneur.
               </div>
             </div>
 
