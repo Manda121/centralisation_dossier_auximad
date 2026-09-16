@@ -20,6 +20,22 @@ import java.util.Optional;
 @Service
 public class ClientService {
 
+    /**
+     * Colonnes de tri autorisées (requête native sur la table clients).
+     * Les clés sont les propriétés envoyées par le front, les valeurs les colonnes SQL.
+     */
+    private static final java.util.Map<String, String> COLONNES_TRI = java.util.Map.of(
+            "id", "id",
+            "nom", "nom",
+            "prenom", "prenom",
+            "email", "email",
+            "telephone", "telephone",
+            "adresse", "adresse",
+            "ville", "ville",
+            "cpClient", "cp_client",
+            "cp_client", "cp_client"
+    );
+
     private final ClientRepository clientRepository;
     private final PaysRepository paysRepository;
     private final TypeClientRepository typeClientRepository;
@@ -40,7 +56,9 @@ public class ClientService {
                                               int page, int size, String sortBy, String sortDir) {
         Sort sort = Sort.unsorted();
         if (sortBy != null && !sortBy.trim().isEmpty()) {
-            sort = Sort.by(sortDir.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC, sortBy);
+            String colonneTri = COLONNES_TRI.getOrDefault(sortBy, "nom");
+            sort = Sort.by(sortDir != null && sortDir.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC,
+                    colonneTri);
         }
         Pageable pageable = PageRequest.of(page, size, sort);
         Page<Client> clientPage = clientRepository.searchClients(

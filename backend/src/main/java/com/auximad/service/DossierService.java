@@ -16,10 +16,31 @@ import java.time.LocalDateTime;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
 public class DossierService {
+
+    /**
+     * Colonnes de tri autorisées pour la recherche native des dossiers.
+     * Les clés sont les propriétés envoyées par le front, les valeurs sont les colonnes SQL
+     * réellement présentes dans la requête native (Spring Data ajoute le préfixe d'alias « d. »).
+     */
+    private static final Map<String, String> COLONNES_TRI = Map.ofEntries(
+            Map.entry("numeroDossier", "numero_dossier"),
+            Map.entry("numero_dossier", "numero_dossier"),
+            Map.entry("dateCreation", "date_creation"),
+            Map.entry("date_creation", "date_creation"),
+            Map.entry("estGroupage", "est_groupage"),
+            Map.entry("est_groupage", "est_groupage"),
+            // Colonnes des tables jointes : le préfixe d'alias est obligatoire en SQL natif
+            Map.entry("client.nom", "c.nom"),
+            Map.entry("phaseDossier.nom", "ph.nom"),
+            Map.entry("statutDossier.nom", "sd.nom")
+    );
+
+    private static final String COLONNE_TRI_DEFAUT = "date_creation";
 
     private final DossierRepository dossierRepository;
     private final PhaseDossierRepository phaseDossierRepository;
@@ -85,9 +106,12 @@ public class DossierService {
                                                  Integer otId, Boolean estGroupage,
                                                  String dateMin, String dateMax,
                                                  Integer agenceId, String typeDossier) {
+        // Requête native : le tri doit porter sur des colonnes SQL, pas sur des propriétés JPA.
+        // Toute clé inconnue retombe sur le tri par défaut (aucune erreur 500 côté SQL).
+        String colonneTri = COLONNES_TRI.getOrDefault(sortBy == null ? "" : sortBy, COLONNE_TRI_DEFAUT);
         Sort sort = sortDir != null && sortDir.equalsIgnoreCase("asc")
-                ? Sort.by(sortBy != null ? sortBy : "date_creation").ascending()
-                : Sort.by(sortBy != null ? sortBy : "date_creation").descending();
+                ? Sort.by(colonneTri).ascending()
+                : Sort.by(colonneTri).descending();
 
         Pageable pageable = PageRequest.of(page, size, sort);
 
