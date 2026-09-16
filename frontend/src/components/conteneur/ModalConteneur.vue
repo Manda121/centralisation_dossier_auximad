@@ -24,6 +24,11 @@ const submitting = ref(false)
 const meErreur = ref(null)
 const meSucces = ref(null)
 
+// Autocomplete state pour le type de conteneur
+const typeSearchQuery = ref('')
+const showTypeDropdown = ref(false)
+const selectedTypeContainer = ref(null)
+
 const form = reactive({
   id: null,
   idTypeContainer: '',
@@ -43,6 +48,42 @@ const modeTransportLabel = computed(() => {
          'Non défini'
 })
 
+// Filtrage pour l'autocomplétion
+const filteredTypesContainers = computed(() => {
+  if (!typeSearchQuery.value) return typesContainers.value
+  const q = typeSearchQuery.value.toLowerCase().trim()
+  return typesContainers.value.filter(t => 
+    t.nom.toLowerCase().includes(q) || 
+    (t.description && t.description.toLowerCase().includes(q)) ||
+    (t.volume && String(t.volume).includes(q))
+  )
+})
+
+function selectionnerTypeContainer(type) {
+  selectedTypeContainer.value = type
+  form.idTypeContainer = type.id
+  typeSearchQuery.value = type.nom
+  showTypeDropdown.value = false
+}
+
+function reinitialiserTypeSelection() {
+  selectedTypeContainer.value = null
+  form.idTypeContainer = ''
+  typeSearchQuery.value = ''
+  showTypeDropdown.value = true
+}
+
+function onTypeInputFocus() {
+  showTypeDropdown.value = true
+}
+
+function onTypeInputBlur() {
+  // Léger délai pour permettre le clic sur une option de la liste déroulante
+  setTimeout(() => {
+    showTypeDropdown.value = false
+  }, 200)
+}
+
 async function chargerTypes() {
   try {
     typesContainers.value = await ConteneurService.getTypesContainers()
@@ -57,6 +98,7 @@ watch(
     if (newVal) {
       meErreur.value = null
       meSucces.value = null
+      showTypeDropdown.value = false
       chargerTypes()
 
       if (props.conteneurAEditer) {
@@ -64,11 +106,16 @@ watch(
         form.idTypeContainer = props.conteneurAEditer.typeContainer?.id || ''
         form.numeroContainer = props.conteneurAEditer.numeroContainer || ''
         form.description = props.conteneurAEditer.description || ''
+        
+        selectedTypeContainer.value = props.conteneurAEditer.typeContainer || null
+        typeSearchQuery.value = props.conteneurAEditer.typeContainer?.nom || ''
       } else {
         form.id = null
         form.idTypeContainer = ''
         form.numeroContainer = ''
         form.description = ''
+        selectedTypeContainer.value = null
+        typeSearchQuery.value = ''
       }
     }
   }
@@ -86,7 +133,7 @@ async function enregistrer() {
   }
 
   if (!form.idTypeContainer) {
-    meErreur.value = "Veuillez sélectionner un type de conteneur."
+    meErreur.value = "Veuillez sélectionner un type de conteneur en autocomplétion."
     return
   }
 
@@ -187,18 +234,77 @@ onMounted(() => {
 
           <!-- Formulaire -->
           <form @submit.prevent="enregistrer" v-if="estEligible">
-            <div class="mb-3">
+            
+            <!-- Champ Type Conteneur avec Autocomplétion -->
+            <div class="mb-3 position-relative">
               <label class="form-label fw-semibold text-dark small">
-                Type de conteneur <span class="text-danger">*</span>
+                Type de conteneur (Autocomplétion) <span class="text-danger">*</span>
               </label>
-              <select v-model="form.idTypeContainer" class="form-select form-select-sm" required>
-                <option value="">— Choisir un type —</option>
-                <option v-for="t in typesContainers" :key="t.id" :value="t.id">
-                  {{ t.nom }} (Vol: {{ t.volume || '—' }} m³ - Max: {{ t.poidsMax ? t.poidsMax + ' kg' : '—' }})
-                </option>
-              </select>
+              
+              <div class="input-group input-group-sm">
+                <span class="input-group-text bg-white">🔍</span>
+                <input 
+                  type="text" 
+                  v-model="typeSearchQuery"
+                  @focus="onTypeInputFocus"
+                  @blur="onTypeInputBlur"
+                  class="form-control form-control-sm" 
+                  placeholder="Tapez pour rechercher (ex: 20 pieds, 40, High Cube, Reefer...)"
+                  required
+                />
+                <button 
+                  v-if="selectedTypeContainer || typeSearchQuery" 
+                  type="button" 
+                  class="btn btn-outline-secondary btn-sm"
+                  @click="reinitialiserTypeSelection"
+                  title="Réinitialiser la sélection"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <!-- Menu d'autocomplétion -->
+              <div 
+                v-if="showTypeDropdown && filteredTypesContainers.length > 0" 
+                class="dropdown-menu show w-100 shadow border-1 position-absolute mt-1"
+                style="max-height: 200px; overflow-y: auto; z-index: 1060;"
+              >
+                <button 
+                  v-for="t in filteredTypesContainers" 
+                  :key="t.id"
+                  type="button"
+                  class="dropdown-item py-2 px-3 small border-bottom-light d-flex justify-content-between align-items-center"
+                  @mousedown="selectionnerTypeContainer(t)"
+                >
+                  <div>
+                    <strong class="text-dark">{{ t.nom }}</strong>
+                    <span v-if="t.description" class="text-muted d-block" style="font-size: 0.75rem;">
+                      {{ t.description }}
+                    </span>
+                  </div>
+                  <span class="badge bg-light text-dark border">
+                    {{ t.volume ? t.volume + ' m³' : '' }} {{ t.poidsMax ? ' | Max ' + t.poidsMax + ' kg' : '' }}
+                  </span>
+                </button>
+              </div>
+
+              <div v-else-if="showTypeDropdown && filteredTypesContainers.length === 0" class="dropdown-menu show w-100 p-2 text-center text-muted small position-absolute mt-1">
+                Aucun type de conteneur correspondant.
+              </div>
+
+              <!-- Informations sur le type sélectionné -->
+              <div v-if="selectedTypeContainer" class="mt-2 p-2 bg-light border rounded small d-flex justify-content-between align-items-center">
+                <span>
+                  <strong>Sélectionné :</strong> {{ selectedTypeContainer.nom }}
+                  <span v-if="selectedTypeContainer.volume" class="text-secondary ms-1">
+                    ({{ selectedTypeContainer.volume }} m³)
+                  </span>
+                </span>
+                <span class="text-success small fw-semibold">✓ Valide</span>
+              </div>
             </div>
 
+            <!-- Numéro du conteneur -->
             <div class="mb-3">
               <label class="form-label fw-semibold text-dark small">
                 Numéro du conteneur <span class="text-danger">*</span>
@@ -215,6 +321,7 @@ onMounted(() => {
               </div>
             </div>
 
+            <!-- Description -->
             <div class="mb-3">
               <label class="form-label fw-semibold text-dark small">
                 Description / Remarques
@@ -249,4 +356,7 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.dropdown-item:hover {
+  background-color: #f1f5f9;
+}
 </style>

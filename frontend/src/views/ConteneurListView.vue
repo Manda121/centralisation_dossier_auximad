@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import Header from '../components/inc/Header.vue'
 import DataTable from '../components/inc/DataTable.vue'
 import DossierService from '../services/DossierService'
@@ -13,7 +13,7 @@ const filters = reactive({
   phaseId: '',
   statutId: '',
   typeProductionId: '',
-  filtreMaritime: '' // 'maritime', 'non_maritime', ou ''
+  filtreMaritime: ''
 })
 
 const phases = ref([])
@@ -27,6 +27,13 @@ const conteneurAEditer = ref(null)
 // Map pour stocker la liste des conteneurs par dossierId
 const conteneursParDossier = ref({})
 const loadingConteneurs = ref(false)
+
+// Gestion du déroulement / dépliement des conteneurs dans le tableau
+const expandedRows = reactive({})
+
+function toggleExpand(dossierId) {
+  expandedRows[dossierId] = !expandedRows[dossierId]
+}
 
 async function chargerTousLesConteneurs() {
   loadingConteneurs.value = true
@@ -73,9 +80,7 @@ const columns = [
 ]
 
 async function chargerDossiers(page, size, sortBy, sortDir, currentFilters) {
-  // Option de filtrage maritime coté frontend ou backend
-  const res = await DossierService.searchDossiers(page, size, sortBy, sortDir, currentFilters)
-  return res
+  return await DossierService.searchDossiers(page, size, sortBy, sortDir, currentFilters)
 }
 
 function estEligible(dossier) {
@@ -129,7 +134,7 @@ function formatarDate(dt) {
           <div>
             <h1 class="h4 fw-bold text-dark mb-1">Gestion & Assignation des Conteneurs</h1>
             <p class="text-secondary mb-0 small">
-              Assignez les conteneurs (20', 40', High Cube, Reefer...) aux dossiers de transport maritime.
+              Assignation simplifiée des conteneurs aux dossiers de dédedouanement maritime.
             </p>
           </div>
         </div>
@@ -185,36 +190,82 @@ function formatarDate(dt) {
 
               <!-- Cellule Mode Transport -->
               <template #cell-modeTransport="{ row }">
-                <div class="d-flex align-items-center gap-1">
-                  <span v-if="estEligible(row)" class="badge bg-success-subtle text-success border border-success px-2 py-1">
+                <div class="d-flex align-items-center gap-1 small">
+                  <span v-if="estEligible(row)" class="text-success fw-semibold">
                     🚢 Maritime
                   </span>
-                  <span v-else class="badge bg-secondary-subtle text-secondary border border-secondary px-2 py-1">
+                  <span v-else class="text-secondary">
                     ✈️ {{ getModeTransportLabel(row) }}
                   </span>
                 </div>
               </template>
 
-              <!-- Cellule Conteneurs -->
+              <!-- Cellule Conteneurs (Affichage sobre sans couleur, tronqué avec déroulement au clic) -->
               <template #cell-conteneurs="{ row }">
-                <div v-if="conteneursParDossier[row.id] && conteneursParDossier[row.id].length > 0" class="d-flex flex-wrap gap-1">
-                  <span 
-                    v-for="c in conteneursParDossier[row.id]" 
-                    :key="c.id" 
-                    class="badge bg-dark-subtle text-dark border p-1 px-2 d-inline-flex align-items-center gap-1"
-                    style="font-size: 0.75rem;"
+                <div v-if="conteneursParDossier[row.id] && conteneursParDossier[row.id].length > 0" class="conteneurs-cell">
+                  
+                  <!-- Vue tronquée en une ligne si non déroulé -->
+                  <div 
+                    v-if="!expandedRows[row.id]" 
+                    class="d-flex align-items-center gap-1 cursor-pointer py-1"
+                    @click="toggleExpand(row.id)"
+                    title="Cliquer pour dérouler la liste des conteneurs"
                   >
-                    📦 <strong>{{ c.numeroContainer }}</strong>
-                    <span class="text-secondary">({{ c.typeContainer?.nom || 'Conteneur' }})</span>
-                    <button 
-                      class="btn-close p-0 ms-1" 
-                      style="font-size: 0.6rem;" 
-                      title="Supprimer" 
-                      @click.stop="supprimerConteneur(c.id)"
-                    ></button>
-                  </span>
+                    <span class="text-dark small text-truncate" style="max-width: 220px;">
+                      {{ conteneursParDossier[row.id][0].numeroContainer }}
+                      <span class="text-secondary">({{ conteneursParDossier[row.id][0].typeContainer?.nom || 'Conteneur' }})</span>
+                    </span>
+                    
+                    <span v-if="conteneursParDossier[row.id].length > 1" class="text-primary fw-bold small ms-1">
+                      ... (+{{ conteneursParDossier[row.id].length - 1 }})
+                    </span>
+                    <span v-else-if="conteneursParDossier[row.id][0].numeroContainer.length > 20" class="text-primary small">...</span>
+                  </div>
+
+                  <!-- Vue déroulée complète -->
+                  <div v-else class="py-1">
+                    <ul class="list-unstyled mb-1 small text-dark">
+                      <li 
+                        v-for="c in conteneursParDossier[row.id]" 
+                        :key="c.id" 
+                        class="py-1 border-bottom-subtle d-flex justify-content-between align-items-center gap-2"
+                      >
+                        <span>
+                          <strong>{{ c.numeroContainer }}</strong>
+                          <span class="text-secondary ms-1">({{ c.typeContainer?.nom || 'Conteneur' }})</span>
+                        </span>
+
+                        <div class="d-flex align-items-center gap-2">
+                          <button 
+                            class="btn btn-link btn-sm p-0 text-primary text-decoration-none" 
+                            style="font-size: 0.75rem;" 
+                            @click.stop="ouvrirModalAssignation(row, c)"
+                          >
+                            Modifier
+                          </button>
+                          <button 
+                            class="btn btn-link btn-sm p-0 text-danger text-decoration-none" 
+                            style="font-size: 0.75rem;" 
+                            @click.stop="supprimerConteneur(c.id)"
+                          >
+                            Supprimer
+                          </button>
+                        </div>
+                      </li>
+                    </ul>
+                    <a 
+                      href="javascript:void(0)" 
+                      class="text-secondary small text-decoration-none d-inline-block mt-1" 
+                      style="font-size: 0.75rem;" 
+                      @click="toggleExpand(row.id)"
+                    >
+                      ▲ Réduire
+                    </a>
+                  </div>
+
                 </div>
-                <span v-else class="text-muted small fst-italic">Aucun conteneur</span>
+                
+                <span v-else class="text-muted small fst-italic">—</span>
               </template>
 
               <!-- Cellule Actions -->
@@ -224,11 +275,7 @@ function formatarDate(dt) {
                   class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1"
                   @click="ouvrirModalAssignation(row)"
                 >
-                  <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
-                    <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"/>
-                    <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/>
-                  </svg>
-                  Assigner conteneur
+                  + Assigner conteneur
                 </button>
                 <button 
                   v-else
@@ -236,7 +283,7 @@ function formatarDate(dt) {
                   disabled 
                   title="Assignation impossible : le dossier n'est pas maritime"
                 >
-                  🚫 Non maritime
+                  Non maritime
                 </button>
               </template>
             </DataTable>
@@ -257,4 +304,13 @@ function formatarDate(dt) {
 </template>
 
 <style scoped>
+.cursor-pointer {
+  cursor: pointer;
+}
+.conteneurs-cell {
+  user-select: none;
+}
+.border-bottom-subtle {
+  border-bottom: 1px dashed #e2e8f0;
+}
 </style>
