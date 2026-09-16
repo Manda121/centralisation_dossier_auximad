@@ -201,6 +201,7 @@ const rechercheOt = ref('')
 const otCharge = ref(null)
 const docsObligatoiresComplets = ref(true) // Par défaut true (pas de type de production sélectionné)
 const docsCreation = ref({ typeIdsCoches: [], fichiersParTypeId: {} })
+const docsSectionRef = ref(null)
 
 const dossier = ref(new Dossier())
 const clients = ref([])
@@ -302,18 +303,33 @@ async function creerDossier() {
         console.log('agence utilisateur: ', utilisateur.value.agence)
         const result = await DossierService.createDossier(dossier.value.toJSON())
 
-        // Traiter les documents sélectionnés lors de la création
-        const { typeIdsCoches, fichiersParTypeId } = docsCreation.value
-        if (typeIdsCoches && typeIdsCoches.length > 0) {
+        // Traiter les documents sélectionnés lors de la création.
+        // On lit l'état courant du composant (l'utilisateur n'est pas obligé de
+        // passer par « Valider les documents » pour que sa sélection soit prise en compte).
+        const section = docsSectionRef.value
+        const typeIdsCoches = section ? Array.from(section.coches) : (docsCreation.value.typeIdsCoches || [])
+        const fichiersParTypeId = section ? { ...section.fichiersTemp } : (docsCreation.value.fichiersParTypeId || {})
+        const dateRemise = section?.dateRemiseBatch || docsCreation.value.dateRemise || null
+        const datesRemiseParType = section ? { ...section.datesRemiseSaisies } : (docsCreation.value.datesRemiseParType || {})
+
+        let docsEnregistres = 0
+        if (typeIdsCoches.length > 0) {
             try {
-                await DocumentService.processerBatch(result.id, typeIdsCoches, [], fichiersParTypeId || {}, null)
-                await DocumentService.assignerBatch(result.id, typeIdsCoches, null)
+                await DocumentService.processerBatch(result.id, typeIdsCoches, [], fichiersParTypeId, dateRemise)
+                // Dates de remise saisies document par document (elles priment sur la date commune)
+                for (const [typeId, date] of Object.entries(datesRemiseParType)) {
+                    if (!date) continue
+                    await DocumentService.assignerDocument(result.id, Number(typeId), date)
+                }
+                docsEnregistres = typeIdsCoches.length
             } catch (e) {
-                console.warn('Documents non sauvegardés :', e)
+                console.error('Documents non sauvegardés :', e)
+                alert(`Dossier ${result.numeroDossier} créé, mais les documents n'ont pas pu être enregistrés.`)
             }
         }
 
-        alert(`Dossier ${result.numeroDossier} créé avec succès.`)
+        alert(`Dossier ${result.numeroDossier} créé avec succès.` +
+            (docsEnregistres ? ` ${docsEnregistres} document(s) rattaché(s).` : ''))
         router.push(`/dossiers/${result.id}`)
     } catch (e) {
         const msg = e?.response?.data

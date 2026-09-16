@@ -125,10 +125,15 @@
             </div>
 
             <!-- Bouton unique d'assignation/validation (en bas) -->
-            <div v-if="!readOnly" class="mt-4 d-flex justify-content-end gap-2">
+            <div v-if="!readOnly" class="mt-4 d-flex justify-content-end align-items-center gap-2">
+                <span v-if="!dossierId && valideeCreation"
+                    class="badge bg-success-subtle text-success border border-success-subtle">
+                    ✓ {{ coches.size }} document(s) validé(s) pour la création
+                </span>
                 <button type="button" class="btn btn-primary" @click="valider" :disabled="enCoursValidation">
                     <span v-if="enCoursValidation" class="spinner-border spinner-border-sm me-1"></span>
                     <span v-if="dossierId">Assigner tout</span>
+                    <span v-else-if="valideeCreation">Revalider les documents</span>
                     <span v-else>Valider les documents</span>
                 </button>
             </div>
@@ -213,6 +218,8 @@ const remises = ref({})           // { [typeDocumentId]: dateRemise } (table rem
 const datesRemiseSaisies = ref({})   // dates saisies pour les docs non remis
 const dateRemiseBatch = ref('')
 const nouvelleDateRemise = ref('')
+// Mode création : la sélection a été validée par l'utilisateur (feedback visuel)
+const valideeCreation = ref(false)
 
 // Popup confirmation retrait
 const popupRetrait = ref({ visible: false, typeDocId: null, nomDocument: '', pendingUncheck: null })
@@ -233,6 +240,11 @@ watch(() => props.dossierId, async () => {
 watch(() => props.typeProductionId, async () => {
     await chargerDonnees()
 })
+
+// Mode création : toute modification de la sélection invalide la confirmation
+watch([coches, fichiersTemp, dateRemiseBatch, datesRemiseSaisies], () => {
+    if (!props.dossierId) valideeCreation.value = false
+}, { deep: true })
 
 async function chargerDonnees() {
     chargement.value = true
@@ -452,11 +464,25 @@ function emitObligatoiresComplets() {
 
 async function valider() {
     if (!props.dossierId) {
-        console.log('iddossier: ', props)
-        // Mode création : émettre les données pour que le parent les gère
+        // Mode création : le dossier n'existe pas encore, on transmet la sélection au parent
+        const obligatoiresManquants = typeDocuments.value.filter(
+            t => t.estObligatoire && !coches.value.has(t.id)
+        )
+        if (obligatoiresManquants.length > 0) {
+            valideeCreation.value = false
+            alert(
+                'Documents obligatoires manquants : ' +
+                obligatoiresManquants.map(t => t.nom).join(', ')
+            )
+            return
+        }
+        valideeCreation.value = true
         emit('documents-valides', {
+            modeCreation: true,
             typeIdsCoches: Array.from(coches.value),
-            fichiersParTypeId: { ...fichiersTemp.value }
+            fichiersParTypeId: { ...fichiersTemp.value },
+            dateRemise: dateRemiseBatch.value || null,
+            datesRemiseParType: { ...datesRemiseSaisies.value }
         })
         return
     }
@@ -490,7 +516,7 @@ async function valider() {
 }
 
 // Exposer pour le mode création
-defineExpose({ coches, fichiersTemp, typeDocuments })
+defineExpose({ coches, fichiersTemp, typeDocuments, dateRemiseBatch, datesRemiseSaisies, valideeCreation })
 </script>
 
 <style scoped>
