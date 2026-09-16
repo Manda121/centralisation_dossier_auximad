@@ -7,8 +7,19 @@
         </div>
 
         <div v-else>
+            <!-- ═══ Date de remise commune pour l'assignation ═══ -->
+            <div v-if="!readOnly" class="d-flex flex-wrap align-items-center gap-2 mb-3 p-2 rounded batch-bar">
+                <label class="fw-semibold small mb-0">Date de remise commune :</label>
+                <input type="datetime-local" v-model="dateRemiseBatch" class="form-control form-control-sm"
+                    style="max-width:220px;" />
+                <span v-if="!dateRemiseBatch" class="text-secondary" style="font-size:0.72rem;">
+                    (date actuelle par défaut)
+                </span>
+            </div>
+
             <!-- Liste des types de documents avec checkboxes -->
-            <div v-for="typeDoc in typeDocuments" :key="typeDoc.id" class="doc-item mb-2">
+            <div v-for="typeDoc in typeDocuments" :key="typeDoc.id" class="doc-item mb-2"
+                :class="{ 'doc-item--assigned': estCoche(typeDoc.id) }">
                 <div class="d-flex align-items-start gap-3">
                     <!-- Checkbox -->
                     <div class="form-check mt-1">
@@ -29,12 +40,42 @@
                         <div v-if="typeDoc.description" class="text-secondary" style="font-size:0.75rem;">{{
                             typeDoc.description }}</div>
 
+                        <!-- Date de remise (table remise) : saisie pour un doc non remis, badge sinon -->
+                        <div v-if="!readOnly && !estCoche(typeDoc.id)" class="mt-1 d-flex align-items-center gap-2">
+                            <label class="text-secondary" style="font-size:0.72rem;"
+                                :for="`remise-${typeDoc.id}`">Remise :</label>
+                            <input type="datetime-local" :id="`remise-${typeDoc.id}`"
+                                v-model="datesRemiseSaisies[typeDoc.id]" class="form-control form-control-sm"
+                                style="max-width:200px;font-size:0.75rem;" />
+                        </div>
+                        <div v-else-if="getDateRemise(typeDoc.id)" class="mt-1 d-flex align-items-center gap-2">
+                            <span class="badge bg-primary-subtle text-primary" style="font-size:0.68rem;">
+                                📌 Remise : {{ formatarDate(getDateRemise(typeDoc.id)) }}
+                            </span>
+                            <!-- Modifier la date de remise (hors lecture seule) -->
+                            <span v-if="!readOnly" class="dropdown">
+                                <button class="btn btn-link btn-sm p-0 text-secondary dropdown-toggle"
+                                    style="font-size:0.72rem;" type="button" data-bs-toggle="dropdown"
+                                    aria-expanded="false">modifier</button>
+                                <div class="dropdown-menu p-2" style="min-width:230px;">
+                                    <label class="form-label mb-1" style="font-size:0.72rem;">Nouvelle date de
+                                        remise</label>
+                                    <input type="datetime-local" class="form-control form-control-sm mb-2"
+                                        v-model="nouvelleDateRemise" />
+                                    <button class="btn btn-primary btn-sm w-100"
+                                        @click="changerDateRemise(typeDoc.id)">Enregistrer</button>
+                                    <button v-if="!readOnly" class="btn btn-link btn-sm w-100 text-danger mt-1"
+                                        @click="retirerDateRemise(typeDoc.id)">Retirer la date de remise</button>
+                                </div>
+                            </span>
+                        </div>
+
                         <!-- Aperçu du fichier existant (mode lecture ou remplissage) -->
                         <div v-if="getDocumentActif(typeDoc.id)" class="mt-1 d-flex align-items-center gap-2">
                             <span class="text-success" style="font-size:0.75rem;">
                                 <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12">
                                     <path
-                                        d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425z" />
+                                        d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 0 1-1.06-1.06l2.094 2.093 3.473-4.425z" />
                                 </svg>
                                 Remis
                             </span>
@@ -60,8 +101,8 @@
                         </div>
                     </div>
 
-                    <!-- Upload fichier (si pas readOnly et case cochée) -->
-                    <div v-if="!readOnly && estCoche(typeDoc.id)" class="doc-upload ms-auto">
+                    <!-- Actions par document : Upload fichier (si case cochée) -->
+                    <div v-if="!readOnly && estCoche(typeDoc.id)" class="ms-auto d-flex align-items-center gap-2">
                         <label class="btn btn-outline-secondary btn-sm" :for="`upload-${typeDoc.id}`"
                             style="cursor:pointer;white-space:nowrap;">
                             <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12" class="me-1">
@@ -83,11 +124,17 @@
                 Aucun type de document configuré pour ce type de production.
             </div>
 
-            <!-- Bouton valider (si pas readOnly) -->
-            <div v-if="!readOnly" class="mt-4 d-flex justify-content-end gap-2">
-                <button type="button" class="btn btn-primary btn-sm" @click="valider" :disabled="enCoursValidation">
+            <!-- Bouton unique d'assignation/validation (en bas) -->
+            <div v-if="!readOnly" class="mt-4 d-flex justify-content-end align-items-center gap-2">
+                <span v-if="!dossierId && valideeCreation"
+                    class="badge bg-success-subtle text-success border border-success-subtle">
+                    ✓ {{ coches.size }} document(s) validé(s) pour la création
+                </span>
+                <button type="button" class="btn btn-primary" @click="valider" :disabled="enCoursValidation">
                     <span v-if="enCoursValidation" class="spinner-border spinner-border-sm me-1"></span>
-                    Valider les documents
+                    <span v-if="dossierId">Assigner tout</span>
+                    <span v-else-if="valideeCreation">Revalider les documents</span>
+                    <span v-else>Valider les documents</span>
                 </button>
             </div>
         </div>
@@ -165,9 +212,22 @@ const documentsActifs = ref([]) // Documents déjà remis
 const coches = ref(new Set())     // IDs des typeDocument cochés
 const fichiersTemp = ref({})      // { [typeDocumentId]: File }
 const apercuDoc = ref(null)
+const remises = ref({})           // { [typeDocumentId]: dateRemise } (table remise)
+
+// Assignation par document
+const datesRemiseSaisies = ref({})   // dates saisies pour les docs non remis
+const dateRemiseBatch = ref('')
+const nouvelleDateRemise = ref('')
+// Mode création : la sélection a été validée par l'utilisateur (feedback visuel)
+const valideeCreation = ref(false)
 
 // Popup confirmation retrait
 const popupRetrait = ref({ visible: false, typeDocId: null, nomDocument: '', pendingUncheck: null })
+
+const cochesSelectionnes = computed(() => {
+    const remis = new Set(documentsActifs.value.map(d => d.typeDocument?.id))
+    return Array.from(coches.value).filter(id => !remis.has(id))
+})
 
 onMounted(async () => {
     await chargerDonnees()
@@ -181,6 +241,11 @@ watch(() => props.typeProductionId, async () => {
     await chargerDonnees()
 })
 
+// Mode création : toute modification de la sélection invalide la confirmation
+watch([coches, fichiersTemp, dateRemiseBatch, datesRemiseSaisies], () => {
+    if (!props.dossierId) valideeCreation.value = false
+}, { deep: true })
+
 async function chargerDonnees() {
     chargement.value = true
     try {
@@ -190,8 +255,21 @@ async function chargerDonnees() {
         // Charger les documents déjà remis (si dossier existant)
         if (props.dossierId) {
             documentsActifs.value = await DocumentService.getDocumentsByDossier(props.dossierId)
+            // Charger les remises (table remise)
+            try {
+                const remisesList = await DocumentService.getRemises(props.dossierId)
+                const map = {}
+                remisesList.forEach(r => {
+                    if (r.typeDocument?.id != null) map[r.typeDocument.id] = r.dateRemise
+                })
+                remises.value = map
+            } catch (e) {
+                console.warn('Erreur chargement remises', e)
+                remises.value = {}
+            }
         } else {
             documentsActifs.value = [...props.documentsInitiaux]
+            remises.value = {}
         }
 
         // Initialiser les cases cochées
@@ -214,7 +292,26 @@ function estCoche(typeDocId) {
 }
 
 function getDocumentActif(typeDocId) {
-    return documentsActifs.value.find(d => d.typeDocument?.id === typeDocId) || null
+    // Retourne le dernier document correspondant au type demandé.
+    for (let i = documentsActifs.value.length - 1; i >= 0; i -= 1) {
+        const doc = documentsActifs.value[i]
+        if (doc?.typeDocument?.id === typeDocId) {
+            return doc
+        }
+    }
+    return null
+}
+
+function getDateRemise(typeDocId) {
+    return remises.value[typeDocId] || null
+}
+
+function formatarDate(dt) {
+    if (!dt) return '—'
+    return new Date(dt).toLocaleDateString('fr-FR', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+    })
 }
 
 function getFichierUrl(docId) {
@@ -257,7 +354,7 @@ function onCheckChange(typeDocId, event) {
                     const newSet = new Set(coches.value)
                     newSet.delete(typeDocId)
                     coches.value = newSet
-                    emitObligatoiresComplets()
+                    retirer(typeDocId)
                 }
             }
             // Remettre temporairement coché (le popup gère la décision)
@@ -273,6 +370,76 @@ function onCheckChange(typeDocId, event) {
         coches.value = newSet
     }
     emitObligatoiresComplets()
+}
+
+/** Assigner un seul document avec sa date de remise (table remise) */
+async function assignerUn(typeDocId) {
+    if (!props.dossierId) {
+        // Mode création : ajouter simplement à la sélection locale
+        const newSet = new Set(coches.value)
+        newSet.add(typeDocId)
+        coches.value = newSet
+        emitObligatoiresComplets()
+        return
+    }
+
+    assignationEnCours.value = { ...assignationEnCours.value, [typeDocId]: true }
+    try {
+        const dateRemise = datesRemiseSaisies.value[typeDocId] || dateRemiseBatch.value || null
+        await DocumentService.assignerDocument(props.dossierId, typeDocId, dateRemise || null)
+        // Uploader le fichier choisi pour ce document, s'il y en a un
+        const fichier = fichiersTemp.value[typeDocId]
+        if (fichier) {
+            await DocumentService.saveDocument(props.dossierId, typeDocId, fichier)
+            const restants = { ...fichiersTemp.value }
+            delete restants[typeDocId]
+            fichiersTemp.value = restants
+        }
+        await chargerDonnees()
+        emit('documents-valides', { succes: true })
+    } catch (e) {
+        console.error('Erreur assignation document', e)
+        alert(e?.response?.data || 'Erreur lors de l\'assignation du document.')
+    } finally {
+        assignationEnCours.value = { ...assignationEnCours.value, [typeDocId]: false }
+        delete datesRemiseSaisies.value[typeDocId]
+    }
+}
+
+/** Modifier la date de remise d'un document assigné (table remise) */
+async function changerDateRemise(typeDocId) {
+    try {
+        await DocumentService.updateDateRemise(props.dossierId, typeDocId, nouvelleDateRemise.value || null)
+        nouvelleDateRemise.value = ''
+        await chargerDonnees()
+    } catch (e) {
+        console.error('Erreur modification date de remise', e)
+        alert(e?.response?.data || 'Erreur lors de la modification de la date de remise.')
+    }
+}
+
+/** Retirer uniquement la date de remise (garde le document actif) */
+async function retirerDateRemise(typeDocId) {
+    try {
+        await DocumentService.updateDateRemise(props.dossierId, typeDocId, null)
+        await chargerDonnees()
+    } catch (e) {
+        console.error('Erreur retrait date de remise', e)
+        alert(e?.response?.data || 'Erreur lors du retrait de la date de remise.')
+    }
+}
+
+/** Retirer immédiatement un document (désactive le document + supprime la remise) */
+async function retirer(typeDocId) {
+    if (!props.dossierId) return
+    try {
+        await DocumentService.retirerDocument(props.dossierId, typeDocId)
+        await chargerDonnees()
+        emit('documents-valides', { succes: true })
+    } catch (e) {
+        console.error('Erreur retrait document', e)
+        alert(e?.response?.data || 'Erreur lors du retrait du document.')
+    }
 }
 
 function annulerRetrait() {
@@ -297,10 +464,25 @@ function emitObligatoiresComplets() {
 
 async function valider() {
     if (!props.dossierId) {
-        // Mode création : émettre les données pour que le parent les gère
+        // Mode création : le dossier n'existe pas encore, on transmet la sélection au parent
+        const obligatoiresManquants = typeDocuments.value.filter(
+            t => t.estObligatoire && !coches.value.has(t.id)
+        )
+        if (obligatoiresManquants.length > 0) {
+            valideeCreation.value = false
+            alert(
+                'Documents obligatoires manquants : ' +
+                obligatoiresManquants.map(t => t.nom).join(', ')
+            )
+            return
+        }
+        valideeCreation.value = true
         emit('documents-valides', {
+            modeCreation: true,
             typeIdsCoches: Array.from(coches.value),
-            fichiersParTypeId: { ...fichiersTemp.value }
+            fichiersParTypeId: { ...fichiersTemp.value },
+            dateRemise: dateRemiseBatch.value || null,
+            datesRemiseParType: { ...datesRemiseSaisies.value }
         })
         return
     }
@@ -316,11 +498,13 @@ async function valider() {
             props.dossierId,
             typeIdsAjoutes,
             typeIdsRetires,
-            fichiersTemp.value
+            fichiersTemp.value,
+            dateRemiseBatch.value || null
         )
 
         // Recharger
         fichiersTemp.value = {}
+        dateRemiseBatch.value = ''
         await chargerDonnees()
         emit('documents-valides', { succes: true })
     } catch (e) {
@@ -332,7 +516,7 @@ async function valider() {
 }
 
 // Exposer pour le mode création
-defineExpose({ coches, fichiersTemp, typeDocuments })
+defineExpose({ coches, fichiersTemp, typeDocuments, dateRemiseBatch, datesRemiseSaisies, valideeCreation })
 </script>
 
 <style scoped>
@@ -346,7 +530,8 @@ defineExpose({ coches, fichiersTemp, typeDocuments })
     transition: background 0.15s;
 }
 
-.doc-item:hover {
+.doc-item:hover,
+.doc-item--assigned {
     background: #f8f9fa;
 }
 
@@ -358,6 +543,11 @@ defineExpose({ coches, fichiersTemp, typeDocuments })
 
 .cursor-pointer {
     cursor: pointer;
+}
+
+.batch-bar {
+    background: #eef4ff;
+    border: 1px solid #dbe7ff;
 }
 
 .doc-thumbnail {

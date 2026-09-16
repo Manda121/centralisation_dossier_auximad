@@ -1,7 +1,10 @@
 package com.auximad.controller;
 
 import com.auximad.entity.Document;
+import com.auximad.entity.Remise;
 import com.auximad.entity.TypeDocument;
+import com.auximad.security.AutorisationHelper;
+import com.auximad.security.JwtSecurityContext;
 import com.auximad.service.DocumentService;
 import com.auximad.service.DossierService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -11,6 +14,7 @@ import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -75,6 +79,83 @@ public class DocumentController {
         }
     }
 
+    // ─── Remises (table remise) ───────────────────────────────────────────────
+
+    @GetMapping("/remises")
+    @Operation(summary = "Lister les remises d'un dossier")
+    public ResponseEntity<List<Remise>> getRemises(@RequestParam Integer dossierId) {
+        return ResponseEntity.ok(documentService.getRemisesByDossier(dossierId));
+    }
+
+    @GetMapping("/remises/urgentes")
+    @Operation(summary = "Lister les remises urgentes (dates de remise dans les N prochains jours)")
+    public ResponseEntity<List<Remise>> getRemisesUrgentes(
+            @RequestParam(defaultValue = "7") int jours,
+            @RequestParam(required = false) Integer agenceId) {
+        Integer agenceFiltre = agenceId;
+        boolean peutVoirTout = JwtSecurityContext.aPermission(
+                AutorisationHelper.PORTEE_TOUTES_LECTURE, AutorisationHelper.ACTION_OT);
+        if (!peutVoirTout) {
+            agenceFiltre = JwtSecurityContext.getIdAgence();
+        }
+        return ResponseEntity.ok(documentService.getRemisesUrgentes(jours, agenceFiltre));
+    }
+
+    // ─── Assignation de documents (crée les remises) ─────────────────────────
+
+    /**
+     * Assigne un document à un dossier avec sa date de remise (stockée dans la table remise).
+     */
+    @PostMapping("/assigner")
+    @Operation(summary = "Assigner un document à un dossier avec date de remise (table remise)")
+    public ResponseEntity<?> assignerDocument(
+            @RequestParam Integer dossierId,
+            @RequestParam Integer typeDocumentId,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime dateRemise) {
+        try {
+            return ResponseEntity.ok(documentService.assignerDocument(dossierId, typeDocumentId, dateRemise));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Assigne plusieurs documents d'un coup avec une date de remise commune.
+     */
+    @PostMapping("/assigner-batch")
+    @Operation(summary = "Assigner plusieurs documents avec une date de remise commune (table remise)")
+    public ResponseEntity<?> assignerBatch(
+            @RequestParam Integer dossierId,
+            @RequestParam List<Integer> typeDocumentIds,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime dateRemise) {
+        try {
+            return ResponseEntity.ok(documentService.assignerDocuments(dossierId, typeDocumentIds, dateRemise));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Erreur lors de l'assignation : " + e.getMessage());
+        }
+    }
+
+    /**
+     * Met à jour la date de remise d'un document (table remise).
+     */
+    @PutMapping("/remise")
+    @Operation(summary = "Mettre à jour la date de remise d'un document")
+    public ResponseEntity<?> updateDateRemise(
+            @RequestParam Integer dossierId,
+            @RequestParam Integer typeDocumentId,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime dateRemise) {
+        try {
+            return ResponseEntity.ok(documentService.mettreAJourDateRemise(dossierId, typeDocumentId, dateRemise));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
     // ─── Traitement batch ─────────────────────────────────────────────────────
 
     @PostMapping(value = "/batch", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -84,9 +165,14 @@ public class DocumentController {
             @RequestParam(required = false) List<Integer> typeIdsAjoutes,
             @RequestParam(required = false) List<Integer> typeIdsRetires,
             @RequestParam(required = false) List<MultipartFile> fichiers,
-            @RequestParam(required = false) List<Integer> typeIdsFichiers) {
+            @RequestParam(required = false) List<Integer> typeIdsFichiers,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime dateRemise) {
         try {
             documentService.processerBatchDocuments(dossierId, typeIdsAjoutes, typeIdsRetires, fichiers, typeIdsFichiers);
+            if (dateRemise != null && typeIdsAjoutes != null && !typeIdsAjoutes.isEmpty()) {
+                documentService.assignerDocuments(dossierId, typeIdsAjoutes, dateRemise);
+            }
             return ResponseEntity.ok(Map.of("message", "Documents mis à jour avec succès"));
         } catch (IOException e) {
             return ResponseEntity.internalServerError().body("Erreur lors de l'upload : " + e.getMessage());

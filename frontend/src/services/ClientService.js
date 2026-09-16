@@ -28,6 +28,15 @@ class ClientService {
         return response.data
     }
 
+    /** Suggestions de clients pour l'autocomplétion (code client, nom, NIF, STAT) */
+    async suggestions(q, limite = 8) {
+        const response = await axios.get(`${API_URL}/suggestions`, {
+            params: { q, limite },
+            headers: authHeader()
+        })
+        return response.data
+    }
+
     async createClient(clientData) {
         const response = await axios.post(API_URL, clientData, { headers: authHeader() })
         return response.data

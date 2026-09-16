@@ -19,14 +19,15 @@
                                 d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2" />
                         </svg>
                         <div class="flex-grow-1">
-                            <div class="fw-semibold">⚠️ {{ alertesRemise.length }} dossier(s) avec remise urgent</div>
+                            <div class="fw-semibold">⚠️ {{ alertesRemise.length }} remise(s) de document(s) urgente(s)</div>
                             <div class="small mt-1">
-                                <span v-for="d in alertesRemise.slice(0, 5)" :key="d.id" class="me-3">
-                                    <a href="#" @click.prevent="selectionnerDossier(d)"
+                                <span v-for="r in alertesRemise.slice(0, 5)"
+                                    :key="`${r.dossier?.id}-${r.typeDocument?.id}`" class="me-3">
+                                    <a href="#" @click.prevent="selectionnerDossier(r.dossier)"
                                         class="text-warning-emphasis fw-semibold">
-                                        {{ d.numeroDossier }}
+                                        {{ r.dossier?.numeroDossier }}
                                     </a>
-                                    — limite : {{ formatarDate(d.dateLimiteRemise) }}
+                                    — remise : {{ formatarDate(r.dateRemise) }}
                                 </span>
                             </div>
                         </div>
@@ -48,9 +49,11 @@
                                             placeholder="🔍 N° dossier, nom client…" @input="rechercherDossiers" />
                                     </div>
                                     <div class="col-6">
-                                        <input type="text" v-model="filtres.cpClient"
-                                            class="form-control form-control-sm" placeholder="CP Client"
-                                            @input="rechercherDossiers" />
+                                        <AutocompleteRecherche v-model="filtres.cpClient"
+                                            :fetch-results="suggestionsClients" :label-fn="c => c.cpClient || c.id"
+                                            :sublabel-fn="c => libelleClient(c)" :value-fn="c => c.cpClient || ''"
+                                            placeholder="CP Client" message-vide="Aucun client ne correspond"
+                                            @selection="rechercherDossiers" />
                                     </div>
                                     <div class="col-6">
                                         <select v-model="filtres.typeProductionId" class="form-select form-select-sm"
@@ -99,10 +102,10 @@
                                                     :class="docsComplets(d) ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning'">
                                                     {{ docsComplets(d) ? '✓ OK' : '! Docs' }}
                                                 </span>
-                                                <span v-if="d.dateLimiteRemise"
+                                                <span v-if="remisesParDossier[d.id]"
                                                     class="badge bg-danger-subtle text-danger"
                                                     style="font-size:0.65rem;">
-                                                    ⏰ {{ formatarDateCourte(d.dateLimiteRemise) }}
+                                                    ⏰ {{ formatarDateCourte(remisesParDossier[d.id]) }}
                                                 </span>
                                             </div>
                                         </div>
@@ -169,11 +172,10 @@
                                         </div>
                                     </div>
                                     <div class="col-md-4">
-                                        <div class="text-secondary text-uppercase" style="font-size:0.7rem;">Date limite
-                                            remise</div>
-                                        <div class="fw-semibold" :class="dateLimiteUrgente ? 'text-danger' : ''">
-                                            {{ dossierSelectionne.dateLimiteRemise ?
-                                                formatarDate(dossierSelectionne.dateLimiteRemise) : '—' }}
+                                        <div class="text-secondary text-uppercase" style="font-size:0.7rem;">Prochaine remise de doc</div>
+                                        <div class="fw-semibold" :class="remiseUrgenteSelection ? 'text-danger' : ''">
+                                            {{ remiseUrgenteSelection ?
+                                                formatarDate(remiseUrgenteSelection.dateRemise) : '—' }}
                                         </div>
                                     </div>
                                 </div>
@@ -196,16 +198,23 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import Header from '@/components/inc/Header.vue'
 import DocumentsSection from '@/components/DocumentsSection.vue'
+import AutocompleteRecherche from '@/components/inc/AutocompleteRecherche.vue'
 import DossierService from '@/services/DossierService'
+import ClientService from '@/services/ClientService'
 import DocumentService from '@/services/DocumentService'
 import OrdreTransitService from '@/services/OrdreTransitService'
+
+const route = useRoute()
+const router = useRouter()
 
 const dossiers = ref([])
 const dossierSelectionne = ref(null)
 const alertesRemise = ref([])
+const remisesParDossier = ref({})
 const chargementDossiers = ref(false)
 const typeProductions = ref([])
 
@@ -225,11 +234,33 @@ const pagination = ref({
 const dossiersAvecDocs = ref(new Set()) // IDs dossiers avec docs complets
 
 onMounted(async () => {
+    // Pré-sélection du dossier transmis par le détail dossier (?dossierId=...)
+    await preselecterDossierDepuisUrl()
     await Promise.all([
         rechercherDossiers(),
         chargerAlertes(),
         chargerTypeProductions()
     ])
+})
+
+/** Charge et sélectionne le dossier passé dans l'URL (?dossierId=...) */
+async function preselecterDossierDepuisUrl() {
+    const dossierId = route.query.dossierId
+    if (!dossierId) return
+    try {
+        const d = await DossierService.getDossierById(dossierId)
+        if (!d) return
+        dossierSelectionne.value = d
+    } catch (e) {
+        console.error('Erreur lors de la pré-sélection du dossier', e)
+    }
+}
+
+// Suivre les changements de ?dossierId= sans remontage (retour/avance navigateur)
+watch(() => route.query.dossierId, async (nouvelId) => {
+    if (nouvelId == null) return
+    if (String(dossierSelectionne.value?.id ?? '') === String(nouvelId)) return
+    await preselecterDossierDepuisUrl()
 })
 
 async function chargerTypeProductions() {
@@ -240,9 +271,36 @@ async function chargerTypeProductions() {
     }
 }
 
+/** Suggestions de clients pour le filtre CP Client */
+async function suggestionsClients(q) {
+    try {
+        return await ClientService.suggestions(q)
+    } catch (e) {
+        console.error('Erreur recherche suggestions clients', e)
+        return []
+    }
+}
+
+function libelleClient(client) {
+    if (!client) return ''
+    const nom = `${client.nom || ''} ${client.prenom || ''}`.trim()
+    return nom || client.cpClient || ''
+}
+
 async function chargerAlertes() {
     try {
-        alertesRemise.value = await DocumentService.getDossiersRemiseUrgente(7)
+        // Remises urgentes depuis la table remise
+        alertesRemise.value = await DocumentService.getRemisesUrgentes(7)
+        // Prochaine remise par dossier (pour les badges ⏰ de la liste)
+        const map = {}
+        alertesRemise.value.forEach(r => {
+            const dossierId = r.dossier?.id
+            if (!dossierId) return
+            if (!map[dossierId] || new Date(r.dateRemise) < new Date(map[dossierId])) {
+                map[dossierId] = r.dateRemise
+            }
+        })
+        remisesParDossier.value = map
     } catch (e) {
         console.error('Erreur alertes', e)
     }
@@ -271,6 +329,13 @@ async function rechercherDossiers() {
                 dossiers.value = res.content || []
                 pagination.value.totalPages = res.totalPages || 0
             }
+
+            // Le dossier sélectionné reste visible en tête de liste même s'il
+            // n'appartient pas à la page courante (pré-sélection depuis le détail dossier)
+            const sel = dossierSelectionne.value
+            if (sel?.id != null && !dossiers.value.some(x => x.id === sel.id)) {
+                dossiers.value = [sel, ...dossiers.value]
+            }
         } catch (e) {
             console.error('Erreur recherche dossiers', e)
         } finally {
@@ -281,6 +346,10 @@ async function rechercherDossiers() {
 
 async function selectionnerDossier(d) {
     dossierSelectionne.value = d
+    // Garder l'URL synchronisée (partage du lien / rafraîchissement)
+    if (d?.id != null && String(route.query.dossierId || '') !== String(d.id)) {
+        router.replace({ path: route.path, query: { ...route.query, dossierId: d.id } })
+    }
 }
 
 function changerPage(delta) {
@@ -289,17 +358,13 @@ function changerPage(delta) {
 }
 
 function docsComplets(dossier) {
-    // On marque comme complets si pas dans la liste des incomplets
-    // (approximatif côté frontend, la vraie vérif est côté backend)
-    return !alertesRemise.value.find(a => a.id === dossier.id)
+    // Approximation côté frontend : incomplet si le dossier a des remises urgentes en attente
+    return !alertesRemise.value.some(r => r.dossier?.id === dossier.id)
 }
 
-const dateLimiteUrgente = computed(() => {
-    if (!dossierSelectionne.value?.dateLimiteRemise) return false
-    const limite = new Date(dossierSelectionne.value.dateLimiteRemise)
-    const dans7j = new Date()
-    dans7j.setDate(dans7j.getDate() + 7)
-    return limite <= dans7j
+const remiseUrgenteSelection = computed(() => {
+    const id = dossierSelectionne.value?.id
+    return id ? (remisesParDossier.value[id] || null) : null
 })
 
 function onDocumentsValides({ succes }) {

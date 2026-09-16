@@ -20,6 +20,25 @@ import java.util.Optional;
 @Service
 public class ClientService {
 
+    /**
+     * Colonnes de tri autorisées (requête native sur la table clients).
+     * Les clés sont les propriétés envoyées par le front, les valeurs les colonnes SQL.
+     */
+    private static final java.util.Map<String, String> COLONNES_TRI = java.util.Map.of(
+            "id", "id",
+            "nom", "nom",
+            "prenom", "prenom",
+            "email", "email",
+            "telephone", "telephone",
+            "adresse", "adresse",
+            "ville", "ville",
+            "cpClient", "cp_client",
+            "cp_client", "cp_client"
+    );
+
+    /** Nombre maximum de suggestions renvoyées pour l'autocomplétion. */
+    private static final int SUGGESTIONS_MAX_DEFAUT = 8;
+
     private final ClientRepository clientRepository;
     private final PaysRepository paysRepository;
     private final TypeClientRepository typeClientRepository;
@@ -40,7 +59,9 @@ public class ClientService {
                                               int page, int size, String sortBy, String sortDir) {
         Sort sort = Sort.unsorted();
         if (sortBy != null && !sortBy.trim().isEmpty()) {
-            sort = Sort.by(sortDir.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC, sortBy);
+            String colonneTri = COLONNES_TRI.getOrDefault(sortBy, "nom");
+            sort = Sort.by(sortDir != null && sortDir.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC,
+                    colonneTri);
         }
         Pageable pageable = PageRequest.of(page, size, sort);
         Page<Client> clientPage = clientRepository.searchClients(
@@ -48,6 +69,19 @@ public class ClientService {
                 email, adresse, ville, cpClient, paysId, typeClientId, pageable
         );
         return PageResponse.of(clientPage);
+    }
+
+    /**
+     * Suggestions de clients pour l'autocomplétion (code client, nom, prénom, NIF ou STAT).
+     */
+    @Transactional(readOnly = true)
+    public List<Client> suggestionsClients(String q, Integer limite) {
+        String terme = q == null ? "" : q.trim();
+        if (terme.isEmpty()) {
+            return List.of();
+        }
+        int max = (limite == null || limite <= 0) ? SUGGESTIONS_MAX_DEFAUT : Math.min(limite, SUGGESTIONS_MAX_DEFAUT);
+        return clientRepository.suggestions(terme, max);
     }
 
     @Transactional(readOnly = true)

@@ -11,8 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
+import java.util.List;import java.util.Map;
 @RestController
 @RequestMapping("/api/dossiers")
 @Tag(name = "Dossiers", description = "API pour la gestion des dossiers de transit")
@@ -88,12 +87,24 @@ public class DossierController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Supprimer un dossier")
-    public ResponseEntity<Void> delete(@PathVariable Integer id) {
+    public ResponseEntity<?> delete(@PathVariable Integer id) {
         try {
             dossierService.deleteDossier(id);
             return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException e) {
+            // Gestion des erreurs de validation métier
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", "Erreur lors de la suppression du dossier", 
+                                 "details", e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            // Gestion des erreurs de contrainte de base de données ou autres erreurs
+            String errorMessage = "Erreur lors de la suppression du dossier";
+            if (e.getMessage() != null && e.getMessage().contains("foreign key")) {
+                errorMessage = "Impossible de supprimer ce dossier car il est lié à d'autres données dans le système";
+            }
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", errorMessage, 
+                                 "details", e.getMessage() != null ? e.getMessage() : "Erreur interne"));
         }
     }
 
@@ -134,16 +145,4 @@ public class DossierController {
         return ResponseEntity.ok(dossierService.getDossiersSansDocumentsComplets(agenceId));
     }
 
-    @GetMapping("/remise-urgente")
-    @Operation(summary = "Lister les dossiers avec date limite de remise proche")
-    public ResponseEntity<List<Dossier>> getDossiersRemiseUrgente(
-            @RequestParam(defaultValue = "7") int jours) {
-        Integer agenceId = null;
-        boolean peutVoirTout = JwtSecurityContext.aPermission(
-                AutorisationHelper.PORTEE_TOUTES_LECTURE, AutorisationHelper.ACTION_OT);
-        if (!peutVoirTout) {
-            agenceId = JwtSecurityContext.getIdAgence();
-        }
-        return ResponseEntity.ok(dossierService.getDossiersRemiseUrgente(jours, agenceId));
-    }
 }

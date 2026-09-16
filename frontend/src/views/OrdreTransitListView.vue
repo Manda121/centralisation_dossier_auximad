@@ -3,6 +3,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import Header from '../components/inc/Header.vue'
 import DataTable from '../components/inc/DataTable.vue'
+import AutocompleteRecherche from '../components/inc/AutocompleteRecherche.vue'
 import OrdreTransitService from '../services/OrdreTransitService'
 import ClientService from '../services/ClientService'
 import PermissionService, { PORTEE_PROPRE_ECRITURE, ACTION_OT } from '../utils/permission.service'
@@ -57,6 +58,21 @@ const peutCreer = computed(() => {
 
 async function chargerOts(page, size, sortBy, sortDir, filters) {
     return await OrdreTransitService.searchOrdreTransits(page, size, sortBy, sortDir, filters)
+}
+
+/** Suggestions d'OT pour le filtre numéro (recherche partielle sur le numéro) */
+async function suggestionsOt(q) {
+    try {
+        return await OrdreTransitService.suggestions(q)
+    } catch (e) {
+        console.error('Erreur recherche suggestions OT', e)
+        return []
+    }
+}
+
+function libelleClient(client) {
+    if (!client) return ''
+    return `${client.nom || ''} ${client.prenom || ''}`.trim()
 }
 
 let searchTimeout = null
@@ -121,7 +137,11 @@ function reinitialiserFiltres() {
                                 <div class="row g-2">
                                     <div class="col-md-3">
                                         <label class="form-label small fw-semibold text-secondary">Numéro OT</label>
-                                        <input type="number" v-model="filters.numero" class="form-control form-control-sm" placeholder="ex: 10001">
+                                        <AutocompleteRecherche v-model="filters.numero" :fetch-results="suggestionsOt"
+                                            :label-fn="ot => ot.numeroOrdreTransit"
+                                            :sublabel-fn="ot => libelleClient(ot.client)"
+                                            :value-fn="ot => ot.numeroOrdreTransit" placeholder="ex: 10001"
+                                            message-vide="Aucun OT ne correspond" numerique />
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label small fw-semibold text-secondary">Date de création Min</label>

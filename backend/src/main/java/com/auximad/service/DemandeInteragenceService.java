@@ -174,9 +174,13 @@ public class DemandeInteragenceService {
             Integer agenceDemandeuseId, Integer agenceDestinataireId,
             String query) {
 
+        // Requête native : tri sur des colonnes SQL (Spring Data ajoute le préfixe d'alias « d. »,
+        // sauf si la colonne est déjà préfixée par un alias de jointure comme « dos. »).
         String sortColumn = "date_demande";
         if ("statut".equalsIgnoreCase(sortBy)) sortColumn = "statut";
         else if ("id".equalsIgnoreCase(sortBy)) sortColumn = "id";
+        else if ("dateDemande".equalsIgnoreCase(sortBy) || "date_demande".equalsIgnoreCase(sortBy)) sortColumn = "date_demande";
+        else if ("dossier.numeroDossier".equalsIgnoreCase(sortBy) || "numeroDossier".equalsIgnoreCase(sortBy)) sortColumn = "dos.numero_dossier";
 
         Sort sort = sortDir != null && sortDir.equalsIgnoreCase("asc")
                 ? Sort.by(sortColumn).ascending()

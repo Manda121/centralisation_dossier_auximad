@@ -16,10 +16,31 @@ import java.time.LocalDateTime;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
 public class DossierService {
+
+    /**
+     * Colonnes de tri autorisées pour la recherche native des dossiers.
+     * Les clés sont les propriétés envoyées par le front, les valeurs sont les colonnes SQL
+     * réellement présentes dans la requête native (Spring Data ajoute le préfixe d'alias « d. »).
+     */
+    private static final Map<String, String> COLONNES_TRI = Map.ofEntries(
+            Map.entry("numeroDossier", "numero_dossier"),
+            Map.entry("numero_dossier", "numero_dossier"),
+            Map.entry("dateCreation", "date_creation"),
+            Map.entry("date_creation", "date_creation"),
+            Map.entry("estGroupage", "est_groupage"),
+            Map.entry("est_groupage", "est_groupage"),
+            // Colonnes des tables jointes : le préfixe d'alias est obligatoire en SQL natif
+            Map.entry("client.nom", "c.nom"),
+            Map.entry("phaseDossier.nom", "ph.nom"),
+            Map.entry("statutDossier.nom", "sd.nom")
+    );
+
+    private static final String COLONNE_TRI_DEFAUT = "date_creation";
 
     private final DossierRepository dossierRepository;
     private final PhaseDossierRepository phaseDossierRepository;
@@ -28,6 +49,9 @@ public class DossierService {
     private final AgenceRepository agenceRepository;
     private final TypeProductionRepository typeProductionRepository;
     private final DossierInteragenceRepository interagenceRepository;
+    private final DocumentRepository documentRepository;
+    private final RemiseRepository remiseRepository;
+    private final DemandeInteragenceRepository demandeInteragenceRepository;
 
     public DossierService(DossierRepository dossierRepository,
                           PhaseDossierRepository phaseDossierRepository,
@@ -35,7 +59,10 @@ public class DossierService {
                           IncontermeRepository incontermeRepository,
                           AgenceRepository agenceRepository,
                           TypeProductionRepository typeProductionRepository,
-                          DossierInteragenceRepository interagenceRepository) {
+                          DossierInteragenceRepository interagenceRepository,
+                          DocumentRepository documentRepository,
+                          RemiseRepository remiseRepository,
+                          DemandeInteragenceRepository demandeInteragenceRepository) {
         this.dossierRepository = dossierRepository;
         this.phaseDossierRepository = phaseDossierRepository;
         this.statutDossierRepository = statutDossierRepository;
@@ -43,6 +70,9 @@ public class DossierService {
         this.agenceRepository = agenceRepository;
         this.typeProductionRepository = typeProductionRepository;
         this.interagenceRepository = interagenceRepository;
+        this.documentRepository = documentRepository;
+        this.remiseRepository = remiseRepository;
+        this.demandeInteragenceRepository = demandeInteragenceRepository;
     }
 
     /**
@@ -76,9 +106,12 @@ public class DossierService {
                                                  Integer otId, Boolean estGroupage,
                                                  String dateMin, String dateMax,
                                                  Integer agenceId, String typeDossier) {
+        // Requête native : le tri doit porter sur des colonnes SQL, pas sur des propriétés JPA.
+        // Toute clé inconnue retombe sur le tri par défaut (aucune erreur 500 côté SQL).
+        String colonneTri = COLONNES_TRI.getOrDefault(sortBy == null ? "" : sortBy, COLONNE_TRI_DEFAUT);
         Sort sort = sortDir != null && sortDir.equalsIgnoreCase("asc")
-                ? Sort.by(sortBy != null ? sortBy : "date_creation").ascending()
-                : Sort.by(sortBy != null ? sortBy : "date_creation").descending();
+                ? Sort.by(colonneTri).ascending()
+                : Sort.by(colonneTri).descending();
 
         Pageable pageable = PageRequest.of(page, size, sort);
 
@@ -174,6 +207,35 @@ public class DossierService {
 
     @Transactional
     public void deleteDossier(Integer id) {
+        if (id == null) {
+            throw new IllegalArgumentException("L'ID du dossier ne peut pas être null");
+        }
+
+        // Vérifier que le dossier existe
+        Dossier dossier = dossierRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Dossier avec l'ID " + id + " non trouvé"));
+
+        // Supprimer les dépendances en cascade
+        // Cet ordre est important pour respecter les contraintes de clés étrangères
+        
+        // 1. Supprimer les demandes d'inter-agence
+        demandeInteragenceRepository.deleteByDossierId(id);
+        
+        // 2. Supprimer les liens de dossier inter-agence (dossier_interagence)
+        // Supprimer d'abord en tant que sous-dossier
+        interagenceRepository.findBySousDossierId(id).ifPresent(interagenceRepository::delete);
+        
+        // Puis en tant que dossier mère
+        List<DossierInteragence> interagenceLinksAsParent = interagenceRepository.findByDossierMereId(id);
+        interagenceLinksAsParent.forEach(interagenceRepository::delete);
+        
+        // 3. Supprimer les remises associées
+        remiseRepository.deleteByDossierId(id);
+        
+        // 4. Supprimer les documents associés
+        documentRepository.deleteByDossierId(id);
+        
+        // 5. Enfin, supprimer le dossier lui-même
         dossierRepository.deleteById(id);
     }
 
@@ -204,11 +266,4 @@ public class DossierService {
         return dossierRepository.findDossiersSansDocumentsComplets(agenceId);
     }
 
-    /** Dossiers avec date limite de remise dans les N prochains jours */
-    @Transactional(readOnly = true)
-    public List<Dossier> getDossiersRemiseUrgente(int joursAvant, Integer agenceId) {
-        LocalDateTime maintenant = LocalDateTime.now();
-        LocalDateTime limite = maintenant.plusDays(joursAvant);
-        return dossierRepository.findDossiersAvecRemiseUrgente(maintenant, limite, agenceId);
-    }
 }

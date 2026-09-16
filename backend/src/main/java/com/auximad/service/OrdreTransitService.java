@@ -12,10 +12,33 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
 public class OrdreTransitService {
+
+    /**
+     * Colonnes de tri autorisées pour la recherche native des ordres de transit.
+     * Les clés sont les propriétés envoyées par le front, les valeurs sont les colonnes SQL
+     * réellement présentes dans la requête native (Spring Data ajoute le préfixe d'alias « ot. »).
+     */
+    private static final Map<String, String> COLONNES_TRI = Map.ofEntries(
+            Map.entry("numeroOrdreTransit", "numero_ordre_transit"),
+            Map.entry("numero_ordre_transit", "numero_ordre_transit"),
+            Map.entry("dateCreation", "date_creation"),
+            Map.entry("date_creation", "date_creation"),
+            Map.entry("estAssure", "est_assure"),
+            Map.entry("est_assure", "est_assure"),
+            // Colonnes des tables jointes : le préfixe d'alias est obligatoire en SQL natif
+            Map.entry("client.nom", "c.nom"),
+            Map.entry("typeProduction.nom", "tp.nom")
+    );
+
+    private static final String COLONNE_TRI_DEFAUT = "date_creation";
+
+    /** Nombre maximum de suggestions renvoyées pour l'autocomplétion. */
+    private static final int SUGGESTIONS_MAX_DEFAUT = 8;
 
     private final OrdreTransitRepository ordreTransitRepository;
     private final ContratTransportRepository contratTransportRepository;
@@ -54,10 +77,16 @@ public class OrdreTransitService {
             Boolean estAssure, Integer typeProductionId, Integer modeTransportId,
             Integer clientId, int page, int size, String sortBy, String sortDir) {
 
-        Sort sort = Sort.by(Sort.Direction.DESC, "date_creation");
-        if (sortBy != null && !sortBy.trim().isEmpty() && !sortBy.equals("dateCreation")) {
-            sort = Sort.by(sortDir.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC, sortBy)
-                    .and(Sort.by(Sort.Direction.DESC, "date_creation"));
+        // Requête native : le tri doit porter sur des colonnes SQL, pas sur des propriétés JPA.
+        // Toute clé inconnue retombe sur le tri par défaut (aucune erreur 500 côté SQL).
+        String colonneTri = COLONNES_TRI.getOrDefault(sortBy == null ? "" : sortBy, COLONNE_TRI_DEFAUT);
+        Sort.Direction direction = sortDir != null && sortDir.equalsIgnoreCase("asc")
+                ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
+        Sort sort = Sort.by(direction, colonneTri);
+        // Tri secondaire stable (date de création décroissante) quand on trie sur une autre colonne
+        if (!COLONNE_TRI_DEFAUT.equals(colonneTri)) {
+            sort = sort.and(Sort.by(Sort.Direction.DESC, COLONNE_TRI_DEFAUT));
         }
 
         Pageable pageable = PageRequest.of(page, size, sort);
@@ -66,6 +95,20 @@ public class OrdreTransitService {
                 estAssure, typeProductionId, modeTransportId, clientId, pageable
         );
         return PageResponse.of(otPage);
+    }
+
+    /**
+     * Suggestions d'OT pour l'autocomplétion (recherche partielle sur le numéro, la commande ou le client).
+     * Le nombre de résultats est borné et le terme est nettoyé.
+     */
+    @Transactional(readOnly = true)
+    public List<OrdreTransit> suggestionsOt(String q, Integer limite) {
+        String terme = q == null ? "" : q.trim();
+        if (terme.isEmpty()) {
+            return List.of();
+        }
+        int max = (limite == null || limite <= 0) ? SUGGESTIONS_MAX_DEFAUT : Math.min(limite, SUGGESTIONS_MAX_DEFAUT);
+        return ordreTransitRepository.suggestions(terme, max);
     }
 
     @Transactional(readOnly = true)
