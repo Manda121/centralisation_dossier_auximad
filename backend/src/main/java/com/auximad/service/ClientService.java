@@ -36,6 +36,9 @@ public class ClientService {
             "cp_client", "cp_client"
     );
 
+    /** Nombre maximum de suggestions renvoyées pour l'autocomplétion. */
+    private static final int SUGGESTIONS_MAX_DEFAUT = 8;
+
     private final ClientRepository clientRepository;
     private final PaysRepository paysRepository;
     private final TypeClientRepository typeClientRepository;
@@ -66,6 +69,19 @@ public class ClientService {
                 email, adresse, ville, cpClient, paysId, typeClientId, pageable
         );
         return PageResponse.of(clientPage);
+    }
+
+    /**
+     * Suggestions de clients pour l'autocomplétion (code client, nom, prénom, NIF ou STAT).
+     */
+    @Transactional(readOnly = true)
+    public List<Client> suggestionsClients(String q, Integer limite) {
+        String terme = q == null ? "" : q.trim();
+        if (terme.isEmpty()) {
+            return List.of();
+        }
+        int max = (limite == null || limite <= 0) ? SUGGESTIONS_MAX_DEFAUT : Math.min(limite, SUGGESTIONS_MAX_DEFAUT);
+        return clientRepository.suggestions(terme, max);
     }
 
     @Transactional(readOnly = true)

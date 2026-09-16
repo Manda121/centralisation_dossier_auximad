@@ -52,6 +52,14 @@ public class ClientController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/suggestions")
+    @Operation(summary = "Suggestions de clients pour l'autocomplétion (code client, nom, NIF, STAT)")
+    public ResponseEntity<List<Client>> suggestions(
+            @RequestParam String q,
+            @RequestParam(defaultValue = "8") Integer limite) {
+        return ResponseEntity.ok(clientService.suggestionsClients(q, limite));
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Obtenir les détails d'un client par son ID")
     public ResponseEntity<Client> getClientById(@PathVariable Integer id) {

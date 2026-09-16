@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Repository
 public interface OrdreTransitRepository extends JpaRepository<OrdreTransit, Integer> {
@@ -66,6 +67,22 @@ public interface OrdreTransitRepository extends JpaRepository<OrdreTransit, Inte
             @Param("clientId") Integer clientId,
             Pageable pageable
     );
+
+    /**
+     * Suggestions d'OT pour l'autocomplétion : recherche partielle (préfixe) sur le numéro d'OT,
+     * plus recherche « contient » sur le n° de commande et le nom du client donneur d'ordre.
+     * Les OT en statut 1 (brouillon) sont exclus, comme dans la liste principale.
+     */
+    @Query(value = "SELECT ot.* FROM ordre_transit ot "
+            + "LEFT JOIN clients c ON ot.id_client = c.id "
+            + "WHERE (CAST(ot.numero_ordre_transit AS TEXT) ILIKE CONCAT(:q, '%') "
+            + "  OR COALESCE(ot.numero_commande, '') ILIKE CONCAT('%', :q, '%') "
+            + "  OR COALESCE(c.nom, '') ILIKE CONCAT('%', :q, '%') "
+            + "  OR COALESCE(c.prenom, '') ILIKE CONCAT('%', :q, '%')) "
+            + "AND (ot.id_statut_ot IS NULL OR ot.id_statut_ot != 1) "
+            + "ORDER BY ot.numero_ordre_transit DESC LIMIT :limite",
+            nativeQuery = true)
+    List<OrdreTransit> suggestions(@Param("q") String q, @Param("limite") int limite);
 
     @Query("SELECT coalesce(max(ot.numeroOrdreTransit), 10000) FROM OrdreTransit ot")
     Integer findMaxNumeroOrdreTransit();

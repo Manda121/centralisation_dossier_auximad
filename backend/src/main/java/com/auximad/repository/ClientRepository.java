@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 @Repository
 public interface ClientRepository extends JpaRepository<Client, Integer> {
 
@@ -58,4 +60,18 @@ public interface ClientRepository extends JpaRepository<Client, Integer> {
             @Param("typeClientId") Integer typeClientId,
             Pageable pageable
     );
+
+    /**
+     * Suggestions de clients pour l'autocomplétion : code client (préfixe), nom, prénom, NIF ou STAT.
+     */
+    @Query(value = "SELECT c.* FROM clients c WHERE "
+            + "CAST(c.id AS TEXT) ILIKE CONCAT(:q, '%') "
+            + "OR COALESCE(c.cp_client, '') ILIKE CONCAT(:q, '%') "
+            + "OR COALESCE(c.nom, '') ILIKE CONCAT('%', :q, '%') "
+            + "OR COALESCE(c.prenom, '') ILIKE CONCAT('%', :q, '%') "
+            + "OR COALESCE(c.nif, '') ILIKE CONCAT('%', :q, '%') "
+            + "OR COALESCE(c.stat, '') ILIKE CONCAT('%', :q, '%') "
+            + "ORDER BY c.nom ASC LIMIT :limite",
+            nativeQuery = true)
+    List<Client> suggestions(@Param("q") String q, @Param("limite") int limite);
 }

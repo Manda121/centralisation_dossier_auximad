@@ -32,6 +32,15 @@ class OrdreTransitService {
         return response.data
     }
 
+    /** Suggestions d'OT pour l'autocomplétion (numéro d'OT, n° de commande ou client) */
+    async suggestions(q, limite = 8) {
+        const response = await axios.get(`${API_URL}/suggestions`, {
+            params: { q, limite },
+            headers: authHeader()
+        })
+        return response.data
+    }
+
     async createOrdreTransit(otData) {
         const response = await axios.post(API_URL, otData, { headers: authHeader() })
         return response.data

@@ -17,19 +17,24 @@
                     <!-- Pré-remplissage depuis un OT validé -->
                     <div class="alert alert-info text-xs py-2 mb-4">
                         Vous pouvez pré-remplir ce formulaire à partir d'un <strong>Ordre de Transit validé</strong>.
-                        Saisissez son numéro ci-dessous.
+                        Tapez quelques chiffres : la liste des OT correspondants s'affiche si vous ne vous souvenez
+                        plus du numéro exact.
                     </div>
-                    <div class="row g-3 mb-4 align-items-end">
+                    <div class="row g-3 mb-4 align-items-start">
                         <div class="col-md-4">
                             <label class="form-label text-xs fw-semibold">N° Ordre de Transit (pour pré-remplir)</label>
-                            <div class="input-group input-group-sm">
-                                <input type="number" v-model="rechercheOt" class="form-control" placeholder="ex: 10001">
-                                <button class="btn btn-outline-secondary" :disabled="chargementOt"
-                                    @click="preRemplirDepuisOt">
-                                    <span v-if="chargementOt" class="spinner-border spinner-border-sm me-1"></span>
-                                    Charger OT
-                                </button>
-                            </div>
+                            <AutocompleteRecherche v-model="rechercheOt" :fetch-results="suggestionsOt"
+                                :label-fn="ot => ot.numeroOrdreTransit"
+                                :sublabel-fn="ot => libelleClient(ot.client)"
+                                :value-fn="ot => ot.numeroOrdreTransit"
+                                placeholder="ex: 10001 (quelques chiffres suffisent)"
+                                message-vide="Aucun OT ne correspond à cette recherche"
+                                numerique @selection="utiliserOt" />
+                            <button class="btn btn-outline-secondary btn-sm mt-2" :disabled="chargementOt"
+                                @click="preRemplirDepuisOt">
+                                <span v-if="chargementOt" class="spinner-border spinner-border-sm me-1"></span>
+                                Charger OT
+                            </button>
                         </div>
                         <div class="col-md-6">
                             <span v-if="otCharge"
@@ -186,6 +191,7 @@ import { useRouter } from 'vue-router'
 import Header from '../components/inc/Header.vue'
 import PageSkeleton from '../components/inc/PageSkeleton.vue'
 import DocumentsSection from '../components/DocumentsSection.vue'
+import AutocompleteRecherche from '../components/inc/AutocompleteRecherche.vue'
 import DocumentService from '../services/DocumentService'
 import Dossier from '../models/Dossier'
 import DossierService from '../services/DossierService'
@@ -237,31 +243,61 @@ onMounted(async () => {
     }
 })
 
-async function preRemplirDepuisOt() {
-    if (!rechercheOt.value) return
+/** Suggestions d'OT pour l'autocomplétion (recherche partielle sur le numéro) */
+async function suggestionsOt(q) {
+    try {
+        return await OrdreTransitService.suggestions(q)
+    } catch (e) {
+        console.error('Erreur recherche suggestions OT', e)
+        return []
+    }
+}
+
+function libelleClient(client) {
+    if (!client) return ''
+    return `${client.nom || ''} ${client.prenom || ''}`.trim()
+}
+
+/** Applique un OT (choisi dans les suggestions ou trouvé par recherche exacte) au formulaire */
+async function utiliserOt(ot) {
+    if (!ot) return
     chargementOt.value = true
     try {
-        const result = await OrdreTransitService.searchOrdreTransits(0, 1, 'date_creation', 'desc', {
-            numero: rechercheOt.value
+        const dossiersOt = await DossierService.searchDossiers(0, 1, 'date_creation', 'desc', {
+            otId: ot.id
         })
+        if (dossiersOt.content && dossiersOt.content.length > 0) {
+            const existant = dossiersOt.content[0]
+            alert(`Un dossier existe déjà pour cet OT (${existant.numeroDossier || existant.id}).`)
+            otCharge.value = null
+            dossier.value.ordreTransit = null
+            return
+        }
+
+        otCharge.value = ot
+        dossier.value.client = ot.client
+        dossier.value.typeProduction = ot.typeProduction
+        dossier.value.ordreTransit = ot
+    } catch (e) {
+        alert("Erreur technique lors du chargement de l'OT.")
+    } finally {
+        chargementOt.value = false
+    }
+}
+
+/** Recherche exacte par numéro (bouton « Charger OT ») */
+async function preRemplirDepuisOt() {
+    const numero = String(rechercheOt.value || '').trim()
+    if (!numero) return
+    if (!/^\d+$/.test(numero)) {
+        alert('Le numéro d’OT ne doit contenir que des chiffres.')
+        return
+    }
+    chargementOt.value = true
+    try {
+        const result = await OrdreTransitService.searchOrdreTransits(0, 1, 'date_creation', 'desc', { numero })
         if (result.content && result.content.length > 0) {
-            const ot = result.content[0]
-
-            const dossiersOt = await DossierService.searchDossiers(0, 1, 'date_creation', 'desc', {
-                otId: ot.id
-            })
-            if (dossiersOt.content && dossiersOt.content.length > 0) {
-                const existant = dossiersOt.content[0]
-                alert(`Un dossier existe déjà pour cet OT (${existant.numeroDossier || existant.id}).`)
-                otCharge.value = null
-                dossier.value.ordreTransit = null
-                return
-            }
-
-            otCharge.value = ot
-            dossier.value.client = ot.client
-            dossier.value.typeProduction = ot.typeProduction
-            dossier.value.ordreTransit = ot
+            await utiliserOt(result.content[0])
         } else {
             alert("Aucun OT trouvé pour ce numéro.")
         }

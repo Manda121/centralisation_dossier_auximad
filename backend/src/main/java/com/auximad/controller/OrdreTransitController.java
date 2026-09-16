@@ -63,6 +63,14 @@ public class OrdreTransitController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/suggestions")
+    @Operation(summary = "Suggestions d'OT pour l'autocomplétion (numéro d'OT, n° de commande ou client)")
+    public ResponseEntity<List<OrdreTransit>> suggestions(
+            @RequestParam String q,
+            @RequestParam(defaultValue = "8") Integer limite) {
+        return ResponseEntity.ok(ordreTransitService.suggestionsOt(q, limite));
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Obtenir un OT par son ID")
     public ResponseEntity<OrdreTransit> getById(@PathVariable Integer id) {

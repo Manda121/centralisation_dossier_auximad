@@ -49,9 +49,11 @@
                                             placeholder="🔍 N° dossier, nom client…" @input="rechercherDossiers" />
                                     </div>
                                     <div class="col-6">
-                                        <input type="text" v-model="filtres.cpClient"
-                                            class="form-control form-control-sm" placeholder="CP Client"
-                                            @input="rechercherDossiers" />
+                                        <AutocompleteRecherche v-model="filtres.cpClient"
+                                            :fetch-results="suggestionsClients" :label-fn="c => c.cpClient || c.id"
+                                            :sublabel-fn="c => libelleClient(c)" :value-fn="c => c.cpClient || ''"
+                                            placeholder="CP Client" message-vide="Aucun client ne correspond"
+                                            @selection="rechercherDossiers" />
                                     </div>
                                     <div class="col-6">
                                         <select v-model="filtres.typeProductionId" class="form-select form-select-sm"
@@ -200,7 +202,9 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Header from '@/components/inc/Header.vue'
 import DocumentsSection from '@/components/DocumentsSection.vue'
+import AutocompleteRecherche from '@/components/inc/AutocompleteRecherche.vue'
 import DossierService from '@/services/DossierService'
+import ClientService from '@/services/ClientService'
 import DocumentService from '@/services/DocumentService'
 import OrdreTransitService from '@/services/OrdreTransitService'
 
@@ -265,6 +269,22 @@ async function chargerTypeProductions() {
     } catch (e) {
         console.error('Erreur chargement types de production', e)
     }
+}
+
+/** Suggestions de clients pour le filtre CP Client */
+async function suggestionsClients(q) {
+    try {
+        return await ClientService.suggestions(q)
+    } catch (e) {
+        console.error('Erreur recherche suggestions clients', e)
+        return []
+    }
+}
+
+function libelleClient(client) {
+    if (!client) return ''
+    const nom = `${client.nom || ''} ${client.prenom || ''}`.trim()
+    return nom || client.cpClient || ''
 }
 
 async function chargerAlertes() {

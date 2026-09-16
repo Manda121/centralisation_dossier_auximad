@@ -37,6 +37,9 @@ public class OrdreTransitService {
 
     private static final String COLONNE_TRI_DEFAUT = "date_creation";
 
+    /** Nombre maximum de suggestions renvoyées pour l'autocomplétion. */
+    private static final int SUGGESTIONS_MAX_DEFAUT = 8;
+
     private final OrdreTransitRepository ordreTransitRepository;
     private final ContratTransportRepository contratTransportRepository;
     private final InstructionRepository instructionRepository;
@@ -92,6 +95,20 @@ public class OrdreTransitService {
                 estAssure, typeProductionId, modeTransportId, clientId, pageable
         );
         return PageResponse.of(otPage);
+    }
+
+    /**
+     * Suggestions d'OT pour l'autocomplétion (recherche partielle sur le numéro, la commande ou le client).
+     * Le nombre de résultats est borné et le terme est nettoyé.
+     */
+    @Transactional(readOnly = true)
+    public List<OrdreTransit> suggestionsOt(String q, Integer limite) {
+        String terme = q == null ? "" : q.trim();
+        if (terme.isEmpty()) {
+            return List.of();
+        }
+        int max = (limite == null || limite <= 0) ? SUGGESTIONS_MAX_DEFAUT : Math.min(limite, SUGGESTIONS_MAX_DEFAUT);
+        return ordreTransitRepository.suggestions(terme, max);
     }
 
     @Transactional(readOnly = true)

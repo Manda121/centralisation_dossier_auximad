@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import OrdreTransitService from '../../services/OrdreTransitService'
+import AutocompleteRecherche from '../inc/AutocompleteRecherche.vue'
 
 const props = defineProps({
   /** Permet de pré-remplir le numéro (ex: depuis route.query) */
@@ -14,14 +15,42 @@ const loading = ref(false)
 const selectedOt = ref(null)
 
 watch(() => props.initialNumero, (val) => {
-  if (val && val !== numero.value) {
+  if (val && String(val) !== String(numero.value)) {
     numero.value = val
-    rechercher()
+    rechercherExact()
   }
 })
 
-async function rechercher() {
-  if (!numero.value) return
+/** Suggestions d'OT au fur et à mesure de la saisie (recherche partielle) */
+async function suggestionsOt(q) {
+  try {
+    return await OrdreTransitService.suggestions(q)
+  } catch (e) {
+    console.error('Erreur recherche suggestions OT', e)
+    return []
+  }
+}
+
+function libelleClient(client) {
+  if (!client) return ''
+  return `${client.nom || ''} ${client.prenom || ''}`.trim()
+}
+
+/** Un OT a été choisi dans la liste des suggestions */
+function onOtSuggestion(ot) {
+  if (!ot) return
+  selectedOt.value = ot
+  emit('ot-selected', ot)
+}
+
+/** Recherche exacte par numéro (bouton « Rechercher » et pré-remplissage depuis l'URL) */
+async function rechercherExact() {
+  const valeur = String(numero.value || '').trim()
+  if (!valeur) return
+  if (!/^\d+$/.test(valeur)) {
+    alert('Le numéro d’OT ne doit contenir que des chiffres.')
+    return
+  }
 
   loading.value = true
   selectedOt.value = null
@@ -30,12 +59,11 @@ async function rechercher() {
   try {
     const result = await OrdreTransitService.searchOrdreTransits(
       0, 1, 'date_creation', 'desc',
-      { numero: numero.value }
+      { numero: valeur }
     )
 
     if (result.content?.length > 0) {
-      selectedOt.value = result.content[0]
-      emit('ot-selected', selectedOt.value)
+      onOtSuggestion(result.content[0])
     } else {
       alert('Aucun ordre de transit trouvé sous ce numéro.')
     }
@@ -62,7 +90,7 @@ async function chargerParId(id) {
   }
 }
 
-defineExpose({ chargerParId })
+defineExpose({ chargerParId, rechercherExact })
 </script>
 
 <template>
@@ -73,24 +101,17 @@ defineExpose({ chargerParId })
       </label>
       <div class="row g-2 align-items-center">
         <div class="col-md-6">
-          <div class="input-group input-group-sm">
-            <input
-              type="number"
-              v-model="numero"
-              class="form-control"
-              placeholder="Saisissez un numéro d'OT (ex: 10001)..."
-              @keyup.enter="rechercher"
-            >
-            <button
-              class="btn btn-primary"
-              type="button"
-              @click="rechercher"
-              :disabled="loading"
-            >
-              <span v-if="loading" class="spinner-border spinner-border-sm me-1" role="status"></span>
-              Rechercher
-            </button>
-          </div>
+          <AutocompleteRecherche v-model="numero" :fetch-results="suggestionsOt"
+            :label-fn="ot => ot.numeroOrdreTransit" :sublabel-fn="ot => libelleClient(ot.client)"
+            :value-fn="ot => ot.numeroOrdreTransit" placeholder="Saisissez quelques chiffres (ex: 10001)..."
+            message-vide="Aucun OT ne correspond" numerique @selection="onOtSuggestion">
+            <template #action>
+              <button class="btn btn-primary" type="button" @click="rechercherExact" :disabled="loading">
+                <span v-if="loading" class="spinner-border spinner-border-sm me-1" role="status"></span>
+                Rechercher
+              </button>
+            </template>
+          </AutocompleteRecherche>
         </div>
         <div class="col-md-6 text-end">
           <span v-if="selectedOt" class="badge bg-secondary text-white">

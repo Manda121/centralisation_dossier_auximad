@@ -3,6 +3,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import Header from '../components/inc/Header.vue'
 import DataTable from '../components/inc/DataTable.vue'
+import AutocompleteRecherche from '../components/inc/AutocompleteRecherche.vue'
 import ClientService from '../services/ClientService'
 import PermissionService, { PORTEE_PROPRE_ECRITURE, ACTION_OT } from '../utils/permission.service'
 
@@ -59,6 +60,22 @@ async function chargerClients(page, size, sortBy, sortDir, filters) {
     return await ClientService.searchClients(page, size, sortBy, sortDir, filters)
 }
 
+/** Suggestions de clients pour les filtres (code client, nom, NIF, STAT) */
+async function suggestionsClients(q) {
+    try {
+        return await ClientService.suggestions(q)
+    } catch (e) {
+        console.error('Erreur recherche suggestions clients', e)
+        return []
+    }
+}
+
+function libelleClient(client) {
+    if (!client) return ''
+    const nom = `${client.nom || ''} ${client.prenom || ''}`.trim()
+    return nom || client.cpClient || ''
+}
+
 let searchTimeout = null
 function declencherRecherche() {
     clearTimeout(searchTimeout)
@@ -109,7 +126,11 @@ function reinitialiserFiltres() {
                                 <div class="row g-2">
                                     <div class="col-md-3">
                                         <label class="form-label small fw-semibold text-secondary">Cp Client</label>
-                                        <input type="text" v-model="filters.cpClient" class="form-control form-control-sm" placeholder="ex: 10112">
+                                        <AutocompleteRecherche v-model="filters.cpClient"
+                                            :fetch-results="suggestionsClients" :label-fn="c => c.cpClient || c.id"
+                                            :sublabel-fn="c => libelleClient(c)" :value-fn="c => c.cpClient || ''"
+                                            placeholder="ex: 10112" message-vide="Aucun client ne correspond"
+                                            @selection="c => filters.cpClient = c.cpClient || ''" />
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label small fw-semibold text-secondary">Nom</label>
@@ -128,11 +149,19 @@ function reinitialiserFiltres() {
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label small fw-semibold text-secondary">NIF</label>
-                                        <input type="text" v-model="filters.nif" class="form-control form-control-sm" placeholder="NIF client">
+                                        <AutocompleteRecherche v-model="filters.nif"
+                                            :fetch-results="suggestionsClients" :label-fn="c => c.nif || c.cpClient || c.id"
+                                            :sublabel-fn="c => libelleClient(c)" :value-fn="c => c.nif || ''"
+                                            placeholder="NIF client" message-vide="Aucun client ne correspond"
+                                            @selection="c => filters.nif = c.nif || ''" />
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label small fw-semibold text-secondary">STAT</label>
-                                        <input type="text" v-model="filters.stat" class="form-control form-control-sm" placeholder="STAT client">
+                                        <AutocompleteRecherche v-model="filters.stat"
+                                            :fetch-results="suggestionsClients" :label-fn="c => c.stat || c.cpClient || c.id"
+                                            :sublabel-fn="c => libelleClient(c)" :value-fn="c => c.stat || ''"
+                                            placeholder="STAT client" message-vide="Aucun client ne correspond"
+                                            @selection="c => filters.stat = c.stat || ''" />
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label small fw-semibold text-secondary">Pays</label>
