@@ -196,12 +196,16 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import Header from '@/components/inc/Header.vue'
 import DocumentsSection from '@/components/DocumentsSection.vue'
 import DossierService from '@/services/DossierService'
 import DocumentService from '@/services/DocumentService'
 import OrdreTransitService from '@/services/OrdreTransitService'
+
+const route = useRoute()
+const router = useRouter()
 
 const dossiers = ref([])
 const dossierSelectionne = ref(null)
@@ -226,11 +230,33 @@ const pagination = ref({
 const dossiersAvecDocs = ref(new Set()) // IDs dossiers avec docs complets
 
 onMounted(async () => {
+    // Pré-sélection du dossier transmis par le détail dossier (?dossierId=...)
+    await preselecterDossierDepuisUrl()
     await Promise.all([
         rechercherDossiers(),
         chargerAlertes(),
         chargerTypeProductions()
     ])
+})
+
+/** Charge et sélectionne le dossier passé dans l'URL (?dossierId=...) */
+async function preselecterDossierDepuisUrl() {
+    const dossierId = route.query.dossierId
+    if (!dossierId) return
+    try {
+        const d = await DossierService.getDossierById(dossierId)
+        if (!d) return
+        dossierSelectionne.value = d
+    } catch (e) {
+        console.error('Erreur lors de la pré-sélection du dossier', e)
+    }
+}
+
+// Suivre les changements de ?dossierId= sans remontage (retour/avance navigateur)
+watch(() => route.query.dossierId, async (nouvelId) => {
+    if (nouvelId == null) return
+    if (String(dossierSelectionne.value?.id ?? '') === String(nouvelId)) return
+    await preselecterDossierDepuisUrl()
 })
 
 async function chargerTypeProductions() {
@@ -283,6 +309,13 @@ async function rechercherDossiers() {
                 dossiers.value = res.content || []
                 pagination.value.totalPages = res.totalPages || 0
             }
+
+            // Le dossier sélectionné reste visible en tête de liste même s'il
+            // n'appartient pas à la page courante (pré-sélection depuis le détail dossier)
+            const sel = dossierSelectionne.value
+            if (sel?.id != null && !dossiers.value.some(x => x.id === sel.id)) {
+                dossiers.value = [sel, ...dossiers.value]
+            }
         } catch (e) {
             console.error('Erreur recherche dossiers', e)
         } finally {
@@ -293,6 +326,10 @@ async function rechercherDossiers() {
 
 async function selectionnerDossier(d) {
     dossierSelectionne.value = d
+    // Garder l'URL synchronisée (partage du lien / rafraîchissement)
+    if (d?.id != null && String(route.query.dossierId || '') !== String(d.id)) {
+        router.replace({ path: route.path, query: { ...route.query, dossierId: d.id } })
+    }
 }
 
 function changerPage(delta) {

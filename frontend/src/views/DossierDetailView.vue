@@ -313,7 +313,9 @@ function formatarDate(dt) {
                                 <div
                                     class="card-header bg-white border-bottom py-2 d-flex justify-content-between align-items-center">
                                     <h5 class="mb-0 fw-semibold text-dark">Documents</h5>
-                                    <router-link to="/documents/dossiers" class="btn btn-outline-primary btn-sm">
+                                    <router-link
+                                        :to="{ path: '/documents/dossiers', query: { dossierId: dossier.id } }"
+                                        class="btn btn-outline-primary btn-sm">
                                         Gérer les documents
                                     </router-link>
                                 </div>
