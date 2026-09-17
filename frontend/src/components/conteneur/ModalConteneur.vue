@@ -81,22 +81,24 @@ const filteredConteneursExistants = computed(() => {
     const matchNumero = c.numeroContainer && c.numeroContainer.toLowerCase().includes(q)
     if (!matchNumero) return false
 
+    const listDossiers = (c.dossiers && c.dossiers.length > 0) ? c.dossiers : (c.dossier ? [c.dossier] : [])
+
     // 2. Même type de production
-    if (currentTypeProdId && c.dossier) {
-      const cTypeProdId = c.dossier.typeProduction?.id || c.dossier.ordreTransit?.typeProduction?.id
-      if (cTypeProdId && cTypeProdId !== currentTypeProdId) {
-        return false
-      }
+    if (currentTypeProdId && listDossiers.length > 0) {
+      const matchType = listDossiers.some(d => {
+        const cTypeProdId = d.typeProduction?.id || d.ordreTransit?.typeProduction?.id
+        return !cTypeProdId || cTypeProdId === currentTypeProdId
+      })
+      if (!matchType) return false
     }
 
-    // 3. Dossier non clôturé
-    const statutNom = c.dossier?.statutDossier?.nom || c.dossier?.statut?.nom || ''
-    if (statutNom) {
+    // 3. Aucun des dossiers associés ne doit être clôturé
+    const hasCloture = listDossiers.some(d => {
+      const statutNom = d.statutDossier?.nom || d.statut?.nom || ''
       const nomLower = statutNom.toLowerCase()
-      if (nomLower.includes('clot') || nomLower.includes('clôt')) {
-        return false
-      }
-    }
+      return nomLower.includes('clot') || nomLower.includes('clôt')
+    })
+    if (hasCloture) return false
 
     return true
   })
@@ -355,7 +357,10 @@ onMounted(() => {
                 >
                   <div>
                     <strong class="text-dark">{{ c.numeroContainer }}</strong>
-                    <span v-if="c.dossier?.numeroDossier" class="text-muted ms-2" style="font-size: 0.75rem;">
+                    <span v-if="c.dossiers && c.dossiers.length > 0" class="text-muted ms-2" style="font-size: 0.75rem;">
+                      (Dossier(s): {{ Array.from(c.dossiers).map(d => d.numeroDossier).filter(Boolean).join(', ') }})
+                    </span>
+                    <span v-else-if="c.dossier?.numeroDossier" class="text-muted ms-2" style="font-size: 0.75rem;">
                       (Dossier: {{ c.dossier.numeroDossier }})
                     </span>
                   </div>

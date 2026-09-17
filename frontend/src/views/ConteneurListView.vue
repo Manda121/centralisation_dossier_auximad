@@ -52,12 +52,17 @@ async function chargerTousLesConteneurs() {
     const tous = await ConteneurService.getTousConteneurs()
     const map = {}
     tous.forEach(c => {
-      if (c.dossier && c.dossier.id) {
-        if (!map[c.dossier.id]) {
-          map[c.dossier.id] = []
+      const listDossiers = (c.dossiers && c.dossiers.length > 0) ? c.dossiers : (c.dossier ? [c.dossier] : [])
+      listDossiers.forEach(d => {
+        if (d && d.id) {
+          if (!map[d.id]) {
+            map[d.id] = []
+          }
+          if (!map[d.id].some(item => item.id === c.id)) {
+            map[d.id].push(c)
+          }
         }
-        map[c.dossier.id].push(c)
-      }
+      })
     })
     conteneursParDossier.value = map
   } catch (e) {
@@ -117,10 +122,10 @@ async function onConteneurEnregistre() {
   datatableRef.value?.refresh(false)
 }
 
-async function supprimerConteneur(cId) {
+async function supprimerConteneur(cId, dossierId = null) {
   if (confirm("Supprimer cette assignation de conteneur ?")) {
     try {
-      await ConteneurService.supprimerConteneur(cId)
+      await ConteneurService.supprimerConteneur(cId, dossierId)
       await chargerTousLesConteneurs()
     } catch (e) {
       alert(e.response?.data?.message || "Erreur de suppression du conteneur")
@@ -317,7 +322,7 @@ function filtrerAujourdhui() {
                         <button 
                           class="btn btn-link btn-sm p-0 text-danger text-decoration-none" 
                           style="font-size: 0.75rem;" 
-                          @click="supprimerConteneur(c.id)"
+                          @click="supprimerConteneur(c.id, row.id)"
                         >
                           Suppr.
                         </button>
