@@ -239,31 +239,38 @@ public class DocumentService {
             }
         }
 
-        // Ajouter les documents cochés
+        // Ajouter les documents nouvellement cochés
         if (typeIdsAjoutes != null) {
-            for (int i = 0; i < typeIdsAjoutes.size(); i++) {
-                Integer typeId = typeIdsAjoutes.get(i);
-                MultipartFile fichier = null;
-                if (fichiers != null && typeIdsFichiers != null) {
-                    int idx = typeIdsFichiers.indexOf(typeId);
-                    if (idx >= 0 && idx < fichiers.size()) {
-                        fichier = fichiers.get(idx);
-                    }
+            for (Integer typeId : typeIdsAjoutes) {
+                boolean aFichier = (typeIdsFichiers != null && typeIdsFichiers.contains(typeId));
+                if (!aFichier) {
+                    saveDocument(dossierId, typeId, null);
                 }
-                saveDocument(dossierId, typeId, fichier);
             }
         }
 
+        // Traiter tous les fichiers téléchargés (pour les docs nouvellement cochés OU déjà cochés)
+        if (typeIdsFichiers != null && fichiers != null) {
+            for (int i = 0; i < typeIdsFichiers.size(); i++) {
+                Integer typeId = typeIdsFichiers.get(i);
+                if (i < fichiers.size()) {
+                    MultipartFile fichier = fichiers.get(i);
+                    if (fichier != null && !fichier.isEmpty()) {
+                        saveDocument(dossierId, typeId, fichier);
+                    }
+                }
+            }
+        }
     }
 
     /**
      * Sauvegarder physiquement le fichier sur le serveur
      */
     private String sauvegarderFichier(MultipartFile fichier, Integer dossierId) throws IOException {
-        Path repertoire = Paths.get(uploadDir, "dossier-" + dossierId);
+        Path repertoire = Paths.get(uploadDir, "dossier-" + dossierId).toAbsolutePath();
         Files.createDirectories(repertoire);
         String nomFichier = UUID.randomUUID() + "_" + fichier.getOriginalFilename();
-        Path destination = repertoire.resolve(nomFichier);
+        Path destination = repertoire.resolve(nomFichier).toAbsolutePath();
         fichier.transferTo(destination.toFile());
         return "dossier-" + dossierId + "/" + nomFichier;
     }

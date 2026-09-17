@@ -71,33 +71,28 @@
                         </div>
 
                         <!-- Aperçu du fichier existant (mode lecture ou remplissage) -->
-                        <div v-if="getDocumentActif(typeDoc.id)" class="mt-1 d-flex align-items-center gap-2">
-                            <span class="text-success" style="font-size:0.75rem;">
+                        <div v-if="getDocumentActif(typeDoc.id)" class="mt-1 d-flex align-items-center gap-2 flex-wrap">
+                            <span class="text-success fw-semibold" style="font-size:0.75rem;">
                                 <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12">
-                                    <path
-                                        d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 0 1-1.06-1.06l2.094 2.093 3.473-4.425z" />
+                                    <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 0 1-1.06-1.06l2.094 2.093 3.473-4.425z" />
                                 </svg>
                                 Remis
                             </span>
-                            <!-- Aperçu miniature fichier -->
-                            <button v-if="getDocumentActif(typeDoc.id).nomFichier" type="button"
-                                class="btn btn-link btn-sm p-0 doc-preview-btn"
-                                @click="ouvrirApercu(getDocumentActif(typeDoc.id))"
-                                :title="getDocumentActif(typeDoc.id).nomFichier">
-                                <div class="doc-thumbnail">
-                                    <img v-if="estImage(getDocumentActif(typeDoc.id).nomFichier)"
-                                        :src="getFichierUrl(getDocumentActif(typeDoc.id).id)" class="doc-thumbnail__img"
-                                        :alt="getDocumentActif(typeDoc.id).nomFichier" />
-                                    <div v-else class="doc-thumbnail__icon">
-                                        <svg viewBox="0 0 16 16" fill="currentColor" width="20" height="20">
-                                            <path
-                                                d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5z" />
-                                        </svg>
-                                    </div>
-                                    <span class="doc-thumbnail__name">{{ getDocumentActif(typeDoc.id).nomFichier
-                                        }}</span>
-                                </div>
-                            </button>
+                            <!-- Bouton et Lien pour visualiser le fichier -->
+                            <div v-if="getDocumentActif(typeDoc.id).nomFichier" class="d-flex align-items-center gap-2">
+                                <button type="button"
+                                    class="btn btn-sm btn-outline-primary py-0 px-2 d-flex align-items-center gap-1"
+                                    style="font-size:0.75rem;"
+                                    @click="ouvrirApercu(getDocumentActif(typeDoc.id))"
+                                    :title="getDocumentActif(typeDoc.id).nomFichier">
+                                    <span>👁️ Visualiser ({{ getDocumentActif(typeDoc.id).nomFichier }})</span>
+                                </button>
+                                <a :href="getFichierUrl(getDocumentActif(typeDoc.id).id)" target="_blank" 
+                                   class="text-primary small text-decoration-underline" style="font-size:0.75rem;"
+                                   title="Ouvrir le fichier dans un nouvel onglet">
+                                    🔗 Direct
+                                </a>
+                            </div>
                         </div>
                     </div>
 
@@ -145,9 +140,14 @@
         style="background: rgba(0,0,0,0.7); z-index:2000;">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content border-0 shadow" style="max-height:90vh;overflow:hidden;">
-                <div class="modal-header bg-dark text-white py-2">
-                    <h6 class="modal-title mb-0">{{ apercuDoc.nomFichier }}</h6>
-                    <button type="button" class="btn-close btn-close-white" @click="apercuDoc = null"></button>
+                <div class="modal-header bg-dark text-white py-2 d-flex justify-content-between align-items-center">
+                    <h6 class="modal-title mb-0 text-truncate" style="max-width:70%;">{{ apercuDoc.nomFichier }}</h6>
+                    <div class="d-flex align-items-center gap-2">
+                        <a :href="getFichierUrl(apercuDoc.id)" target="_blank" class="btn btn-sm btn-outline-light py-0 px-2" style="font-size:0.75rem;">
+                            🔗 Nouvel onglet
+                        </a>
+                        <button type="button" class="btn-close btn-close-white" @click="apercuDoc = null"></button>
+                    </div>
                 </div>
                 <div class="modal-body p-0" style="overflow:auto;max-height:80vh;">
                     <img v-if="estImage(apercuDoc.nomFichier)" :src="getFichierUrl(apercuDoc.id)" class="w-100"
@@ -315,7 +315,7 @@ function formatarDate(dt) {
 }
 
 function getFichierUrl(docId) {
-    return `http://localhost:8080/api/documents/${docId}/fichier`
+    return DocumentService.getFichierUrl(docId)
 }
 
 function estImage(nomFichier) {

@@ -28,28 +28,31 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
+        String token = null;
         String authHeader = request.getHeader("Authorization");
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
+            token = authHeader.substring(7);
+        } else if (request.getParameter("token") != null && !request.getParameter("token").isBlank()) {
+            token = request.getParameter("token");
+        }
 
-            if (jwtUtil.estValide(token)) {
-                Claims claims = jwtUtil.extraireClaims(token);
-                String nomUtilisateur = claims.getSubject();
-                String role = claims.get("role", String.class);
+        if (token != null && jwtUtil.estValide(token)) {
+            Claims claims = jwtUtil.extraireClaims(token);
+            String nomUtilisateur = claims.getSubject();
+            String role = claims.get("role", String.class);
 
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(
-                                nomUtilisateur,
-                                null,
-                                Collections.singletonList(new SimpleGrantedAuthority(role))
-                        );
+            UsernamePasswordAuthenticationToken authentication =
+                    new UsernamePasswordAuthenticationToken(
+                            nomUtilisateur,
+                            null,
+                            Collections.singletonList(new SimpleGrantedAuthority(role))
+                    );
 
-                // ✅ Renseigne les claims JWT (dont niveauAutorisation) dans les détails de l'authentification
-                authentication.setDetails(claims);
+            // ✅ Renseigne les claims JWT (dont niveauAutorisation) dans les détails de l'authentification
+            authentication.setDetails(claims);
 
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-            }
+            SecurityContextHolder.getContext().setAuthentication(authentication);
         }
 
         filterChain.doFilter(request, response);

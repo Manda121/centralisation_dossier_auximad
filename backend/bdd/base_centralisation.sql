@@ -442,11 +442,17 @@ CREATE TABLE marchandise(
 
 CREATE TABLE conteneur(
     id SERIAL PRIMARY KEY,
-    id_dossier INTEGER  REFERENCES dossier(id),
-    id_type_container INTEGER  REFERENCES type_container(id),
+    id_dossier INTEGER REFERENCES dossier(id),
+    id_type_container INTEGER REFERENCES type_container(id),
 
-    numero_container VARCHAR(100)  UNIQUE,
+    numero_container VARCHAR(100) UNIQUE,
     description TEXT
+);
+
+CREATE TABLE dossier_conteneur(
+    id_dossier INTEGER NOT NULL REFERENCES dossier(id) ON DELETE CASCADE,
+    id_conteneur INTEGER NOT NULL REFERENCES conteneur(id) ON DELETE CASCADE,
+    PRIMARY KEY (id_dossier, id_conteneur)
 );
 
 -- table pour les hbl et hawb

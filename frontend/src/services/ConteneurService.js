@@ -33,8 +33,9 @@ class ConteneurService {
         return response.data
     }
 
-    async supprimerConteneur(id) {
-        const response = await axios.delete(`${API_URL}/${id}`, { headers: authHeader() })
+    async supprimerConteneur(id, dossierId = null) {
+        const url = dossierId ? `${API_URL}/${id}?dossierId=${dossierId}` : `${API_URL}/${id}`
+        const response = await axios.delete(url, { headers: authHeader() })
         return response.data
     }
 

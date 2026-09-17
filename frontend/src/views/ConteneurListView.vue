@@ -8,12 +8,16 @@ import ModalConteneur from '../components/conteneur/ModalConteneur.vue'
 
 const datatableRef = ref(null)
 
+// Date du jour par défaut (Format YYYY-MM-DD)
+const todayStr = new Date().toISOString().split('T')[0]
+
 const filters = reactive({
   query: '',
   phaseId: '',
   statutId: '',
   typeProductionId: '',
-  filtreMaritime: ''
+  dateMin: todayStr,
+  dateMax: ''
 })
 
 const phases = ref([])
@@ -28,13 +32,12 @@ const conteneurAEditer = ref(null)
 const conteneursParDossier = ref({})
 const loadingConteneurs = ref(false)
 
-// Gestion du déroulement flottant (dropdown/popover) pour préserver la hauteur des lignes du tableau
+// Gestion du déroulement flottant (dropdown/popover)
 const expandedRows = reactive({})
 
 function toggleExpand(dossierId, e) {
   if (e) e.stopPropagation()
   const currentlyOpen = !!expandedRows[dossierId]
-  // Fermer les autres dropdowns ouverts
   Object.keys(expandedRows).forEach(k => { expandedRows[k] = false })
   expandedRows[dossierId] = !currentlyOpen
 }
@@ -49,12 +52,17 @@ async function chargerTousLesConteneurs() {
     const tous = await ConteneurService.getTousConteneurs()
     const map = {}
     tous.forEach(c => {
-      if (c.dossier && c.dossier.id) {
-        if (!map[c.dossier.id]) {
-          map[c.dossier.id] = []
+      const listDossiers = (c.dossiers && c.dossiers.length > 0) ? c.dossiers : (c.dossier ? [c.dossier] : [])
+      listDossiers.forEach(d => {
+        if (d && d.id) {
+          if (!map[d.id]) {
+            map[d.id] = []
+          }
+          if (!map[d.id].some(item => item.id === c.id)) {
+            map[d.id].push(c)
+          }
         }
-        map[c.dossier.id].push(c)
-      }
+      })
     })
     conteneursParDossier.value = map
   } catch (e) {
@@ -83,11 +91,14 @@ onUnmounted(() => {
   window.removeEventListener('click', fermerTousDropdowns)
 })
 
+// Colonnes demandées : numéro dossier, client, date embarquement, date arrivée, compagnie, description du type production, conteneurs, actions
 const columns = [
   { key: 'numeroDossier', label: 'N° Dossier', sortable: true },
-  { key: 'dateCreation', label: 'Date', sortable: true },
   { key: 'client.nom', label: 'Client', sortable: false },
-  { key: 'modeTransport', label: 'Mode Transport', sortable: false },
+  { key: 'dateEmbarquement', label: 'Date Embarquement', sortable: false },
+  { key: 'dateArrivee', label: 'Date Arrivée', sortable: false },
+  { key: 'compagnie', label: 'Compagnie', sortable: false },
+  { key: 'typeProduction.description', label: 'Description Type Prod.', sortable: false },
   { key: 'conteneurs', label: 'Conteneurs Assignés', sortable: false },
   { key: 'actions', label: 'Actions', sortable: false }
 ]
@@ -98,14 +109,6 @@ async function chargerDossiers(page, size, sortBy, sortDir, currentFilters) {
 
 function estEligible(dossier) {
   return ConteneurService.estEligibleConteneur(dossier)
-}
-
-function getModeTransportLabel(dossier) {
-  if (!dossier) return 'Non défini'
-  return dossier.typeProduction?.modeTransport?.nom || 
-         dossier.typeProduction?.nom || 
-         dossier.ordreTransit?.typeProduction?.modeTransport?.nom || 
-         'Autre'
 }
 
 function ouvrirModalAssignation(dossier, conteneur = null) {
@@ -119,10 +122,10 @@ async function onConteneurEnregistre() {
   datatableRef.value?.refresh(false)
 }
 
-async function supprimerConteneur(cId) {
+async function supprimerConteneur(cId, dossierId = null) {
   if (confirm("Supprimer cette assignation de conteneur ?")) {
     try {
-      await ConteneurService.supprimerConteneur(cId)
+      await ConteneurService.supprimerConteneur(cId, dossierId)
       await chargerTousLesConteneurs()
     } catch (e) {
       alert(e.response?.data?.message || "Erreur de suppression du conteneur")
@@ -134,6 +137,16 @@ function formatarDate(dt) {
   if (!dt) return '—'
   return new Date(dt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
+
+function reinitialiserFiltreDate() {
+  filters.dateMin = ''
+  datatableRef.value?.refresh(true)
+}
+
+function filtrerAujourdhui() {
+  filters.dateMin = todayStr
+  datatableRef.value?.refresh(true)
+}
 </script>
 
 <template>
@@ -142,13 +155,19 @@ function formatarDate(dt) {
 
     <main class="flex-grow-1 p-4" style="margin-left: 280px;">
       <div class="container-fluid">
-        <!-- Titre -->
+        <!-- Titre & Indicateur de chargement des conteneurs -->
         <div class="d-flex justify-content-between align-items-center mb-4">
           <div>
             <h1 class="h4 fw-bold text-dark mb-1">Gestion & Assignation des Conteneurs</h1>
             <p class="text-secondary mb-0 small">
-              Assignation simplifiée des conteneurs aux dossiers de dédouanement maritime.
+              Filtre automatique sur les dossiers du jour. Assignation simplifiée des conteneurs maritime.
             </p>
+          </div>
+
+          <!-- Chargement des conteneurs -->
+          <div v-if="loadingConteneurs" class="d-flex align-items-center gap-2 bg-white px-3 py-2 border rounded shadow-sm">
+            <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
+            <span class="small fw-semibold text-primary">Chargement des conteneurs…</span>
           </div>
         </div>
 
@@ -166,15 +185,38 @@ function formatarDate(dt) {
             >
               <!-- Filtres -->
               <template #filters="{ filters: slotFilters }">
-                <div class="row g-2">
-                  <div class="col-md-4">
+                <div class="row g-2 align-items-end">
+                  <div class="col-md-3">
+                    <label class="form-label small fw-semibold text-secondary">Date dossier</label>
+                    <input type="date" v-model="slotFilters.dateMin" class="form-control form-control-sm" />
+                  </div>
+                  <div class="col-md-3">
+                    <div class="d-flex gap-1">
+                      <button 
+                        type="button" 
+                        class="btn btn-sm btn-outline-primary w-100" 
+                        :class="{ active: slotFilters.dateMin === todayStr }"
+                        @click="filtrerAujourdhui"
+                      >
+                        Aujourd'hui
+                      </button>
+                      <button 
+                        type="button" 
+                        class="btn btn-sm btn-outline-secondary w-100" 
+                        @click="reinitialiserFiltreDate"
+                      >
+                        Tous les jours
+                      </button>
+                    </div>
+                  </div>
+                  <div class="col-md-3">
                     <label class="form-label small fw-semibold text-secondary">Phase</label>
                     <select v-model="slotFilters.phaseId" class="form-select form-select-sm">
                       <option value="">Toutes les phases</option>
                       <option v-for="p in phases" :key="p.id" :value="p.id">{{ p.nom }}</option>
                     </select>
                   </div>
-                  <div class="col-md-4">
+                  <div class="col-md-3">
                     <label class="form-label small fw-semibold text-secondary">Statut</label>
                     <select v-model="slotFilters.statutId" class="form-select form-select-sm">
                       <option value="">Tous les statuts</option>
@@ -184,45 +226,50 @@ function formatarDate(dt) {
                 </div>
               </template>
 
-              <!-- Cellule N° Dossier -->
+              <!-- Colonne 1: N° Dossier -->
               <template #cell-numeroDossier="{ row }">
                 <router-link :to="`/dossiers/${row.id}`" class="fw-semibold text-primary text-decoration-none">
                   {{ row.numeroDossier }}
                 </router-link>
               </template>
 
-              <!-- Cellule Date -->
-              <template #cell-dateCreation="{ row }">
-                {{ formatarDate(row.dateCreation) }}
-              </template>
-
-              <!-- Cellule Client -->
+              <!-- Colonne 2: Client -->
               <template #cell-client.nom="{ row }">
                 {{ row.client ? `${row.client.nom} ${row.client.prenom || ''}` : '—' }}
               </template>
 
-              <!-- Cellule Mode Transport -->
-              <template #cell-modeTransport="{ row }">
-                <div class="d-flex align-items-center gap-1 small">
-                  <span v-if="estEligible(row)" class="text-success fw-semibold">
-                    🚢 Maritime
-                  </span>
-                  <span v-else class="text-secondary">
-                    ✈️ {{ getModeTransportLabel(row) }}
-                  </span>
-                </div>
+              <!-- Colonne 3: Date Embarquement -->
+              <template #cell-dateEmbarquement="{ row }">
+                {{ formatarDate(row.ordreTransit?.contratTransport?.datePrevue || row.echeance) }}
               </template>
 
-              <!-- Cellule Conteneurs (Affichage sobre, tronqué dans la cellule fixe, avec menu flottant au clic) -->
+              <!-- Colonne 4: Date Arrivée -->
+              <template #cell-dateArrivee="{ row }">
+                {{ formatarDate(row.ordreTransit?.contratTransport?.dateArrivee || row.dateLivraison) }}
+              </template>
+
+              <!-- Colonne 5: Compagnie -->
+              <template #cell-compagnie="{ row }">
+                {{ row.ordreTransit?.contratTransport?.compagnie?.nom || row.compagnie || '—' }}
+              </template>
+
+              <!-- Colonne 6: Description du type production -->
+              <template #cell-typeProduction.description="{ row }">
+                <span class="small text-dark">
+                  {{ row.typeProduction?.description || row.typeProduction?.nom || row.ordreTransit?.typeProduction?.description || '—' }}
+                </span>
+              </template>
+
+              <!-- Colonne 7: Conteneurs Assignés (Déroulement flottant sans impacter la hauteur des lignes) -->
               <template #cell-conteneurs="{ row }">
                 <div v-if="conteneursParDossier[row.id] && conteneursParDossier[row.id].length > 0" class="position-relative">
                   
-                  <!-- En-tête tronqué en une ligne (Hauteur de ligne constante) -->
+                  <!-- En-tête tronqué en une ligne fixe -->
                   <div 
                     class="d-flex align-items-center gap-1 cursor-pointer py-1 px-2 border rounded bg-white hover-bg-light text-nowrap"
                     style="max-width: 220px; font-size: 0.82rem;"
                     @click="toggleExpand(row.id, $event)"
-                    title="Cliquer pour afficher la liste des conteneurs"
+                    title="Cliquer pour dérouler la liste des conteneurs"
                   >
                     <span class="text-dark text-truncate">
                       {{ conteneursParDossier[row.id][0].numeroContainer }}
@@ -234,7 +281,7 @@ function formatarDate(dt) {
                     <span v-else class="text-secondary ms-auto" style="font-size: 0.7rem;">▾</span>
                   </div>
 
-                  <!-- Menu déroulant flottant (Dropdown sans affecter la hauteur de la ligne du tableau) -->
+                  <!-- Menu déroulant flottant au clic -->
                   <div 
                     v-if="expandedRows[row.id]" 
                     class="position-absolute start-0 top-100 mt-1 bg-white border rounded shadow-lg p-2 dropdown-container"
@@ -275,7 +322,7 @@ function formatarDate(dt) {
                         <button 
                           class="btn btn-link btn-sm p-0 text-danger text-decoration-none" 
                           style="font-size: 0.75rem;" 
-                          @click="supprimerConteneur(c.id)"
+                          @click="supprimerConteneur(c.id, row.id)"
                         >
                           Suppr.
                         </button>
@@ -288,7 +335,7 @@ function formatarDate(dt) {
                 <span v-else class="text-muted small fst-italic">—</span>
               </template>
 
-              <!-- Cellule Actions -->
+              <!-- Colonne 8: Actions -->
               <template #cell-actions="{ row }">
                 <button 
                   v-if="estEligible(row)"

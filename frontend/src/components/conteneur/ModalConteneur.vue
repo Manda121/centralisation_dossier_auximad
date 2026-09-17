@@ -64,39 +64,41 @@ const filteredTypesContainers = computed(() => {
 })
 
 // Filtrage autocomplétion pour le numéro de conteneur :
-// 1. Uniquement quand l'utilisateur tape quelque chose (ne se charge pas à vide)
-// 2. Filtré par type de conteneur sélectionné si un type est choisi
-// 3. Uniquement les conteneurs qui ne sont PAS assignés à un dossier EN COURS (statut = 2)
+// 1. Uniquement quand l'utilisateur tape quelque chose
+// 2. Proposer les conteneurs liés aux dossiers ayant le MÊME type de production
+// 3. Et dont le dossier n'est PAS clôturé
 const filteredConteneursExistants = computed(() => {
   if (!form.numeroContainer || !form.numeroContainer.trim()) {
     return []
   }
 
   const q = form.numeroContainer.toLowerCase().trim()
+  const currentTypeProdId = props.dossier?.typeProduction?.id || 
+                            props.dossier?.ordreTransit?.typeProduction?.id
 
   return conteneursExistants.value.filter(c => {
-    // Règle A : Le numéro doit correspondre à la saisie
+    // 1. Correspondance du numéro
     const matchNumero = c.numeroContainer && c.numeroContainer.toLowerCase().includes(q)
     if (!matchNumero) return false
 
-    // Règle B : Si un type de conteneur est sélectionné, ne proposer que les conteneurs de ce type
-    if (form.idTypeContainer) {
-      const selectedTypeId = parseInt(form.idTypeContainer)
-      if (c.typeContainer?.id !== selectedTypeId) {
-        return false
-      }
+    const listDossiers = (c.dossiers && c.dossiers.length > 0) ? c.dossiers : (c.dossier ? [c.dossier] : [])
+
+    // 2. Même type de production
+    if (currentTypeProdId && listDossiers.length > 0) {
+      const matchType = listDossiers.some(d => {
+        const cTypeProdId = d.typeProduction?.id || d.ordreTransit?.typeProduction?.id
+        return !cTypeProdId || cTypeProdId === currentTypeProdId
+      })
+      if (!matchType) return false
     }
 
-    // Règle C : Exclure ceux qui sont déjà assignés à un dossier EN COURS (statutDossier.id == 2)
-    const dossierStatutId = c.dossier?.statutDossier?.id || c.dossier?.statut?.id
-    const estDossierEnCours = (dossierStatutId === 2)
-
-    // Exception : Si le conteneur appartient au dossier actuel qu'on édite, on le laisse disponible
-    const estMemeDossier = props.dossier && c.dossier && (c.dossier.id === props.dossier.id)
-
-    if (estDossierEnCours && !estMemeDossier) {
-      return false
-    }
+    // 3. Aucun des dossiers associés ne doit être clôturé
+    const hasCloture = listDossiers.some(d => {
+      const statutNom = d.statutDossier?.nom || d.statut?.nom || ''
+      const nomLower = statutNom.toLowerCase()
+      return nomLower.includes('clot') || nomLower.includes('clôt')
+    })
+    if (hasCloture) return false
 
     return true
   })
@@ -355,7 +357,10 @@ onMounted(() => {
                 >
                   <div>
                     <strong class="text-dark">{{ c.numeroContainer }}</strong>
-                    <span v-if="c.dossier?.numeroDossier" class="text-muted ms-2" style="font-size: 0.75rem;">
+                    <span v-if="c.dossiers && c.dossiers.length > 0" class="text-muted ms-2" style="font-size: 0.75rem;">
+                      (Dossier(s): {{ Array.from(c.dossiers).map(d => d.numeroDossier).filter(Boolean).join(', ') }})
+                    </span>
+                    <span v-else-if="c.dossier?.numeroDossier" class="text-muted ms-2" style="font-size: 0.75rem;">
                       (Dossier: {{ c.dossier.numeroDossier }})
                     </span>
                   </div>
@@ -366,7 +371,7 @@ onMounted(() => {
               </div>
 
               <div class="form-text text-muted" style="font-size: 0.75rem;">
-                Propose uniquement les conteneurs disponibles (non assignés à un dossier en cours).
+                Propose les conteneurs des dossiers du même type de production non clôturés.
               </div>
             </div>
             
