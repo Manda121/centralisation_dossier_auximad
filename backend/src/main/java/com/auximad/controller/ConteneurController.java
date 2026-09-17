@@ -85,9 +85,9 @@ public class ConteneurController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Supprimer l'assignation d'un conteneur")
-    public ResponseEntity<?> delete(@PathVariable Integer id) {
+    public ResponseEntity<?> delete(@PathVariable Integer id, @RequestParam(required = false) Integer dossierId) {
         try {
-            conteneurService.deleteConteneur(id);
+            conteneurService.deleteConteneur(id, dossierId);
             return ResponseEntity.ok().build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)

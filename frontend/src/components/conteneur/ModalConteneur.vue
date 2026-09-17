@@ -64,38 +64,38 @@ const filteredTypesContainers = computed(() => {
 })
 
 // Filtrage autocomplétion pour le numéro de conteneur :
-// 1. Uniquement quand l'utilisateur tape quelque chose (ne se charge pas à vide)
-// 2. Filtré par type de conteneur sélectionné si un type est choisi
-// 3. Uniquement les conteneurs qui ne sont PAS assignés à un dossier EN COURS (statut = 2)
+// 1. Uniquement quand l'utilisateur tape quelque chose
+// 2. Proposer les conteneurs liés aux dossiers ayant le MÊME type de production
+// 3. Et dont le dossier n'est PAS clôturé
 const filteredConteneursExistants = computed(() => {
   if (!form.numeroContainer || !form.numeroContainer.trim()) {
     return []
   }
 
   const q = form.numeroContainer.toLowerCase().trim()
+  const currentTypeProdId = props.dossier?.typeProduction?.id || 
+                            props.dossier?.ordreTransit?.typeProduction?.id
 
   return conteneursExistants.value.filter(c => {
-    // Règle A : Le numéro doit correspondre à la saisie
+    // 1. Correspondance du numéro
     const matchNumero = c.numeroContainer && c.numeroContainer.toLowerCase().includes(q)
     if (!matchNumero) return false
 
-    // Règle B : Si un type de conteneur est sélectionné, ne proposer que les conteneurs de ce type
-    if (form.idTypeContainer) {
-      const selectedTypeId = parseInt(form.idTypeContainer)
-      if (c.typeContainer?.id !== selectedTypeId) {
+    // 2. Même type de production
+    if (currentTypeProdId && c.dossier) {
+      const cTypeProdId = c.dossier.typeProduction?.id || c.dossier.ordreTransit?.typeProduction?.id
+      if (cTypeProdId && cTypeProdId !== currentTypeProdId) {
         return false
       }
     }
 
-    // Règle C : Exclure ceux qui sont déjà assignés à un dossier EN COURS (statutDossier.id == 2)
-    const dossierStatutId = c.dossier?.statutDossier?.id || c.dossier?.statut?.id
-    const estDossierEnCours = (dossierStatutId === 2)
-
-    // Exception : Si le conteneur appartient au dossier actuel qu'on édite, on le laisse disponible
-    const estMemeDossier = props.dossier && c.dossier && (c.dossier.id === props.dossier.id)
-
-    if (estDossierEnCours && !estMemeDossier) {
-      return false
+    // 3. Dossier non clôturé
+    const statutNom = c.dossier?.statutDossier?.nom || c.dossier?.statut?.nom || ''
+    if (statutNom) {
+      const nomLower = statutNom.toLowerCase()
+      if (nomLower.includes('clot') || nomLower.includes('clôt')) {
+        return false
+      }
     }
 
     return true
@@ -366,7 +366,7 @@ onMounted(() => {
               </div>
 
               <div class="form-text text-muted" style="font-size: 0.75rem;">
-                Propose uniquement les conteneurs disponibles (non assignés à un dossier en cours).
+                Propose les conteneurs des dossiers du même type de production non clôturés.
               </div>
             </div>
             

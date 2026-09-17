@@ -46,12 +46,18 @@ public class ConteneurService {
     }
 
     public Conteneur saveConteneur(Conteneur conteneur) {
-        if (conteneur.getDossier() == null || conteneur.getDossier().getId() == null) {
+        Dossier dossierSource = conteneur.getDossier();
+        if (dossierSource == null && conteneur.getDossiers() != null && !conteneur.getDossiers().isEmpty()) {
+            dossierSource = conteneur.getDossiers().iterator().next();
+        }
+
+        if (dossierSource == null || dossierSource.getId() == null) {
             throw new IllegalArgumentException("Le dossier associé est obligatoire pour assigner un conteneur.");
         }
 
-        Dossier dossier = dossierRepository.findById(conteneur.getDossier().getId())
-                .orElseThrow(() -> new IllegalArgumentException("Dossier introuvable (ID: " + conteneur.getDossier().getId() + ")"));
+        final Integer dossierIdTarget = dossierSource.getId();
+        Dossier dossier = dossierRepository.findById(dossierIdTarget)
+                .orElseThrow(() -> new IllegalArgumentException("Dossier introuvable (ID: " + dossierIdTarget + ")"));
 
         // Vérification du mode de transport / éligibilité conteneur
         if (!estEligibleConteneur(dossier)) {
@@ -64,33 +70,54 @@ public class ConteneurService {
         }
 
         String numeroNorm = conteneur.getNumeroContainer().trim();
-        conteneur.setNumeroContainer(numeroNorm);
 
-        if (conteneur.getId() == null) {
-            if (conteneurRepository.existsByNumeroContainer(numeroNorm)) {
-                throw new IllegalArgumentException("Le numéro de conteneur '" + numeroNorm + "' existe déjà.");
-            }
-        } else {
-            if (conteneurRepository.existsByNumeroContainerAndIdNot(numeroNorm, conteneur.getId())) {
-                throw new IllegalArgumentException("Le numéro de conteneur '" + numeroNorm + "' est déjà utilisé par un autre conteneur.");
-            }
-        }
-
-        conteneur.setDossier(dossier);
+        TypeContainer tc = null;
         if (conteneur.getTypeContainer() != null && conteneur.getTypeContainer().getId() != null) {
-            TypeContainer tc = typeContainerRepository.findById(conteneur.getTypeContainer().getId())
+            tc = typeContainerRepository.findById(conteneur.getTypeContainer().getId())
                     .orElseThrow(() -> new IllegalArgumentException("Type de conteneur introuvable."));
-            conteneur.setTypeContainer(tc);
         }
 
-        return conteneurRepository.save(conteneur);
+        // Si le conteneur existe déjà (par numéro), réutiliser/mettre à jour l'enregistrement existant
+        Optional<Conteneur> existantOpt = conteneurRepository.findByNumeroContainer(numeroNorm);
+        Conteneur cTarget;
+
+        if (conteneur.getId() != null) {
+            cTarget = conteneurRepository.findById(conteneur.getId())
+                    .orElseGet(() -> existantOpt.orElse(new Conteneur()));
+        } else if (existantOpt.isPresent()) {
+            cTarget = existantOpt.get();
+        } else {
+            cTarget = new Conteneur();
+        }
+
+        cTarget.setNumeroContainer(numeroNorm);
+        if (tc != null) {
+            cTarget.setTypeContainer(tc);
+        }
+        if (conteneur.getDescription() != null) {
+            cTarget.setDescription(conteneur.getDescription());
+        }
+
+        // Ajout de l'association au dossier courant (sans supprimer les associations existantes)
+        cTarget.getDossiers().add(dossier);
+
+        return conteneurRepository.save(cTarget);
     }
 
-    public void deleteConteneur(Integer id) {
-        if (!conteneurRepository.existsById(id)) {
-            throw new IllegalArgumentException("Conteneur introuvable.");
+    public void deleteConteneur(Integer conteneurId, Integer dossierId) {
+        Conteneur conteneur = conteneurRepository.findById(conteneurId)
+                .orElseThrow(() -> new IllegalArgumentException("Conteneur introuvable."));
+
+        if (dossierId != null) {
+            conteneur.getDossiers().removeIf(d -> d.getId().equals(dossierId));
+            if (conteneur.getDossiers().isEmpty()) {
+                conteneurRepository.delete(conteneur);
+            } else {
+                conteneurRepository.save(conteneur);
+            }
+        } else {
+            conteneurRepository.delete(conteneur);
         }
-        conteneurRepository.deleteById(id);
     }
 
     /**

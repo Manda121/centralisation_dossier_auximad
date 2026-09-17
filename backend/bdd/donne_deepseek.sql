@@ -729,13 +729,18 @@ BEGIN
 
     -- CONTENEURS (300)
     FOR i IN 1..300 LOOP
+        v_dossier_id := v_dossier_ids[1 + floor(random() * array_length(v_dossier_ids, 1))::int];
         INSERT INTO conteneur (id_dossier, id_type_container, numero_container, description)
         VALUES (
-            v_dossier_ids[1 + floor(random() * array_length(v_dossier_ids, 1))::int],
+            v_dossier_id,
             v_type_container_ids[1 + floor(random() * array_length(v_type_container_ids, 1))::int],
             'CONT-' || lpad(i::text, 7, '0'),
             'Conteneur ' || i
-        );
+        ) RETURNING id INTO v_doc_id;
+
+        INSERT INTO dossier_conteneur (id_dossier, id_conteneur)
+        VALUES (v_dossier_id, v_doc_id)
+        ON CONFLICT DO NOTHING;
     END LOOP;
 
     -- GROUPAGE (100)
