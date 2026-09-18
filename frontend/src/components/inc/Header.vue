@@ -105,6 +105,22 @@
         </svg>
         Historiques
       </router-link>
+
+      <!-- Menu Administration : visible uniquement si niveau = 10000 -->
+      <template v-if="isAdmin">
+        <hr class="sidebar__divider sidebar__divider--admin" />
+        <div class="sidebar__admin-label">⚙️ Administration</div>
+        <router-link to="/admin" class="sidebar__nav-link sidebar__nav-link--admin"
+          active-class="sidebar__nav-link--active">
+          <svg viewBox="0 0 16 16" fill="currentColor" class="sidebar__icon">
+            <path
+              d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492M5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0" />
+            <path
+              d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115z" />
+          </svg>
+          Configuration système
+        </router-link>
+      </template>
     </nav>
 
     <hr v-if="isLoggedIn" class="sidebar__divider" />
@@ -152,6 +168,14 @@ const documentsBadge = ref(0)
 let timer = null
 
 const isLoggedIn = computed(() => UtilisateurService.estConnecte())
+
+const isAdmin = computed(() => {
+  const info = utilisateur.value
+  if (!info) return false
+  // niveauAutorisation est stocké dans le localStorage
+  const userInfo = JSON.parse(localStorage.getItem('auximad_user_info') || '{}')
+  return (userInfo.niveauAutorisation || 0) >= 10000
+})
 
 const userInfo = computed(() => {
   if (!utilisateur.value) return null
@@ -456,5 +480,33 @@ const handleLogout = async () => {
 
 .sidebar::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* ── Admin section ── */
+.sidebar__divider--admin {
+  margin: 16px 0 8px;
+  border-top: 1px solid rgba(59, 106, 156, 0.2);
+  opacity: 1;
+}
+
+.sidebar__admin-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #3b6a9c;
+  padding: 0 12px 6px;
+}
+
+.sidebar__nav-link--admin {
+  background: linear-gradient(135deg, rgba(59, 106, 156, 0.08), rgba(44, 95, 138, 0.05));
+  border: 1px solid rgba(59, 106, 156, 0.15);
+  color: #2c5f8a;
+  font-weight: 600;
+}
+
+.sidebar__nav-link--admin:hover {
+  background: rgba(59, 106, 156, 0.15);
+  color: #1e3a5f;
 }
 </style>

@@ -4,6 +4,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\config\Aud
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\config\OpenApiConfig.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\config\SecurityConfig.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\config\WebMvcConfig.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\AdminController.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\AgenceController.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\AuthentificationController.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\ClientController.java
@@ -71,12 +72,14 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\IncontermeRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\InstructionRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\MarchandiseRepository.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\ModeTransportRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\NatureMarchandiseRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\NavireRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\OrdreTransitRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\PaysRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\PhaseDossierRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\RemiseRepository.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\RoleRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\StatutDossierRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\StatutOtRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\SuspensionConnexionRepository.java
