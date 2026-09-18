@@ -104,6 +104,12 @@ const router = createRouter({
       name: 'documents-dossiers',
       component: () => import('../views/DocumentDossierView.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/admin',
+      name: 'admin',
+      component: () => import('../views/AdminView.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true }
     }
   ]
 })
@@ -112,11 +118,24 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('auximad_token')
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
+  const requiresAdmin = to.matched.some(record => record.meta.requiresAdmin)
 
   if (requiresAuth && !token) {
     next('/login')
   } else if (to.path === '/login' && token) {
     next('/')
+  } else if (requiresAdmin) {
+    // Vérifier le niveau d'autorisation depuis le localStorage
+    try {
+      const userInfo = JSON.parse(localStorage.getItem('auximad_user_info') || '{}')
+      if ((userInfo.niveauAutorisation || 0) < 10000) {
+        next('/')  // Rediriger vers home si pas admin
+      } else {
+        next()
+      }
+    } catch (e) {
+      next('/')
+    }
   } else {
     next()
   }
