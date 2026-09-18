@@ -1,0 +1,37 @@
+ce qu il faut faire maintenant c'est de faire le cote administration du projet (niveau autorisation = 10000)
+si il est autorisee, il y aura des menu dans le sidebar pour tous les configurations possibles:
+1. Utilisateurs & sécurité
+Utilisateurs (utilisateur) — créer/modifier/désactiver un compte, réinitialiser mot de passe, assigner une agence
+Rôles (role) — définir les rôles (agent, chef d'agence, douanier, admin, etc.)
+Autorisations (autorisation) — niveau d'autorisation par utilisateur
+Suspensions de connexion (suspension_connexion) — déverrouiller un compte bloqué, paramétrer la durée de suspension
+Actions (action) — liste des actions traçables dans l'historique
+2. Structure organisationnelle
+Agences (agence) — code, nom, adresse
+Bureaux (douane) (bureau) — code bureau, type
+Types de bureau (type_bureau)
+3. Référentiels "métier transit"
+Modes de transport (mode_transport) — maritime, aérien, terrestre...
+Modes d'acheminement (mode_acheminement)
+Types de production (type_production) — import, export, transit...
+Types de régime (douanier) (type_regime)
+Types de déclaration (type_declaration)
+Phases de dossier (phase_dossier)
+Statuts de dossier (statut_dossier)
+Statuts d'OT (statut_ot)
+Incoterms (inconterme)
+Types de constat (type_constat)
+Nature de marchandise (nature_marchandise)
+Unités de mesure (unite_mesure)
+Types de conteneur (type_container) — avec dimensions/poids max
+4. Documents
+Types de documents (type_document) — obligatoire ou non, lié à un type de production/nature de marchandise
+5. Tiers / annuaires
+Clients (clients) — personnes physiques/morales
+Compagnies (transport) (compagnie)
+Navires (navire)
+Stations (ports/aéroports) (station)
+Experts de constat (expert_constat)
+Pays (pays)
+6. Opérations & workflow
+Opérations de dossier (operation_dossier) — niveau de validation, obligatoire ou non
