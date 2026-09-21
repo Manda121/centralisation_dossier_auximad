@@ -69,6 +69,7 @@ const AdminService = {
     actions: {
         lister: () => lister('actions'),
         creer: (data) => creer('actions', data),
+        modifier: (id, data) => modifier('actions', id, data),
         supprimer: (id) => supprimer('actions', id),
     },
 
