@@ -1,3 +1,25 @@
+Instruction:
+    creer un menu dans le sidebar entre dossier et historique pour le mvt_dossier.
+    dedans on y trouve les mouvements de dossier, avec un filtre multiocritere pour tous les parametre, ainsi que le cp client, le numero dossier, date min et max.
+    la valeur par defaut du filtre sera la date du jour, et on utilise des paginations qui ser agerer du cote backend pour optimiser la performance.
+    il y a un bouton creer qui nous redirigera vers une page pour faire un mouvement:
+        on tape le numero de dossier dans un champ en autocompletion. le numero de dossier et les details du dossier se montrera dans un petit boite.
+        en bas on trouve la liste des operations a faire pour le type de produit du dossier: operation | date (si il y en a deja) | fichier (lien: si on le clique, on poura voir le fichier directement)
+        pour faire un mvt dossier, on insert seulement la date du mvt a cote, si l operation juste precedent est obligatoire,
+        on ne poura pas faire le mvt tant qu on ne rempli pas l operation obligatoire, si il n'est pas obligatoire, on poura passer.
+        en completant la date de 'operation, la statut du dossier change en fonction de l'operation choisi, et on poura y attacher un fichier a droite(dans la colone fichier).
+        si l'operation est une declaration (c'est la declaration douane), on devra completer les parametre de la table declaration, avec le fichier ou soit on scanne directement.
+
+    il faudrait ajouter quelque chose dans l'administration: ajouter la gestion d'operation_dossier.
+    les operations dossier serront affichier par type de produits dans des talbes comme suit:
+        type production en titre
+        les phase dossier en colone et les operations en ligne.
+        et c'est pareil pour tous les type de production
+    a droite il y aura une boite fixe(ne bouge pas meme si on scrolle l'ecran) qui contiendra une liste  de phase et de statu,
+    quand on modifie on poura juste faire un drag and drop un status vers les statu a modifiee, et les phase vers la phase a modifie
+    quand on supprime on poura faire une sellection multiple et supprimer. on poura ajouter des ligne pour les operations, et on poura aussi echanger les operation en drag an drop
+
+
 import:
     PREPARATION:
         reservation TC/ligne
