@@ -19,6 +19,126 @@ Instruction:
     quand on modifie on poura juste faire un drag and drop un status vers les statu a modifiee, et les phase vers la phase a modifie
     quand on supprime on poura faire une sellection multiple et supprimer. on poura ajouter des ligne pour les operations, et on poura aussi echanger les operation en drag an drop
 
+Implementation Plan - Mouvement Dossier & Administration Opération Dossier
+This document outlines the implementation plan for adding the Mouvement Dossier module (list, search with multicriteria & pagination, movement creation with operation constraints, declaration workflow) and the Operation Dossier Administration module (interactive grid, drag-and-drop status/phase assignments, multi-select deletion, and operation reordering).
+
+Proposed Changes
+Database & Backend Components
+[NEW] Entities & Repositories
+OperationDossier.java (in com.auximad.entity)
+Fields: id, description, phaseDossier (
+PhaseDossier
+), statutDossier (
+StatutDossier
+), typeProduction (
+TypeProduction
+), niveauAutorisation, niveauValidation, niveauOperation, estActif, estObligatoire.
+Declaration.java (in com.auximad.entity)
+Fields: id, 
+dossier
+ (
+Dossier
+), numeroDeclaration, dateDeclaration, bureau (
+Bureau
+), typeDeclaration (TypeDeclaration), 
+document
+ (
+Document
+), description, dateAjout.
+MvtDossier.java (in com.auximad.entity)
+Fields: id, 
+dossier
+ (
+Dossier
+), utilisateur (
+Utilisateur
+), ipUtilisateur, 
+operation
+ (OperationDossier), anciennePhase, nouvellePhase, ancienStatut, nouveauStatut, commentaire, dateMvt.
+OperationDossierRepository.java, DeclarationRepository.java, MvtDossierRepository.java (in com.auximad.repository).
+[NEW] Services & Controllers
+MvtDossierService.java & MvtDossierController.java:
+GET /api/mouvements-dossier: Paginated search with multicriteria filtering (client CP, numero dossier, date min/max default to today, phase, statut, type production, agence).
+GET /api/mouvements-dossier/operations-by-dossier/{dossierId}: Retrieves sequence of operations for the dossier's type production, showing completion status, dates, attached files, and constraint status (mandatory preceding operations check).
+POST /api/mouvements-dossier: Executes movement for an operation. Enforces mandatory preceding operation validation, updates dossier phase & statut, uploads file if attached.
+DeclarationService.java & DeclarationController.java:
+POST /api/declarations: Creates a customs declaration for a dossier, attaching document if uploaded.
+GET /api/declarations/dossier/{dossierId}: Fetches declaration for a dossier.
+OperationDossierService.java & Update to 
+AdminController.java
+:
+Enpoints for OperationDossier CRUD, batch delete (POST /api/admin/operations-dossier/batch-delete), and reorder (PUT /api/admin/operations-dossier/reorder).
+Frontend Components & Views
+[MODIFY] Header (
+frontend/src/components/inc/Header.vue
+)
+Add Mouvement Dossier link between 
+Dossiers
+ menu and Historiques menu.
+[MODIFY] Router (
+frontend/src/router/index.js
+)
+Add routes for:
+/mouvements-dossier: MvtDossierListView.vue
+/mouvements-dossier/creer: MvtDossierCreateView.vue
+/admin/operations-dossier or admin tab integration: OperationDossierAdminView.vue
+[NEW] Frontend Services & Views
+services/MvtDossierService.js: API calls for movement list, creation, and dossier operation status.
+services/DeclarationService.js: API calls for declarations and type declaration lookup.
+views/MvtDossierListView.vue:
+Multicriteria filter bar: CP Client, Numero Dossier, Date Min (default today 00:00), Date Max (default today 23:59), Type Production, Phase, Statut, Agence.
+Backend-paginated table using PageResponse.
+Button "Créer un mouvement" navigating to /mouvements-dossier/creer.
+views/MvtDossierCreateView.vue:
+Dossier number input with autocomplete.
+Small info card displaying dossier details (Client, CP, Agence, Type Production, Current Phase & Statut).
+Operation table:
+Lists operations for dossier product type.
+Columns: Operation name | Date (pre-filled or date picker) | File link/upload | Status indicator.
+Business rule: Prevents performing movement if immediately preceding mandatory operation is incomplete.
+Special Declaration Modal: Opens modal for "Declaration" operation to enter declaration number, date, bureau, type, and attach/scan document.
+views/OperationDossierAdminView.vue (integrated in Admin section):
+Operations grouped by Production Type in tables (Phases as columns, Operations as rows).
+Fixed sidebar box on right containing draggable lists of 
+Phases
+ and 
+Statuts
+.
+Drag and drop capabilities:
+Drag status from sidebar box onto an operation row to assign status.
+Drag phase from sidebar box onto an operation row/column to assign phase.
+Drag and drop reordering of operations within a phase/production type.
+Add operation rows and multi-select deletion.
+Verification Plan
+Automated / API Verification
+Compilation Check: Run mvn clean compile in backend to ensure all Spring Boot JPA entities, repositories, and controllers compile cleanly.
+REST Endpoint Testing: Verify API endpoints via HTTP requests:
+GET /api/mouvements-dossier?dateMin=...&dateMax=... returns paginated movement list.
+GET /api/mouvements-dossier/operations-by-dossier/1 returns ordered operation list with mandatory status flags.
+POST /api/mouvements-dossier rejects movement if preceding mandatory operation is missing, and succeeds when constraints are met.
+GET /api/admin/operations-dossier returns operations by product type.
+Manual Verification
+Sidebar Navigation: Login and verify Mouvement Dossier appears between 
+Dossiers
+ and Historiques in the sidebar.
+List View & Multicriteria Filter:
+Verify filter defaults to today's date (date du jour).
+Test filtering by client CP, dossier number, date min/max, and verify pagination updates.
+Mouvement Creation:
+Enter dossier number with autocomplete.
+Verify dossier summary box displays.
+Verify table of operations shows correct sequence for the product type.
+Verify mandatory constraint: Attempting to fill a date for an operation whose preceding mandatory operation is not completed shows a warning/blocked state.
+Perform a movement, attach a file, and click the file link to verify download/viewing.
+Test Declaration operation: fill declaration modal and verify declaration table and movement table record the entry.
+Administration Opération Dossier:
+Navigate to Admin > Opérations Dossier.
+Verify fixed right panel with Phases & Statuts (remains fixed on scroll).
+Drag status from right panel onto an operation row and verify update.
+Drag phase from right panel to update phase.
+Reorder operations via drag-and-drop.
+Select multiple operations and delete.
+
 
 import:
     PREPARATION:
