@@ -251,6 +251,7 @@ CREATE TABLE operation_dossier(
 
     id_phase INTEGER  REFERENCES phase_dossier(id),
     id_statut INTEGER  REFERENCES statut_dossier(id),
+    id_type_production INTEGER REFERENCES type_production(id),
 
     niveau_autorisation INTEGER ,
     niveau_validation INTEGER ,

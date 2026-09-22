@@ -133,25 +133,119 @@ DECLARE
 BEGIN
     SELECT id INTO v_statut_ouvert_id FROM statut_dossier WHERE nom = 'Ouvert';
 
-    INSERT INTO operation_dossier (description, id_phase, id_statut, niveau_autorisation, niveau_validation, niveau_operation, est_obligatoire, est_actif) VALUES
-    ('Reservation TC/Ligne', (SELECT id FROM phase_dossier WHERE nom = 'PREPARATION'), v_statut_ouvert_id, 1, 1, 1, TRUE, TRUE),
-    ('Reception BL/LTA', (SELECT id FROM phase_dossier WHERE nom = 'PREPARATION'), v_statut_ouvert_id, 1, 1, 1, TRUE, TRUE),
-    ('Position Container', (SELECT id FROM phase_dossier WHERE nom = 'PREPARATION'), v_statut_ouvert_id, 2, 2, 2, TRUE, TRUE),
-    ('Declaration', (SELECT id FROM phase_dossier WHERE nom = 'TRAITEMENT'), v_statut_ouvert_id, 2, 2, 2, TRUE, TRUE),
-    ('Dispatch/Passeur', (SELECT id FROM phase_dossier WHERE nom = 'TRAITEMENT'), v_statut_ouvert_id, 2, 3, 2, TRUE, TRUE),
-    ('Depot Declaration', (SELECT id FROM phase_dossier WHERE nom = 'TRAITEMENT'), v_statut_ouvert_id, 2, 3, 2, TRUE, TRUE),
-    ('Visite Douane', (SELECT id FROM phase_dossier WHERE nom = 'TRAITEMENT'), v_statut_ouvert_id, 3, 4, 3, TRUE, TRUE),
-    ('Empotage', (SELECT id FROM phase_dossier WHERE nom = 'TRAITEMENT'), v_statut_ouvert_id, 3, 4, 3, TRUE, TRUE),
-    ('Depart Camion', (SELECT id FROM phase_dossier WHERE nom = 'DEBARQUEMENT/LIVRAISON'), v_statut_ouvert_id, 3, 4, 3, TRUE, TRUE),
-    ('Arrivee Camion', (SELECT id FROM phase_dossier WHERE nom = 'DEBARQUEMENT/LIVRAISON'), v_statut_ouvert_id, 3, 4, 3, TRUE, TRUE),
-    ('Mise a quai', (SELECT id FROM phase_dossier WHERE nom = 'DEBARQUEMENT/LIVRAISON'), v_statut_ouvert_id, 4, 5, 4, TRUE, TRUE),
-    ('Taxation BAE', (SELECT id FROM phase_dossier WHERE nom = 'DEBARQUEMENT/LIVRAISON'), v_statut_ouvert_id, 2, 3, 2, TRUE, TRUE),
-    ('Closing date', (SELECT id FROM phase_dossier WHERE nom = 'DEBARQUEMENT/LIVRAISON'), v_statut_ouvert_id, 3, 4, 3, TRUE, TRUE),
-    ('Provision', (SELECT id FROM phase_dossier WHERE nom = 'COMPTABILITE'), v_statut_ouvert_id, 3, 4, 3, FALSE, TRUE),
-    ('Facturation', (SELECT id FROM phase_dossier WHERE nom = 'COMPTABILITE'), v_statut_ouvert_id, 4, 5, 4, TRUE, TRUE),
-    ('Transmission', (SELECT id FROM phase_dossier WHERE nom = 'COMPTABILITE'), v_statut_ouvert_id, 4, 5, 4, TRUE, TRUE),
-    ('Paiement', (SELECT id FROM phase_dossier WHERE nom = 'COMPTABILITE'), v_statut_ouvert_id, 4, 5, 5, TRUE, TRUE),
-    ('Cloture', (SELECT id FROM phase_dossier WHERE nom = 'COMPTABILITE'), (SELECT id FROM statut_dossier WHERE nom = 'Clôturé'), 4, 5, 5, TRUE, TRUE);
+    -- =========================================================================
+-- 0. CORRECTION DE phase_dossier
+-- =========================================================================
+-- Le script existant ne definit que 4 phases generiques, dont
+-- 'DEBARQUEMENT/LIVRAISON'. Or le flux import utilise 'DEBARQUEMENT' et
+-- le flux export utilise 'EMBARQUEMENT' : ce sont deux etapes physiquement
+-- distinctes (arrivee vs depart de la marchandise), donc deux phases
+-- distinctes, pas une approximation partagee.
+
+-- 1) On renomme la phase existante pour qu'elle corresponde exactement
+--    au libelle utilise par le flux import.
+UPDATE phase_dossier
+SET nom = 'DEBARQUEMENT'
+WHERE nom = 'DEBARQUEMENT/LIVRAISON';
+
+-- 2) On ajoute la phase manquante pour le flux export.
+INSERT INTO phase_dossier (nom, id_mode_transport, description)
+VALUES ('EMBARQUEMENT', NULL, 'Embarquement et expedition (export)')
+ON CONFLICT (nom) DO NOTHING;
+
+-- =========================================================================
+-- 1. INSERT INTO operation_dossier
+-- Lie chaque operation a id_type_production (import / export)
+--
+-- Hypotheses retenues :
+--  1. "import" et "export" existent chacun 2 fois dans type_production
+--     (maritime + aerien) : la jointure sur tp.nom duplique donc
+--     automatiquement chaque operation pour les deux modes de transport.
+--  2. id_statut = 'Ouvert' pour toutes les operations, sauf 'Cloture' qui
+--     est rattachee a 'Clôturé'.
+--  3. niveau_autorisation / niveau_validation / niveau_operation suivent
+--     la meme logique croissante que le script existant (1 = PREPARATION,
+--     2 = TRAITEMENT, 3 = DEBARQUEMENT/EMBARQUEMENT, 4 = COMPTABILITE,
+--     5 = Cloture).
+--  4. est_obligatoire = FALSE pour les etapes purement informatives
+--     ("Information Client", "Provision"), TRUE pour le reste.
+-- =========================================================================
+
+INSERT INTO operation_dossier
+    (description, id_phase, id_statut, id_type_production,
+     niveau_autorisation, niveau_validation, niveau_operation,
+     est_obligatoire, est_actif)
+SELECT
+    t.description,
+    (SELECT id FROM phase_dossier WHERE nom = t.phase),
+    (SELECT id FROM statut_dossier WHERE nom = t.statut),
+    tp.id,
+    t.niveau_autorisation,
+    t.niveau_validation,
+    t.niveau_operation,
+    t.est_obligatoire,
+    TRUE
+FROM (VALUES
+    -- sens, phase, statut, description, niv_autorisation, niv_validation, niv_operation, est_obligatoire
+
+    -- ================= IMPORT =================
+    -- PREPARATION
+    ('import', 'PREPARATION',   'Ouvert',   'Reservation TC/Ligne',     1, 1, 1, TRUE),
+    ('import', 'PREPARATION',   'Ouvert',   'Reception BL/LTA',         1, 1, 1, TRUE),
+    ('import', 'PREPARATION',   'Ouvert',   'Position Container',       1, 1, 1, TRUE),
+
+    -- TRAITEMENT
+    ('import', 'TRAITEMENT',    'Ouvert',   'Declaration',              2, 2, 2, TRUE),
+    ('import', 'TRAITEMENT',    'Ouvert',   'Dispatch/Passeur',         2, 2, 2, TRUE),
+    ('import', 'TRAITEMENT',    'Ouvert',   'Depot Declaration',        2, 2, 2, TRUE),
+    ('import', 'TRAITEMENT',    'Ouvert',   'Visite Douane',            2, 3, 2, TRUE),
+    ('import', 'TRAITEMENT',    'Ouvert',   'Empotage',                 2, 3, 2, TRUE),
+
+    -- DEBARQUEMENT
+    ('import', 'DEBARQUEMENT',  'Ouvert',   'Depart Camion',            3, 3, 3, TRUE),
+    ('import', 'DEBARQUEMENT',  'Ouvert',   'Arrivee Camion',           3, 3, 3, TRUE),
+    ('import', 'DEBARQUEMENT',  'Ouvert',   'Mise a quai',              3, 4, 3, TRUE),
+    ('import', 'DEBARQUEMENT',  'Ouvert',   'Taxation BAE',             3, 4, 3, TRUE),
+    ('import', 'DEBARQUEMENT',  'Ouvert',   'Closing date',             3, 4, 3, TRUE),
+    ('import', 'DEBARQUEMENT',  'Ouvert',   'Information Client',       3, 4, 3, FALSE),
+
+    -- COMPTABILITE
+    ('import', 'COMPTABILITE',  'Ouvert',   'Provision',                4, 4, 4, FALSE),
+    ('import', 'COMPTABILITE',  'Ouvert',   'Facturation',              4, 5, 4, TRUE),
+    ('import', 'COMPTABILITE',  'Ouvert',   'Transmission',             4, 5, 4, TRUE),
+    ('import', 'COMPTABILITE',  'Ouvert',   'Paiement',                 4, 5, 5, TRUE),
+    ('import', 'COMPTABILITE',  'Clôturé',  'Cloture',                  5, 5, 5, TRUE),
+
+    -- ================= EXPORT =================
+    -- PREPARATION
+    ('export', 'PREPARATION',   'Ouvert',   'Avis d''arrivee client',   1, 1, 1, TRUE),
+    ('export', 'PREPARATION',   'Ouvert',   'Premier reception Doc',    1, 1, 1, TRUE),
+    ('export', 'PREPARATION',   'Ouvert',   'Premier envoi Doc',        1, 1, 1, TRUE),
+    ('export', 'PREPARATION',   'Ouvert',   'Expediee',                 1, 1, 1, TRUE),
+
+    -- TRAITEMENT
+    ('export', 'TRAITEMENT',    'Ouvert',   'Declaration',              2, 2, 2, TRUE),
+    ('export', 'TRAITEMENT',    'Ouvert',   'Dispatch/Passeur',         2, 2, 2, TRUE),
+    ('export', 'TRAITEMENT',    'Ouvert',   'Depot Declaration',        2, 2, 2, TRUE),
+    ('export', 'TRAITEMENT',    'Ouvert',   'Visite Douane',            2, 3, 2, TRUE),
+    ('export', 'TRAITEMENT',    'Ouvert',   'Depotage',                 2, 3, 2, TRUE),
+
+    -- EMBARQUEMENT
+    ('export', 'EMBARQUEMENT',  'Ouvert',   'Bon a enlever',            3, 3, 3, TRUE),
+    ('export', 'EMBARQUEMENT',  'Ouvert',   'Sortie Aero/Port',         3, 3, 3, TRUE),
+    ('export', 'EMBARQUEMENT',  'Ouvert',   'Taxation',                 3, 4, 3, TRUE),
+    ('export', 'EMBARQUEMENT',  'Ouvert',   'Information Client',       3, 4, 3, FALSE),
+    ('export', 'EMBARQUEMENT',  'Ouvert',   'Livraison',                3, 4, 3, TRUE),
+
+    -- COMPTABILITE
+    ('export', 'COMPTABILITE',  'Ouvert',   'Provision',                4, 4, 4, FALSE),
+    ('export', 'COMPTABILITE',  'Ouvert',   'Facturation',              4, 5, 4, TRUE),
+    ('export', 'COMPTABILITE',  'Ouvert',   'Transmission',             4, 5, 4, TRUE),
+    ('export', 'COMPTABILITE',  'Ouvert',   'Paiement',                 4, 5, 5, TRUE),
+    ('export', 'COMPTABILITE',  'Clôturé',  'Cloture',                  5, 5, 5, TRUE)
+
+) AS t(sens, phase, statut, description, niveau_autorisation, niveau_validation, niveau_operation, est_obligatoire)
+JOIN type_production tp ON tp.nom = t.sens;
 END $$;
 
 INSERT INTO inconterme (nom, abreviation, description) VALUES

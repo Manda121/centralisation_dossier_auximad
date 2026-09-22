@@ -39,27 +39,26 @@ public class SuspensionConnexion {
     /**
      * Vérifie si l'utilisateur est actuellement suspendu
      */
+    @jakarta.persistence.Transient
+    @com.fasterxml.jackson.annotation.JsonProperty("estSuspendu")
     public boolean estSuspendu() {
         if (dateSuspension == null) {
             return false;
         }
-        LocalDateTime finSuspension = dateSuspension.plusMinutes(dureeSuspension);
-        if (LocalDateTime.now().isAfter(finSuspension)) {
-            // La suspension est expirée, on la réinitialise
-            reinitialiser();
-            return false;
-        }
-        return true;
+        LocalDateTime finSuspension = dateSuspension.plusMinutes(dureeSuspension != null ? dureeSuspension : 15);
+        return !LocalDateTime.now().isAfter(finSuspension);
     }
 
     /**
      * Retourne le temps restant de suspension en minutes
      */
+    @jakarta.persistence.Transient
+    @com.fasterxml.jackson.annotation.JsonProperty("tempsRestantMinutes")
     public long getTempsRestantMinutes() {
         if (dateSuspension == null) {
             return 0;
         }
-        LocalDateTime finSuspension = dateSuspension.plusMinutes(dureeSuspension);
+        LocalDateTime finSuspension = dateSuspension.plusMinutes(dureeSuspension != null ? dureeSuspension : 15);
         long minutes = java.time.Duration.between(LocalDateTime.now(), finSuspension).toMinutes();
         return Math.max(0, minutes);
     }

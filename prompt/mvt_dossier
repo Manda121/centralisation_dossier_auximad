@@ -1,0 +1,55 @@
+import:
+    PREPARATION:
+        reservation TC/ligne
+        Reception BL/LTA
+        Position Container
+
+    TRAITEMENT:
+        Declaration
+        Dispatch?Passeur
+        Depot Declaration
+        Visite Douane
+        Empotage
+
+    DEBARQUEMENT:
+        Depart Camion
+        Arrivee Camion
+        Mise a quai
+        Taxation BAE
+        Closing date
+        Information Client
+
+    COMPTABILITE:
+        Provision
+        Facturation
+        Transmission
+        Paiement
+        Cloture
+
+export:
+    PREPARATION:
+        Avis d'arrivee client
+        premier reception Doc
+        premier envoi Doc
+        Expediee
+    
+    TRAITEMENT:
+        Declaration
+        Dispatch/Passeur
+        Depot Declaration
+        Visite Douane
+        Depotage
+
+    EMBARQUEMENT:
+        Bon a enlever
+        Sortie Aero/Port
+        Taxation
+        Information Client
+        Livraison
+
+    COMPTABILITE:
+        Provision
+        Facturation
+        Transmission
+        Paiement
+        Cloture

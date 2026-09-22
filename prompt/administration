@@ -1,0 +1,15 @@
+error:
+
+suspension: AdminService.js:21 
+ GET http://localhost:8080/api/admin/suspensions 500 (Internal Server Error)
+Promise.then		
+lister	@	AdminService.js:21
+(anonymous)	@	AdminService.js:65
+(anonymous)	@	AdminView.vue:741
+(anonymous)	@	AdminView.vue:734
+(anonymous)	@	AdminView.vue:29
+
+modification actions: activeConfig.value.service.modifier is not a function
+ tous les suppression: erreur lors de la suppression
+
+et dans le type de document il faut ajouter le nature de la marchandise

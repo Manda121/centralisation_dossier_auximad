@@ -89,9 +89,9 @@
                                                     <span v-else>{{ getCellValue(row, col) || '—' }}</span>
                                                 </td>
                                                 <td class="col-actions">
-                                                    <button class="btn-edit" @click="openEdit(row)"
+                                                    <button v-if="!activeConfig.readOnly" class="btn-edit" @click="openEdit(row)"
                                                         title="Modifier">✏️</button>
-                                                    <button class="btn-delete" @click="confirmerSuppression(row)"
+                                                    <button v-if="!activeConfig.readOnly" class="btn-delete" @click="confirmerSuppression(row)"
                                                         title="Supprimer">🗑️</button>
                                                     <!-- Actions spéciales utilisateurs -->
                                                     <template v-if="activeKey === 'utilisateurs'">
@@ -462,6 +462,7 @@ const CONFIGS = {
         fields: [
             { key: 'code', label: 'Code', type: 'number', required: true },
             { key: 'nom', label: 'Nom', required: true },
+            { key: 'idModeTransport', label: 'Mode de Transport', type: 'select', options: 'modesTransport' },
             { key: 'description', label: 'Description', type: 'textarea' },
         ],
     },
@@ -495,6 +496,7 @@ const CONFIGS = {
         ],
         fields: [
             { key: 'nom', label: 'Nom', required: true },
+            { key: 'idModeTransport', label: 'Mode de Transport', type: 'select', options: 'modesTransport' },
             { key: 'description', label: 'Description', type: 'textarea' },
         ],
     },
@@ -620,6 +622,8 @@ const CONFIGS = {
         fields: [
             { key: 'nom', label: 'Nom du document', required: true },
             { key: 'estObligatoire', label: 'Obligatoire', type: 'checkbox' },
+            { key: 'idTypeProduction', label: 'Type de Production', type: 'select', options: 'typesProduction' },
+            { key: 'idNatureMarchandise', label: 'Nature de Marchandise', type: 'select', options: 'naturesMarchandise' },
             { key: 'description', label: 'Description', type: 'textarea' },
         ],
     },
@@ -641,6 +645,8 @@ const CONFIGS = {
         fields: [
             { key: 'code', label: 'Code', required: true, placeholder: 'ex: MSC' },
             { key: 'nom', label: 'Nom', required: true },
+            { key: 'idPays', label: 'Pays', type: 'select', options: 'pays' },
+            { key: 'idModeTransport', label: 'Mode de Transport', type: 'select', options: 'modesTransport' },
             { key: 'description', label: 'Description', type: 'textarea' },
         ],
     },
@@ -659,6 +665,7 @@ const CONFIGS = {
         fields: [
             { key: 'nom', label: 'Nom du navire', required: true },
             { key: 'imo', label: 'Numéro IMO', placeholder: 'ex: IMO1234567' },
+            { key: 'idCompagnie', label: 'Compagnie', type: 'select', options: 'compagnies' },
         ],
     },
     pays: {
@@ -794,9 +801,13 @@ const openEdit = (row) => {
     // Pré-remplir les champs
     activeConfig.value.fields.forEach(f => {
         if (f.type === 'select') {
-            // Récupère l'id de la FK si présent
-            const obj = row[f.key.replace('id', '').charAt(0).toLowerCase() + f.key.replace('id', '').slice(1)]
-            form.value[f.key] = row[f.key] || (obj?.id ?? null)
+            let fieldProp = f.key
+            if (fieldProp.startsWith('id')) {
+                fieldProp = fieldProp.substring(2)
+                fieldProp = fieldProp.charAt(0).toLowerCase() + fieldProp.slice(1)
+            }
+            const obj = row[fieldProp]
+            form.value[f.key] = row[f.key] ?? (obj?.id ?? '')
         } else if (f.type === 'password') {
             form.value[f.key] = '' // Ne pas pré-remplir le mot de passe
         } else {

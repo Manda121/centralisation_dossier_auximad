@@ -119,19 +119,26 @@ public class AdminController {
         try { return Integer.parseInt(val.toString()); } catch (Exception e) { return null; }
     }
 
+    private ResponseEntity<?> securiserSuppression(Runnable deleteAction, String nomEntite) {
+        try {
+            deleteAction.run();
+            return ResponseEntity.ok(Map.of("message", nomEntite + " supprimé(e) avec succès"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("erreur", "Impossible de supprimer cet enregistrement car il est référencé par d'autres données."));
+        }
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     //  1. UTILISATEURS
     // ═══════════════════════════════════════════════════════════════════════
 
     @GetMapping("/utilisateurs")
-    @Operation(summary = "Lister tous les utilisateurs")
     public ResponseEntity<?> listerUtilisateurs() {
         if (!estAdmin()) return interdit();
         return ResponseEntity.ok(utilisateurRepository.findAll());
     }
 
     @GetMapping("/utilisateurs/{id}")
-    @Operation(summary = "Obtenir un utilisateur par ID")
     public ResponseEntity<?> obtenirUtilisateur(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         return utilisateurRepository.findById(id)
@@ -140,7 +147,6 @@ public class AdminController {
     }
 
     @PostMapping("/utilisateurs")
-    @Operation(summary = "Créer un utilisateur")
     public ResponseEntity<?> creerUtilisateur(@RequestBody Map<String, Object> body) {
         if (!estAdmin()) return interdit();
         try {
@@ -164,7 +170,6 @@ public class AdminController {
             u.setDateCreation(LocalDateTime.now());
             Utilisateur saved = utilisateurRepository.save(u);
 
-            // Autorisation par défaut
             Integer niveauAut = parseId(body.get("niveauAutorisation"));
             if (niveauAut == null) niveauAut = 0;
             Autorisation aut = new Autorisation();
@@ -179,7 +184,6 @@ public class AdminController {
     }
 
     @PutMapping("/utilisateurs/{id}")
-    @Operation(summary = "Modifier un utilisateur")
     public ResponseEntity<?> modifierUtilisateur(@PathVariable Integer id, @RequestBody Map<String, Object> body) {
         if (!estAdmin()) return interdit();
         Optional<Utilisateur> opt = utilisateurRepository.findById(id);
@@ -200,18 +204,17 @@ public class AdminController {
     }
 
     @DeleteMapping("/utilisateurs/{id}")
-    @Operation(summary = "Supprimer un utilisateur")
     public ResponseEntity<?> supprimerUtilisateur(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!utilisateurRepository.existsById(id)) return ResponseEntity.notFound().build();
-        autorisationRepository.findByUtilisateurId(id).ifPresent(autorisationRepository::delete);
-        suspensionConnexionRepository.findByUtilisateurId(id).ifPresent(suspensionConnexionRepository::delete);
-        utilisateurRepository.deleteById(id);
-        return ResponseEntity.ok(Map.of("message", "Utilisateur supprimé"));
+        return securiserSuppression(() -> {
+            autorisationRepository.findByUtilisateurId(id).ifPresent(autorisationRepository::delete);
+            suspensionConnexionRepository.findByUtilisateurId(id).ifPresent(suspensionConnexionRepository::delete);
+            utilisateurRepository.deleteById(id);
+        }, "Utilisateur");
     }
 
     @PostMapping("/utilisateurs/{id}/reinitialiser-mdp")
-    @Operation(summary = "Réinitialiser le mot de passe")
     public ResponseEntity<?> reinitialiserMotDePasse(@PathVariable Integer id, @RequestBody Map<String, String> body) {
         if (!estAdmin()) return interdit();
         Optional<Utilisateur> opt = utilisateurRepository.findById(id);
@@ -257,8 +260,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerRole(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!roleRepository.existsById(id)) return ResponseEntity.notFound().build();
-        roleRepository.deleteById(id);
-        return ResponseEntity.ok(Map.of("message", "Rôle supprimé"));
+        return securiserSuppression(() -> roleRepository.deleteById(id), "Rôle");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -322,12 +324,22 @@ public class AdminController {
         return ResponseEntity.ok(actionRepository.save(action));
     }
 
+    @PutMapping("/actions/{id}")
+    public ResponseEntity<?> modifierAction(@PathVariable Integer id, @RequestBody Action body) {
+        if (!estAdmin()) return interdit();
+        Optional<Action> opt = actionRepository.findById(id);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+        Action a = opt.get();
+        if (body.getNom() != null) a.setNom(body.getNom());
+        if (body.getDescription() != null) a.setDescription(body.getDescription());
+        return ResponseEntity.ok(actionRepository.save(a));
+    }
+
     @DeleteMapping("/actions/{id}")
     public ResponseEntity<?> supprimerAction(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!actionRepository.existsById(id)) return ResponseEntity.notFound().build();
-        actionRepository.deleteById(id);
-        return ResponseEntity.ok(Map.of("message", "Action supprimée"));
+        return securiserSuppression(() -> actionRepository.deleteById(id), "Action");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -365,8 +377,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerAgence(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!agenceRepository.existsById(id)) return ResponseEntity.notFound().build();
-        agenceRepository.deleteById(id);
-        return ResponseEntity.ok(Map.of("message", "Agence supprimée"));
+        return securiserSuppression(() -> agenceRepository.deleteById(id), "Agence");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -403,8 +414,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerBureau(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!bureauRepository.existsById(id)) return ResponseEntity.notFound().build();
-        bureauRepository.deleteById(id);
-        return ResponseEntity.ok(Map.of("message", "Bureau supprimé"));
+        return securiserSuppression(() -> bureauRepository.deleteById(id), "Bureau");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -438,8 +448,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerModeTransport(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!modeTransportRepository.existsById(id)) return ResponseEntity.notFound().build();
-        modeTransportRepository.deleteById(id);
-        return ResponseEntity.ok(Map.of("message", "Mode de transport supprimé"));
+        return securiserSuppression(() -> modeTransportRepository.deleteById(id), "Mode de transport");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -453,20 +462,37 @@ public class AdminController {
     }
 
     @PostMapping("/types-production")
-    public ResponseEntity<?> creerTypeProduction(@RequestBody TypeProduction tp) {
+    public ResponseEntity<?> creerTypeProduction(@RequestBody Map<String, Object> body) {
         if (!estAdmin()) return interdit();
-        return ResponseEntity.ok(typeProductionRepository.save(tp));
+        try {
+            TypeProduction tp = new TypeProduction();
+            tp.setNom((String) body.get("nom"));
+            tp.setCode(parseId(body.get("code")));
+            tp.setDescription((String) body.get("description"));
+
+            Integer idMt = parseId(body.get("idModeTransport"));
+            if (idMt != null) modeTransportRepository.findById(idMt).ifPresent(tp::setModeTransport);
+
+            return ResponseEntity.ok(typeProductionRepository.save(tp));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("erreur", e.getMessage()));
+        }
     }
 
     @PutMapping("/types-production/{id}")
-    public ResponseEntity<?> modifierTypeProduction(@PathVariable Integer id, @RequestBody TypeProduction body) {
+    public ResponseEntity<?> modifierTypeProduction(@PathVariable Integer id, @RequestBody Map<String, Object> body) {
         if (!estAdmin()) return interdit();
         Optional<TypeProduction> opt = typeProductionRepository.findById(id);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
         TypeProduction tp = opt.get();
-        if (body.getNom() != null) tp.setNom(body.getNom());
-        if (body.getCode() != null) tp.setCode(body.getCode());
-        if (body.getDescription() != null) tp.setDescription(body.getDescription());
+        if (body.containsKey("nom")) tp.setNom((String) body.get("nom"));
+        if (body.containsKey("code")) tp.setCode(parseId(body.get("code")));
+        if (body.containsKey("description")) tp.setDescription((String) body.get("description"));
+
+        if (body.containsKey("idModeTransport")) {
+            Integer idMt = parseId(body.get("idModeTransport"));
+            tp.setModeTransport(idMt != null ? modeTransportRepository.findById(idMt).orElse(null) : null);
+        }
         return ResponseEntity.ok(typeProductionRepository.save(tp));
     }
 
@@ -474,8 +500,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerTypeProduction(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!typeProductionRepository.existsById(id)) return ResponseEntity.notFound().build();
-        typeProductionRepository.deleteById(id);
-        return ResponseEntity.ok(Map.of("message", "Type de production supprimé"));
+        return securiserSuppression(() -> typeProductionRepository.deleteById(id), "Type de production");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -510,8 +535,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerTypeRegime(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!typeRegimeRepository.existsById(id)) return ResponseEntity.notFound().build();
-        typeRegimeRepository.deleteById(id);
-        return ResponseEntity.ok(Map.of("message", "Type de régime supprimé"));
+        return securiserSuppression(() -> typeRegimeRepository.deleteById(id), "Type de régime");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -525,19 +549,35 @@ public class AdminController {
     }
 
     @PostMapping("/phases-dossier")
-    public ResponseEntity<?> creerPhaseDossier(@RequestBody PhaseDossier pd) {
+    public ResponseEntity<?> creerPhaseDossier(@RequestBody Map<String, Object> body) {
         if (!estAdmin()) return interdit();
-        return ResponseEntity.ok(phaseDossierRepository.save(pd));
+        try {
+            PhaseDossier pd = new PhaseDossier();
+            pd.setNom((String) body.get("nom"));
+            pd.setDescription((String) body.get("description"));
+
+            Integer idMt = parseId(body.get("idModeTransport"));
+            if (idMt != null) modeTransportRepository.findById(idMt).ifPresent(pd::setModeTransport);
+
+            return ResponseEntity.ok(phaseDossierRepository.save(pd));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("erreur", e.getMessage()));
+        }
     }
 
     @PutMapping("/phases-dossier/{id}")
-    public ResponseEntity<?> modifierPhaseDossier(@PathVariable Integer id, @RequestBody PhaseDossier body) {
+    public ResponseEntity<?> modifierPhaseDossier(@PathVariable Integer id, @RequestBody Map<String, Object> body) {
         if (!estAdmin()) return interdit();
         Optional<PhaseDossier> opt = phaseDossierRepository.findById(id);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
         PhaseDossier pd = opt.get();
-        if (body.getNom() != null) pd.setNom(body.getNom());
-        if (body.getDescription() != null) pd.setDescription(body.getDescription());
+        if (body.containsKey("nom")) pd.setNom((String) body.get("nom"));
+        if (body.containsKey("description")) pd.setDescription((String) body.get("description"));
+
+        if (body.containsKey("idModeTransport")) {
+            Integer idMt = parseId(body.get("idModeTransport"));
+            pd.setModeTransport(idMt != null ? modeTransportRepository.findById(idMt).orElse(null) : null);
+        }
         return ResponseEntity.ok(phaseDossierRepository.save(pd));
     }
 
@@ -545,8 +585,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerPhaseDossier(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!phaseDossierRepository.existsById(id)) return ResponseEntity.notFound().build();
-        phaseDossierRepository.deleteById(id);
-        return ResponseEntity.ok(Map.of("message", "Phase dossier supprimée"));
+        return securiserSuppression(() -> phaseDossierRepository.deleteById(id), "Phase dossier");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -580,8 +619,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerStatutDossier(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!statutDossierRepository.existsById(id)) return ResponseEntity.notFound().build();
-        statutDossierRepository.deleteById(id);
-        return ResponseEntity.ok(Map.of("message", "Statut dossier supprimé"));
+        return securiserSuppression(() -> statutDossierRepository.deleteById(id), "Statut dossier");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -615,8 +653,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerStatutOt(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!statutOtRepository.existsById(id)) return ResponseEntity.notFound().build();
-        statutOtRepository.deleteById(id);
-        return ResponseEntity.ok(Map.of("message", "Statut OT supprimé"));
+        return securiserSuppression(() -> statutOtRepository.deleteById(id), "Statut OT");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -651,8 +688,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerIncoterme(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!incontermeRepository.existsById(id)) return ResponseEntity.notFound().build();
-        incontermeRepository.deleteById(id);
-        return ResponseEntity.ok(Map.of("message", "Incoterme supprimé"));
+        return securiserSuppression(() -> incontermeRepository.deleteById(id), "Incoterme");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -685,8 +721,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerNatureMarchandise(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!natureMarchandiseRepository.existsById(id)) return ResponseEntity.notFound().build();
-        natureMarchandiseRepository.deleteById(id);
-        return ResponseEntity.ok(Map.of("message", "Nature de marchandise supprimée"));
+        return securiserSuppression(() -> natureMarchandiseRepository.deleteById(id), "Nature de marchandise");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -721,8 +756,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerUniteMesure(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!uniteMesureRepository.existsById(id)) return ResponseEntity.notFound().build();
-        uniteMesureRepository.deleteById(id);
-        return ResponseEntity.ok(Map.of("message", "Unité de mesure supprimée"));
+        return securiserSuppression(() -> uniteMesureRepository.deleteById(id), "Unité de mesure");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -761,8 +795,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerTypeContainer(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!typeContainerRepository.existsById(id)) return ResponseEntity.notFound().build();
-        typeContainerRepository.deleteById(id);
-        return ResponseEntity.ok(Map.of("message", "Type de conteneur supprimé"));
+        return securiserSuppression(() -> typeContainerRepository.deleteById(id), "Type de conteneur");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -776,20 +809,45 @@ public class AdminController {
     }
 
     @PostMapping("/types-document")
-    public ResponseEntity<?> creerTypeDocument(@RequestBody TypeDocument td) {
+    public ResponseEntity<?> creerTypeDocument(@RequestBody Map<String, Object> body) {
         if (!estAdmin()) return interdit();
-        return ResponseEntity.ok(typeDocumentRepository.save(td));
+        try {
+            TypeDocument td = new TypeDocument();
+            td.setNom((String) body.get("nom"));
+            td.setDescription((String) body.get("description"));
+            Boolean oblig = (Boolean) body.get("estObligatoire");
+            td.setEstObligatoire(oblig != null ? oblig : false);
+
+            Integer idTp = parseId(body.get("idTypeProduction"));
+            if (idTp != null) typeProductionRepository.findById(idTp).ifPresent(td::setTypeProduction);
+
+            Integer idNm = parseId(body.get("idNatureMarchandise"));
+            if (idNm != null) natureMarchandiseRepository.findById(idNm).ifPresent(td::setNatureMarchandise);
+
+            return ResponseEntity.ok(typeDocumentRepository.save(td));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("erreur", e.getMessage()));
+        }
     }
 
     @PutMapping("/types-document/{id}")
-    public ResponseEntity<?> modifierTypeDocument(@PathVariable Integer id, @RequestBody TypeDocument body) {
+    public ResponseEntity<?> modifierTypeDocument(@PathVariable Integer id, @RequestBody Map<String, Object> body) {
         if (!estAdmin()) return interdit();
         Optional<TypeDocument> opt = typeDocumentRepository.findById(id);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
         TypeDocument td = opt.get();
-        if (body.getNom() != null) td.setNom(body.getNom());
-        if (body.getDescription() != null) td.setDescription(body.getDescription());
-        if (body.getEstObligatoire() != null) td.setEstObligatoire(body.getEstObligatoire());
+        if (body.containsKey("nom")) td.setNom((String) body.get("nom"));
+        if (body.containsKey("description")) td.setDescription((String) body.get("description"));
+        if (body.containsKey("estObligatoire")) td.setEstObligatoire((Boolean) body.get("estObligatoire"));
+
+        if (body.containsKey("idTypeProduction")) {
+            Integer idTp = parseId(body.get("idTypeProduction"));
+            td.setTypeProduction(idTp != null ? typeProductionRepository.findById(idTp).orElse(null) : null);
+        }
+        if (body.containsKey("idNatureMarchandise")) {
+            Integer idNm = parseId(body.get("idNatureMarchandise"));
+            td.setNatureMarchandise(idNm != null ? natureMarchandiseRepository.findById(idNm).orElse(null) : null);
+        }
         return ResponseEntity.ok(typeDocumentRepository.save(td));
     }
 
@@ -797,8 +855,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerTypeDocument(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!typeDocumentRepository.existsById(id)) return ResponseEntity.notFound().build();
-        typeDocumentRepository.deleteById(id);
-        return ResponseEntity.ok(Map.of("message", "Type de document supprimé"));
+        return securiserSuppression(() -> typeDocumentRepository.deleteById(id), "Type de document");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -812,20 +869,44 @@ public class AdminController {
     }
 
     @PostMapping("/compagnies")
-    public ResponseEntity<?> creerCompagnie(@RequestBody Compagnie c) {
+    public ResponseEntity<?> creerCompagnie(@RequestBody Map<String, Object> body) {
         if (!estAdmin()) return interdit();
-        return ResponseEntity.ok(compagnieRepository.save(c));
+        try {
+            Compagnie c = new Compagnie();
+            c.setNom((String) body.get("nom"));
+            c.setCode((String) body.get("code"));
+            c.setDescription((String) body.get("description"));
+
+            Integer idPays = parseId(body.get("idPays"));
+            if (idPays != null) paysRepository.findById(idPays).ifPresent(c::setPays);
+
+            Integer idMt = parseId(body.get("idModeTransport"));
+            if (idMt != null) modeTransportRepository.findById(idMt).ifPresent(c::setModeTransport);
+
+            return ResponseEntity.ok(compagnieRepository.save(c));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("erreur", e.getMessage()));
+        }
     }
 
     @PutMapping("/compagnies/{id}")
-    public ResponseEntity<?> modifierCompagnie(@PathVariable Integer id, @RequestBody Compagnie body) {
+    public ResponseEntity<?> modifierCompagnie(@PathVariable Integer id, @RequestBody Map<String, Object> body) {
         if (!estAdmin()) return interdit();
         Optional<Compagnie> opt = compagnieRepository.findById(id);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
         Compagnie c = opt.get();
-        if (body.getNom() != null) c.setNom(body.getNom());
-        if (body.getCode() != null) c.setCode(body.getCode());
-        if (body.getDescription() != null) c.setDescription(body.getDescription());
+        if (body.containsKey("nom")) c.setNom((String) body.get("nom"));
+        if (body.containsKey("code")) c.setCode((String) body.get("code"));
+        if (body.containsKey("description")) c.setDescription((String) body.get("description"));
+
+        if (body.containsKey("idPays")) {
+            Integer idPays = parseId(body.get("idPays"));
+            c.setPays(idPays != null ? paysRepository.findById(idPays).orElse(null) : null);
+        }
+        if (body.containsKey("idModeTransport")) {
+            Integer idMt = parseId(body.get("idModeTransport"));
+            c.setModeTransport(idMt != null ? modeTransportRepository.findById(idMt).orElse(null) : null);
+        }
         return ResponseEntity.ok(compagnieRepository.save(c));
     }
 
@@ -833,8 +914,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerCompagnie(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!compagnieRepository.existsById(id)) return ResponseEntity.notFound().build();
-        compagnieRepository.deleteById(id);
-        return ResponseEntity.ok(Map.of("message", "Compagnie supprimée"));
+        return securiserSuppression(() -> compagnieRepository.deleteById(id), "Compagnie");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -848,19 +928,35 @@ public class AdminController {
     }
 
     @PostMapping("/navires")
-    public ResponseEntity<?> creerNavire(@RequestBody Navire n) {
+    public ResponseEntity<?> creerNavire(@RequestBody Map<String, Object> body) {
         if (!estAdmin()) return interdit();
-        return ResponseEntity.ok(navireRepository.save(n));
+        try {
+            Navire n = new Navire();
+            n.setNom((String) body.get("nom"));
+            n.setImo((String) body.get("imo"));
+
+            Integer idC = parseId(body.get("idCompagnie"));
+            if (idC != null) compagnieRepository.findById(idC).ifPresent(n::setCompagnie);
+
+            return ResponseEntity.ok(navireRepository.save(n));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("erreur", e.getMessage()));
+        }
     }
 
     @PutMapping("/navires/{id}")
-    public ResponseEntity<?> modifierNavire(@PathVariable Integer id, @RequestBody Navire body) {
+    public ResponseEntity<?> modifierNavire(@PathVariable Integer id, @RequestBody Map<String, Object> body) {
         if (!estAdmin()) return interdit();
         Optional<Navire> opt = navireRepository.findById(id);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
         Navire n = opt.get();
-        if (body.getNom() != null) n.setNom(body.getNom());
-        if (body.getImo() != null) n.setImo(body.getImo());
+        if (body.containsKey("nom")) n.setNom((String) body.get("nom"));
+        if (body.containsKey("imo")) n.setImo((String) body.get("imo"));
+
+        if (body.containsKey("idCompagnie")) {
+            Integer idC = parseId(body.get("idCompagnie"));
+            n.setCompagnie(idC != null ? compagnieRepository.findById(idC).orElse(null) : null);
+        }
         return ResponseEntity.ok(navireRepository.save(n));
     }
 
@@ -868,8 +964,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerNavire(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!navireRepository.existsById(id)) return ResponseEntity.notFound().build();
-        navireRepository.deleteById(id);
-        return ResponseEntity.ok(Map.of("message", "Navire supprimé"));
+        return securiserSuppression(() -> navireRepository.deleteById(id), "Navire");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -903,7 +998,6 @@ public class AdminController {
     public ResponseEntity<?> supprimerPays(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!paysRepository.existsById(id)) return ResponseEntity.notFound().build();
-        paysRepository.deleteById(id);
-        return ResponseEntity.ok(Map.of("message", "Pays supprimé"));
+        return securiserSuppression(() -> paysRepository.deleteById(id), "Pays");
     }
 }
