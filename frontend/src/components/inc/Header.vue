@@ -97,6 +97,13 @@
         </div>
       </div>
 
+      <router-link to="/mouvements-dossier" class="sidebar__nav-link" active-class="sidebar__nav-link--active">
+        <svg viewBox="0 0 16 16" fill="currentColor" class="sidebar__icon">
+          <path d="M11.5 15a.5.5 0 0 0 .5-.5V2.707l3.146 3.147a.5.5 0 0 0 .708-.708l-4-4a.5.5 0 0 0-.708 0l-4 4a.5.5 0 1 0 .708.708L11 2.707V14.5a.5.5 0 0 0 .5.5m-7-14a.5.5 0 0 0-.5.5v11.793l-3.146-3.147a.5.5 0 0 0-.708.708l4 4a.5.5 0 0 0 .708 0l4-4a.5.5 0 0 0-.708-.708L4.5 13.293V1.5a.5.5 0 0 0-.5-.5"/>
+        </svg>
+        Mouvement Dossier
+      </router-link>
+
       <router-link to="/historiques" class="sidebar__nav-link" active-class="sidebar__nav-link--active">
         <svg viewBox="0 0 16 16" fill="currentColor" class="sidebar__icon">
           <path

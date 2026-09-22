@@ -3,6 +3,7 @@ package com.auximad.controller;
 import com.auximad.entity.*;
 import com.auximad.repository.*;
 import com.auximad.security.JwtSecurityContext;
+import com.auximad.service.OperationDossierService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
@@ -54,6 +55,7 @@ public class AdminController {
     private final NavireRepository navireRepository;
     private final PaysRepository paysRepository;
     private final PasswordEncoder passwordEncoder;
+    private final OperationDossierService operationDossierService;
 
     public AdminController(
             UtilisateurRepository utilisateurRepository,
@@ -77,7 +79,8 @@ public class AdminController {
             CompagnieRepository compagnieRepository,
             NavireRepository navireRepository,
             PaysRepository paysRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            OperationDossierService operationDossierService) {
         this.utilisateurRepository = utilisateurRepository;
         this.roleRepository = roleRepository;
         this.autorisationRepository = autorisationRepository;
@@ -100,6 +103,7 @@ public class AdminController {
         this.navireRepository = navireRepository;
         this.paysRepository = paysRepository;
         this.passwordEncoder = passwordEncoder;
+        this.operationDossierService = operationDossierService;
     }
 
     // ── Garde d'accès ────────────────────────────────────────────────────────
@@ -999,5 +1003,51 @@ public class AdminController {
         if (!estAdmin()) return interdit();
         if (!paysRepository.existsById(id)) return ResponseEntity.notFound().build();
         return securiserSuppression(() -> paysRepository.deleteById(id), "Pays");
+    }
+
+    // ── Opération Dossier ───────────────────────────────────────────────────
+
+    @GetMapping("/operations-dossier")
+    public ResponseEntity<?> listerOperationsDossier(@RequestParam(required = false) Integer typeProductionId) {
+        if (!estAdmin()) return interdit();
+        if (typeProductionId != null) {
+            return ResponseEntity.ok(operationDossierService.getOperationsByTypeProduction(typeProductionId));
+        }
+        return ResponseEntity.ok(operationDossierService.getAllOperations());
+    }
+
+    @PostMapping("/operations-dossier")
+    public ResponseEntity<?> creerOperationDossier(@RequestBody OperationDossier op) {
+        if (!estAdmin()) return interdit();
+        return ResponseEntity.ok(operationDossierService.saveOperation(op));
+    }
+
+    @PutMapping("/operations-dossier/{id}")
+    public ResponseEntity<?> modifierOperationDossier(@PathVariable Integer id, @RequestBody Map<String, Object> body) {
+        if (!estAdmin()) return interdit();
+        try {
+            return ResponseEntity.ok(operationDossierService.updateOperationFromMap(id, body));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("erreur", e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/operations-dossier/{id}")
+    public ResponseEntity<?> supprimerOperationDossier(@PathVariable Integer id) {
+        if (!estAdmin()) return interdit();
+        return securiserSuppression(() -> operationDossierService.deleteOperation(id), "Opération Dossier");
+    }
+
+    @PostMapping("/operations-dossier/batch-delete")
+    public ResponseEntity<?> supprimerOperationsDossierBatch(@RequestBody List<Integer> ids) {
+        if (!estAdmin()) return interdit();
+        return securiserSuppression(() -> operationDossierService.deleteBatch(ids), "Opérations Dossier (Lot)");
+    }
+
+    @PutMapping("/operations-dossier/reorder")
+    public ResponseEntity<?> reordonnerOperationsDossier(@RequestBody List<Integer> ids) {
+        if (!estAdmin()) return interdit();
+        operationDossierService.reorderOperations(ids);
+        return ResponseEntity.ok(Map.of("message", "Opérations réordonnées avec succès"));
     }
 }

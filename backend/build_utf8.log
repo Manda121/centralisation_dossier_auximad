@@ -1,0 +1,20 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] --------------------< com.auximad:Auximad-serveur >---------------------
+[INFO] Building Auximad Serveur 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ Auximad-serveur ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ Auximad-serveur ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 124 source files with javac [debug parameters release 17] to target\classes
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  12.983 s
+[INFO] Finished at: 2026-09-22T10:44:14+03:00
+[INFO] ------------------------------------------------------------------------

@@ -176,6 +176,16 @@ const AdminService = {
         modifier: (id, data) => modifier('pays', id, data),
         supprimer: (id) => supprimer('pays', id),
     },
+
+    // 6. Opérations Dossier (Gestion Admin & Drag-and-Drop)
+    operationsDossier: {
+        lister: (typeProductionId) => typeProductionId ? api.get(`/operations-dossier?typeProductionId=${typeProductionId}`).then(r => r.data) : lister('operations-dossier'),
+        creer: (data) => creer('operations-dossier', data),
+        modifier: (id, data) => modifier('operations-dossier', id, data),
+        supprimer: (id) => supprimer('operations-dossier', id),
+        supprimerBatch: (ids) => api.post('/operations-dossier/batch-delete', ids).then(r => r.data),
+        reordonner: (ids) => api.put('/operations-dossier/reorder', ids).then(r => r.data),
+    },
 }
 
 export default AdminService
