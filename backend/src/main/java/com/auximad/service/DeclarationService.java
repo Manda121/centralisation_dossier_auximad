@@ -71,15 +71,10 @@ public class DeclarationService {
             declaration.setTypeDeclaration(td);
         }
 
-        // Si un fichier est fourni, créer ou associer le document
+        // Si un fichier est fourni, créer ou associer le document (type_document id = 2 pour déclaration)
         if (file != null && !file.isEmpty()) {
-            List<TypeDocument> typeDocs = documentService.getTypeDocumentsByTypeProduction(
-                    dossier.getTypeProduction() != null ? dossier.getTypeProduction().getId() : null);
-            Integer typeDocId = typeDocs.isEmpty() ? null : typeDocs.get(0).getId();
-            if (typeDocId != null) {
-                Document doc = documentService.saveDocument(dossier.getId(), typeDocId, file);
-                declaration.setDocument(doc);
-            }
+            Document doc = documentService.saveDocument(dossier.getId(), 2, file);
+            declaration.setDocument(doc);
         }
 
         return declarationRepository.save(declaration);

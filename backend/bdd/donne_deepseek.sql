@@ -328,11 +328,25 @@ INSERT INTO pays (nom, code) VALUES
 ('Ethiopie', 'ETH');
 
 -- ============================================================
--- TYPE_DOCUMENT : id_type_production désormais renseigné
--- (au lieu de NULL) pour chaque ligne, en fonction de la
--- pertinence du document par rapport au type de production.
+-- TYPE_DECLARATION
 -- ============================================================
+INSERT INTO type_declaration (nom, description) VALUES
+('Mise à la consommation (IM4)', 'Déclaration pour mise à la consommation directe'),
+('Exportation définitive (EX1)', 'Déclaration d''exportation définitive'),
+('Transit international (TR)', 'Déclaration de transit international'),
+('Admission temporaire (AT)', 'Déclaration pour régime d''admission temporaire'),
+('Entrepôt douanier (E2)', 'Déclaration pour mise en entrepôt douanier');
+
+-- ============================================================
+-- TYPE_DOCUMENT : id=1 pour attachement mvt, id=2 pour déclaration
+-- ============================================================
+-- INSERT INTO type_document (id, nom, id_type_production, id_nature_marchandise, est_obligatoire, description) VALUES
+-- (1, 'Document d''attachement', NULL, NULL, FALSE, 'Document d''attachement pour les mouvements de dossier'),
+-- (2, 'Document de déclaration', NULL, NULL, FALSE, 'Document de déclaration douanière');
+
 INSERT INTO type_document (nom, id_type_production, id_nature_marchandise, est_obligatoire, description) VALUES
+('Document d''attachement', NULL, NULL, FALSE, 'Document d''attachement pour les mouvements de dossier'),
+('Document de déclaration', NULL, NULL, FALSE, 'Document de déclaration douanière'),
 ('Facture commerciale', (SELECT id FROM type_production WHERE nom = 'import' AND id_mode_transport = (SELECT id FROM mode_transport WHERE nom = 'Maritime')), NULL, TRUE, 'Facture commerciale'),
 ('Liste de colisage', (SELECT id FROM type_production WHERE nom = 'import' AND id_mode_transport = (SELECT id FROM mode_transport WHERE nom = 'Maritime')), NULL, TRUE, 'Liste de colisage'),
 ('Connaissement maritime', (SELECT id FROM type_production WHERE nom = 'import' AND id_mode_transport = (SELECT id FROM mode_transport WHERE nom = 'Maritime')), NULL, TRUE, 'Connaissement maritime'),
@@ -361,6 +375,8 @@ INSERT INTO type_document (nom, id_type_production, id_nature_marchandise, est_o
 ('Certificat de fret', (SELECT id FROM type_production WHERE nom = 'import' AND id_mode_transport = (SELECT id FROM mode_transport WHERE nom = 'Maritime')), NULL, FALSE, 'Certificat de fret'),
 ('Attestation de non-radioactivite', (SELECT id FROM type_production WHERE nom = 'import' AND id_mode_transport = (SELECT id FROM mode_transport WHERE nom = 'Maritime')), NULL, FALSE, 'Attestation de non-radioactivite'),
 ('Certificat de conformite', (SELECT id FROM type_production WHERE nom = 'import' AND id_mode_transport = (SELECT id FROM mode_transport WHERE nom = 'Maritime')), (SELECT id FROM nature_marchandise WHERE nom = 'Electronique'), TRUE, 'Certificat de conformite');
+
+SELECT setval(pg_get_serial_sequence('type_document', 'id'), coalesce(max(id), 1)) FROM type_document;
 
 INSERT INTO type_container (nom, description, volume, poids_max, longueur, largeur, hauteur) VALUES
 ('20 pieds', 'Conteneur standard 20 pieds', 33.2, 28000, 6.06, 2.44, 2.59),
@@ -485,6 +501,7 @@ DECLARE
     v_expert_constat_ids INT[];
     v_pays_ids INT[];
     v_type_document_ids INT[];
+    v_type_declaration_ids INT[];
     v_type_container_ids INT[];
     v_compagnie_ids INT[];
     v_compagnie_maritime_ids INT[];
@@ -539,6 +556,7 @@ DECLARE
     v_mode_transport_maritime_id INT;
     v_mode_transport_aerien_id INT;
     v_doc_id INT;
+    v_mvt_id INT;
     v_est_remis BOOLEAN;
     v_rand_statut_ot_id INT;
 BEGIN
@@ -557,6 +575,7 @@ BEGIN
     v_expert_constat_ids := ARRAY(SELECT id FROM expert_constat);
     v_pays_ids := ARRAY(SELECT id FROM pays);
     v_type_document_ids := ARRAY(SELECT id FROM type_document);
+    v_type_declaration_ids := ARRAY(SELECT id FROM type_declaration);
     v_type_container_ids := ARRAY(SELECT id FROM type_container);
     v_compagnie_ids := ARRAY(SELECT id FROM compagnie);
     v_compagnie_maritime_ids := ARRAY(SELECT id FROM compagnie WHERE id_mode_transport = (SELECT id FROM mode_transport WHERE nom = 'Maritime'));
@@ -872,17 +891,24 @@ BEGIN
             ('192.168.' || (i % 255) || '.' || (i % 255))::inet,
             v_operation_ids[1 + floor(random() * array_length(v_operation_ids, 1))::int],
             'Mouvement ' || i
-        );
+        ) RETURNING id INTO v_mvt_id;
+
+        IF (i % 3 = 0) THEN
+            v_doc_id := v_document_ids[1 + floor(random() * array_length(v_document_ids, 1))::int];
+            INSERT INTO document_mvt (id_mvt_dossier, id_document)
+            VALUES (v_mvt_id, v_doc_id);
+        END IF;
     END LOOP;
 
     -- DECLARATIONS (200)
     FOR i IN 1..200 LOOP
-        INSERT INTO declaration (id_dossier, numero_declaration, date_declaration, id_bureau, description)
+        INSERT INTO declaration (id_dossier, numero_declaration, date_declaration, id_bureau, id_type_declaration, description)
         VALUES (
             v_dossier_ids[1 + floor(random() * array_length(v_dossier_ids, 1))::int],
             'DEC-' || lpad(i::text, 8, '0'),
             CURRENT_TIMESTAMP - ((i % 30) || ' days')::interval,
             v_bureau_ids[1 + floor(random() * array_length(v_bureau_ids, 1))::int],
+            v_type_declaration_ids[1 + floor(random() * array_length(v_type_declaration_ids, 1))::int],
             'Declaration ' || i
         );
     END LOOP;

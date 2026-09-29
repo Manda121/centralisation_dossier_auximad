@@ -30,6 +30,7 @@ public class MvtDossierService {
     private final UtilisateurRepository utilisateurRepository;
     private final DeclarationRepository declarationRepository;
     private final DocumentRepository documentRepository;
+    private final DocumentMvtRepository documentMvtRepository;
     private final DocumentService documentService;
 
     public MvtDossierService(MvtDossierRepository mvtDossierRepository,
@@ -38,6 +39,7 @@ public class MvtDossierService {
                              UtilisateurRepository utilisateurRepository,
                              DeclarationRepository declarationRepository,
                              DocumentRepository documentRepository,
+                             DocumentMvtRepository documentMvtRepository,
                              DocumentService documentService) {
         this.mvtDossierRepository = mvtDossierRepository;
         this.dossierRepository = dossierRepository;
@@ -45,6 +47,7 @@ public class MvtDossierService {
         this.utilisateurRepository = utilisateurRepository;
         this.declarationRepository = declarationRepository;
         this.documentRepository = documentRepository;
+        this.documentMvtRepository = documentMvtRepository;
         this.documentService = documentService;
     }
 
@@ -72,14 +75,10 @@ public class MvtDossierService {
                 dateMin, dateMax, pageable
         );
 
-        // Charger document associé pour chaque mouvement si présent
+        // Charger document associé via document_mvt pour chaque mouvement
         for (MvtDossier mvt : resultPage.getContent()) {
-            if (mvt.getDossier() != null) {
-                List<Document> docs = documentRepository.findByDossierIdAndEstActifTrue(mvt.getDossier().getId());
-                if (!docs.isEmpty()) {
-                    mvt.setDocument(docs.get(docs.size() - 1));
-                }
-            }
+            documentMvtRepository.findFirstByMvtDossierIdOrderByIdDesc(mvt.getId())
+                    .ifPresent(docMvt -> mvt.setDocument(docMvt.getDocument()));
         }
 
         return PageResponse.of(resultPage);
@@ -147,9 +146,10 @@ public class MvtDossierService {
                 dto.setDeclaration(declarationOpt.get());
             }
 
-            // Attacher document si présent pour ce dossier
-            if (!activeDocs.isEmpty()) {
-                dto.setDocument(activeDocs.get(activeDocs.size() - 1));
+            // Attacher document si présent pour ce mouvement via document_mvt
+            if (mvt != null) {
+                documentMvtRepository.findFirstByMvtDossierIdOrderByIdDesc(mvt.getId())
+                        .ifPresent(docMvt -> dto.setDocument(docMvt.getDocument()));
             }
 
             statusList.add(dto);
@@ -202,18 +202,17 @@ public class MvtDossierService {
         mvt.setUtilisateur(u);
         mvt.setIpUtilisateur(clientIp != null ? clientIp : "127.0.0.1");
 
-        // Traiter upload fichier si fourni
-        if (file != null && !file.isEmpty()) {
-            List<TypeDocument> typeDocs = documentService.getTypeDocumentsByTypeProduction(
-                    dossier.getTypeProduction() != null ? dossier.getTypeProduction().getId() : null);
-            Integer typeDocId = typeDocs.isEmpty() ? null : typeDocs.get(0).getId();
-            if (typeDocId != null) {
-                Document doc = documentService.saveDocument(dossier.getId(), typeDocId, file);
-                mvt.setDocument(doc);
-            }
-        }
-
         MvtDossier savedMvt = mvtDossierRepository.save(mvt);
+
+        // Traiter upload fichier si fourni (id_type_document = 1 pour attachement mouvement)
+        if (file != null && !file.isEmpty()) {
+            Document doc = documentService.saveDocument(dossier.getId(), 1, file);
+            DocumentMvt docMvt = new DocumentMvt();
+            docMvt.setMvtDossier(savedMvt);
+            docMvt.setDocument(doc);
+            documentMvtRepository.save(docMvt);
+            savedMvt.setDocument(doc);
+        }
 
         // Mise à jour de la phase et du statut du dossier
         if (operation.getPhaseDossier() != null) {
