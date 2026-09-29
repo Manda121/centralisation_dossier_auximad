@@ -35,7 +35,9 @@
 
                     <!-- Zone principale CRUD -->
                     <section class="admin-content">
-                        <div v-if="!activeConfig" class="admin-welcome">
+                        <OperationDossierAdminView v-if="activeKey === 'operationsDossier'" />
+
+                        <div v-else-if="!activeConfig" class="admin-welcome">
                             <div class="admin-welcome__icon">⚙️</div>
                             <h2>Sélectionnez une configuration</h2>
                             <p>Choisissez une section dans le menu de gauche pour commencer la configuration.</p>
@@ -229,6 +231,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import Header from '../components/inc/Header.vue'
+import OperationDossierAdminView from './OperationDossierAdminView.vue'
 import AdminService from '../services/AdminService'
 import authService from '../utils/auth.service'
 
@@ -684,6 +687,15 @@ const CONFIGS = {
             { key: 'nom', label: 'Nom du pays', required: true },
         ],
     },
+    operationsDossier: {
+        key: 'operationsDossier',
+        icon: '⚡',
+        label: 'Opérations Dossier',
+        description: 'Configuration du workflow des opérations et des statuts par type de production',
+        service: null,
+        columns: [],
+        fields: []
+    }
 }
 
 // ── Structure du menu sidebar ─────────────────────────────────────────────
@@ -710,6 +722,7 @@ const sections = [
         items: [
             CONFIGS.modesTransport,
             CONFIGS.typesProduction,
+            CONFIGS.operationsDossier,
             CONFIGS.typesRegime,
             CONFIGS.phasesDossier,
             CONFIGS.statutsDossier,
@@ -742,7 +755,7 @@ const setActive = async (config) => {
 }
 
 const chargerDonnees = async () => {
-    if (!activeConfig.value) return
+    if (!activeConfig.value || !activeConfig.value.service) return
     loading.value = true
     try {
         rows.value = await activeConfig.value.service.lister()

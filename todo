@@ -24,3 +24,7 @@ il faudrait mettre le module document, avec les remise si ils sont incomplets
 
 creation ordre de transit:
 changement destination de l expedition: ajouter un id ordre de transit dans l expedition.
+
+22/09/2026
+inserer un type_document attachement pour les document les mvt_dossiers et les declarations
+    INSERT INTO type_document id = 1 mvt ou decl

@@ -1,0 +1,59 @@
+
+> gestion_budget@0.0.0 build
+> vite build
+
+[36mvite v7.3.6 [32mbuilding client environment for production...[36m[39m
+transforming...
+[32m✓[39m 156 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[22m[32mindex.html                                      [39m[1m[2m     0.42 kB[22m[1m[22m[2m │ gzip:  0.29 kB[22m
+[2mdist/[22m[32massets/still-life-documents-stack-DVIugue-.jpg  [39m[1m[2m12,945.60 kB[22m[1m[22m
+[2mdist/[22m[35massets/DossierCreateView-P369-pb2.css           [39m[1m[2m     0.04 kB[22m[1m[22m[2m │ gzip:  0.06 kB[22m
+[2mdist/[22m[35massets/ModalConteneur-Bly7nugD.css              [39m[1m[2m     0.06 kB[22m[1m[22m[2m │ gzip:  0.08 kB[22m
+[2mdist/[22m[35massets/MvtDossierListView-Bw00SaXz.css          [39m[1m[2m     0.09 kB[22m[1m[22m[2m │ gzip:  0.09 kB[22m
+[2mdist/[22m[35massets/MvtDossierCreateView-RoCZVhTK.css        [39m[1m[2m     0.12 kB[22m[1m[22m[2m │ gzip:  0.11 kB[22m
+[2mdist/[22m[35massets/SousDossierCreateView-Zls3reZX.css       [39m[1m[2m     0.12 kB[22m[1m[22m[2m │ gzip:  0.11 kB[22m
+[2mdist/[22m[35massets/HistoriqueListView-31S2ADTb.css          [39m[1m[2m     0.16 kB[22m[1m[22m[2m │ gzip:  0.15 kB[22m
+[2mdist/[22m[35massets/DemandeInteragenceListView-gDtLojPd.css  [39m[1m[2m     0.18 kB[22m[1m[22m[2m │ gzip:  0.11 kB[22m
+[2mdist/[22m[35massets/ConteneurListView-C9OPxFbm.css           [39m[1m[2m     0.29 kB[22m[1m[22m[2m │ gzip:  0.19 kB[22m
+[2mdist/[22m[35massets/DocumentDossierView-B0yvEJKq.css         [39m[1m[2m     0.46 kB[22m[1m[22m[2m │ gzip:  0.27 kB[22m
+[2mdist/[22m[35massets/AutocompleteRecherche-BJ4eiA2s.css       [39m[1m[2m     0.57 kB[22m[1m[22m[2m │ gzip:  0.31 kB[22m
+[2mdist/[22m[35massets/Home-D4vkS6mK.css                        [39m[1m[2m     1.03 kB[22m[1m[22m[2m │ gzip:  0.48 kB[22m
+[2mdist/[22m[35massets/DocumentsSection-D-a_hjEO.css            [39m[1m[2m     1.16 kB[22m[1m[22m[2m │ gzip:  0.48 kB[22m
+[2mdist/[22m[35massets/DataTable-MvD-8p-X.css                   [39m[1m[2m     7.25 kB[22m[1m[22m[2m │ gzip:  1.60 kB[22m
+[2mdist/[22m[35massets/AdminView-B2Na5Gou.css                   [39m[1m[2m     8.61 kB[22m[1m[22m[2m │ gzip:  2.16 kB[22m
+[2mdist/[22m[35massets/index-ByKh8fcN.css                       [39m[1m[2m   239.60 kB[22m[1m[22m[2m │ gzip: 33.02 kB[22m
+[2mdist/[22m[36massets/AgenceService-B8xapV1Z.js                [39m[1m[2m     0.36 kB[22m[1m[22m[2m │ gzip:  0.26 kB[22m
+[2mdist/[22m[36massets/MvtDossierService-J54Uje1z.js            [39m[1m[2m     0.79 kB[22m[1m[22m[2m │ gzip:  0.50 kB[22m
+[2mdist/[22m[36massets/permission.service-DhU4beca.js           [39m[1m[2m     0.83 kB[22m[1m[22m[2m │ gzip:  0.34 kB[22m
+[2mdist/[22m[36massets/ClientService-CBxZU7dH.js                [39m[1m[2m     1.08 kB[22m[1m[22m[2m │ gzip:  0.50 kB[22m
+[2mdist/[22m[36massets/DossierService-BbFto1H0.js               [39m[1m[2m     1.19 kB[22m[1m[22m[2m │ gzip:  0.56 kB[22m
+[2mdist/[22m[36massets/OrdreTransitService-bDIdCpQh.js          [39m[1m[2m     1.89 kB[22m[1m[22m[2m │ gzip:  0.68 kB[22m
+[2mdist/[22m[36massets/Home-Dp08idSC.js                         [39m[1m[2m     3.41 kB[22m[1m[22m[2m │ gzip:  1.51 kB[22m
+[2mdist/[22m[36massets/MarchandiseListView-_ymydKwC.js          [39m[1m[2m     3.66 kB[22m[1m[22m[2m │ gzip:  1.85 kB[22m
+[2mdist/[22m[36massets/AdminService-DUqh_T7E.js                 [39m[1m[2m     3.93 kB[22m[1m[22m[2m │ gzip:  1.00 kB[22m
+[2mdist/[22m[36massets/AutocompleteRecherche-C5eDEQfv.js        [39m[1m[2m     4.27 kB[22m[1m[22m[2m │ gzip:  1.84 kB[22m
+[2mdist/[22m[36massets/DossierListView-C95p7XQw.js              [39m[1m[2m     5.78 kB[22m[1m[22m[2m │ gzip:  2.24 kB[22m
+[2mdist/[22m[36massets/DossierInteragenceListView-CMpizH6L.js   [39m[1m[2m     6.00 kB[22m[1m[22m[2m │ gzip:  2.25 kB[22m
+[2mdist/[22m[36massets/SousDossierCreateView-BEAtsuC9.js        [39m[1m[2m     6.10 kB[22m[1m[22m[2m │ gzip:  2.59 kB[22m
+[2mdist/[22m[36massets/ClientListView-B6gUbGia.js               [39m[1m[2m     6.73 kB[22m[1m[22m[2m │ gzip:  2.13 kB[22m
+[2mdist/[22m[36massets/OrdreTransitListView-3kqpC0mc.js         [39m[1m[2m     6.83 kB[22m[1m[22m[2m │ gzip:  2.33 kB[22m
+[2mdist/[22m[36massets/DataTable-CDu5iUtv.js                    [39m[1m[2m     8.19 kB[22m[1m[22m[2m │ gzip:  2.80 kB[22m
+[2mdist/[22m[36massets/OrdreTransitDetailView-C2T4olhc.js       [39m[1m[2m     8.75 kB[22m[1m[22m[2m │ gzip:  3.12 kB[22m
+[2mdist/[22m[36massets/ConteneurListView-D8awWavf.js            [39m[1m[2m     9.00 kB[22m[1m[22m[2m │ gzip:  3.45 kB[22m
+[2mdist/[22m[36massets/MvtDossierListView-DBrVnaG5.js           [39m[1m[2m    10.22 kB[22m[1m[22m[2m │ gzip:  3.51 kB[22m
+[2mdist/[22m[36massets/DocumentDossierView-ldBK5dNU.js          [39m[1m[2m    10.29 kB[22m[1m[22m[2m │ gzip:  4.03 kB[22m
+[2mdist/[22m[36massets/ClientDetailView-CFB5Ek7V.js             [39m[1m[2m    10.72 kB[22m[1m[22m[2m │ gzip:  3.47 kB[22m
+[2mdist/[22m[36massets/ListeMarchandises-CVbA-M7d.js            [39m[1m[2m    10.73 kB[22m[1m[22m[2m │ gzip:  3.58 kB[22m
+[2mdist/[22m[36massets/ModalConteneur-CCOTQMrY.js               [39m[1m[2m    12.27 kB[22m[1m[22m[2m │ gzip:  4.21 kB[22m
+[2mdist/[22m[36massets/DocumentsSection-CBE6tWSL.js             [39m[1m[2m    13.09 kB[22m[1m[22m[2m │ gzip:  4.65 kB[22m
+[2mdist/[22m[36massets/MvtDossierCreateView-fe9Ge3_0.js         [39m[1m[2m    13.85 kB[22m[1m[22m[2m │ gzip:  4.65 kB[22m
+[2mdist/[22m[36massets/HistoriqueListView-DgO2PFiA.js           [39m[1m[2m    14.49 kB[22m[1m[22m[2m │ gzip:  4.42 kB[22m
+[2mdist/[22m[36massets/DossierCreateView-C011P0Yz.js            [39m[1m[2m    15.34 kB[22m[1m[22m[2m │ gzip:  4.88 kB[22m
+[2mdist/[22m[36massets/DemandeInteragenceListView-CePEnaOD.js   [39m[1m[2m    15.42 kB[22m[1m[22m[2m │ gzip:  4.74 kB[22m
+[2mdist/[22m[36massets/DossierDetailView-BdqPw483.js            [39m[1m[2m    18.55 kB[22m[1m[22m[2m │ gzip:  6.17 kB[22m
+[2mdist/[22m[36massets/OrdreTransitWizardView-rjGcOPDx.js       [39m[1m[2m    20.79 kB[22m[1m[22m[2m │ gzip:  5.10 kB[22m
+[2mdist/[22m[36massets/AdminView-CMMecLRD.js                    [39m[1m[2m    36.24 kB[22m[1m[22m[2m │ gzip: 10.06 kB[22m
+[2mdist/[22m[36massets/index-Bl-rBIbU.js                        [39m[1m[2m   266.08 kB[22m[1m[22m[2m │ gzip: 93.09 kB[22m
+[32m✓ built in 6.95s[39m

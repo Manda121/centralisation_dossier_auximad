@@ -106,6 +106,18 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/mouvements-dossier',
+      name: 'mouvements-dossier',
+      component: () => import('../views/MvtDossierListView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/mouvements-dossier/creer',
+      name: 'mouvement-dossier-creer',
+      component: () => import('../views/MvtDossierCreateView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/admin',
       name: 'admin',
       component: () => import('../views/AdminView.vue'),
