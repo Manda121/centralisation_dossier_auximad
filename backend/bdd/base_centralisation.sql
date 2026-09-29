@@ -520,6 +520,12 @@ CREATE TABLE declaration(
     date_ajout TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE document_mvt(
+    id SERIAL PRIMARY KEY,
+    id_mvt_dossier INTEGER  REFERENCES mvt_dossier(id),
+    id_document INTEGER  REFERENCES document(id)
+);
+
 CREATE TABLE suspension_connexion(
     id SERIAL PRIMARY KEY,
     id_utilisateur INTEGER  UNIQUE REFERENCES utilisateur(id),
@@ -628,6 +634,9 @@ CREATE INDEX idx_declaration_dossier ON declaration(id_dossier);
 CREATE INDEX idx_declaration_bureau ON declaration(id_bureau);
 CREATE INDEX idx_declaration_type_declaration ON declaration(id_type_declaration);
 CREATE INDEX idx_declaration_document ON declaration(id_document);
+
+CREATE INDEX idx_document_mvt_mvt ON document_mvt(id_mvt_dossier);
+CREATE INDEX idx_document_mvt_doc ON document_mvt(id_document);
 
 -- Index pour 
 CREATE INDEX idx_historique_utilisateur ON historique(id_utilisateur);

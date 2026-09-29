@@ -154,9 +154,13 @@ public class DocumentService {
         TypeDocument typeDocument = typeDocumentRepository.findById(typeDocumentId)
                 .orElseThrow(() -> new IllegalArgumentException("Type de document introuvable : " + typeDocumentId));
 
-        // Chercher un document existant actif du même type pour ce dossier
-        Optional<Document> existant = documentRepository.findByDossierIdAndTypeDocumentIdAndEstActifTrue(dossierId, typeDocumentId);
-        Document doc = existant.orElseGet(Document::new);
+        Document doc;
+        if (Integer.valueOf(1).equals(typeDocumentId) || Integer.valueOf(2).equals(typeDocumentId)) {
+            doc = new Document();
+        } else {
+            Optional<Document> existant = documentRepository.findByDossierIdAndTypeDocumentIdAndEstActifTrue(dossierId, typeDocumentId);
+            doc = existant.orElseGet(Document::new);
+        }
 
         doc.setDossier(dossier);
         doc.setTypeDocument(typeDocument);
