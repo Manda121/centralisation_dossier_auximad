@@ -28,3 +28,13 @@ changement destination de l expedition: ajouter un id ordre de transit dans l ex
 22/09/2026
 inserer un type_document attachement pour les document les mvt_dossiers et les declarations
     INSERT INTO type_document id = 1 mvt ou decl
+
+
+
+30/09/2026
+enlever le voir declaration de l'operation declaration, seulement sur le depot de declaration.
+et il faudrait valider le depot de declaraiton, on ajoute la date si il est valider, ou si on valide directement la date sera la date du validation
+
+ajout d'un menu declaration pour les autre type de delcaration.
+
+verification operation dossier a chaque action
