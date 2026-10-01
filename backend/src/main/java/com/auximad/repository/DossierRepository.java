@@ -19,6 +19,8 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
 
     Optional<Dossier> findByOrdreTransitIdAndAgenceId(Integer ordreTransitId, Integer agenceId);
 
+    Optional<Dossier> findByNumeroDossier(String numeroDossier);
+
     /**
      * Chronologie max (4 derniers chiffres) des numéros au format *-NNNN
      */
@@ -129,5 +131,65 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
         LIMIT 50
         """, nativeQuery = true)
     List<Dossier> findDossiersSansDocumentsComplets(@Param("agenceId") Integer agenceId);
+
+    // ─────────── Agrégats pour le RAG (tableau de bord, statistiques) ───────────
+
+    /**
+     * Répartition des dossiers par phase.
+     * @return couples [nom de la phase, nombre de dossiers]
+     */
+    @Query(value = """
+        SELECT COALESCE(ph.nom, '(sans phase)'), COUNT(*)
+        FROM dossier d
+        LEFT JOIN phase_dossier ph ON d.id_phase = ph.id
+        WHERE (:agenceId IS NULL OR d.id_agence = :agenceId)
+        GROUP BY ph.nom
+        ORDER BY COUNT(*) DESC
+        """, nativeQuery = true)
+    List<Object[]> compterDossiersParPhase(@Param("agenceId") Integer agenceId);
+
+    /** Répartition des dossiers par statut. */
+    @Query(value = """
+        SELECT COALESCE(sd.nom, '(sans statut)'), COUNT(*)
+        FROM dossier d
+        LEFT JOIN statut_dossier sd ON d.id_statut = sd.id
+        WHERE (:agenceId IS NULL OR d.id_agence = :agenceId)
+        GROUP BY sd.nom
+        ORDER BY COUNT(*) DESC
+        """, nativeQuery = true)
+    List<Object[]> compterDossiersParStatut(@Param("agenceId") Integer agenceId);
+
+    /** Répartition des dossiers par agence. */
+    @Query(value = """
+        SELECT a.nom, COUNT(*)
+        FROM dossier d
+        JOIN agence a ON d.id_agence = a.id
+        GROUP BY a.nom
+        ORDER BY COUNT(*) DESC
+        """, nativeQuery = true)
+    List<Object[]> compterDossiersParAgence();
+
+    /** Nombre de dossiers créés depuis une date (format ISO 'yyyy-MM-dd HH:mm:ss'). */
+    @Query(value = """
+        SELECT COUNT(*) FROM dossier d
+        WHERE (:agenceId IS NULL OR d.id_agence = :agenceId)
+          AND d.date_creation >= CAST(:debut AS TIMESTAMPTZ)
+        """, nativeQuery = true)
+    long compterDossiersDepuis(@Param("agenceId") Integer agenceId, @Param("debut") String debut);
+
+    /** Nombre de dossiers dont un document obligatoire manque encore. */
+    @Query(value = """
+        SELECT COUNT(*) FROM (
+            SELECT DISTINCT d.id FROM dossier d
+            JOIN type_production tp ON d.id_type_production = tp.id
+            JOIN type_document td ON td.id_type_production = tp.id AND td.est_obligatoire = true
+            WHERE (:agenceId IS NULL OR d.id_agence = :agenceId)
+              AND NOT EXISTS (
+                SELECT 1 FROM document doc
+                WHERE doc.id_dossier = d.id AND doc.id_type_document = td.id AND doc.est_actif = true
+              )
+        ) manquants
+        """, nativeQuery = true)
+    long compterDossiersIncomplets(@Param("agenceId") Integer agenceId);
 
 }

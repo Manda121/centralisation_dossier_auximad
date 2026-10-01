@@ -104,14 +104,27 @@
         Mouvement Dossier
       </router-link>
 
-      <router-link to="/historiques" class="sidebar__nav-link" active-class="sidebar__nav-link--active">
+<router-link to="/historiques" class="sidebar__nav-link" active-class="sidebar__nav-link--active">
         <svg viewBox="0 0 16 16" fill="currentColor" class="sidebar__icon">
           <path
-            d="M8.515 1.019A7 7 0 0 0 8 4c-.335 0-.66.026-.98.075a6.993 6.993 0 0 1-.497-3.077A7 7 0 0 0 2.49 4.743a7 7 0 0 0-.497 3.34c-.02-.02-.038-.04-.056-.06A7 7 0 1 0 8.515 1.02zM8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0-14.5A7 7 0 0 0 1.5 8c0 .42.037.83.108 1.229.107-.466.27-.91.483-1.325A6.49 6.49 0 0 1 8 1.5z" />
-          <path d="M8.5 4.5a.5.5 0 0 0-1 0v3.25a.5.5 0 0 0 .354.354l2.25.75a.5.5 0 0 0 .292-.958L8.5 7.42z" />
+            d="M8.515 1.019A7 7 0 0 0 8 4c-.335 0-.66.026-.98.075a6.993 6.993 0 0 1-.497-3.077A7 7 0 0 0 2.49 4.743a7 7 0 0 1-.497 3.34c-.02-.02-.038-.04-.056-.06A7 7 0 1 0 8.515 1.02zM8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0-14.5A7 7 0 0 0 1.5 8c0 .42.037.83.108 1.229.107-.466.27-.91.483-1.325A6.49 6.49 0 0 1 8 1.5z" />
+          <path d="M8.5 4.5a.5.5 0 0 0-1 0v3.25l2.25.75a.5.5 0 0 0 .292-.958L8.5 7.42z" />
         </svg>
         Historiques
       </router-link>
+
+      <!-- Assistant conversationnel : accessible depuis toutes les pages -->
+      <!-- <button type="button" class="sidebar__nav-link sidebar__chat-btn"
+        :class="{ 'sidebar__nav-link--active': chatOuvert }" @click="basculerChat">
+        <svg viewBox="0 0 16 16" fill="currentColor" class="sidebar__icon">
+          <path
+            d="M8 15c-3.87 0-7-2.24-7-5 0-.76.2-1.48.56-2.14A5.01 5.01 0 0 1 1 6a5.5 5.5 0 0 1 2.24-4.24A5.5 5.5 0 0 1 7 1a5.5 5.5 0 0 1 3.76.76A5.5 5.5 0 0 1 13 6c0 1.24-.44 2.4-1.2 3.34l.2.02A4.98 4.98 0 0 1 14 10c0 2.76-3.13 5-7 5m0-1c3.31 0 6-1.79 6-4 0-1.27-.68-2.44-1.8-3.25l-.66-.48-.4.7A4.6 4.6 0 0 1 8.9 8v.5a4.5 4.5 0 0 1-4 4c-.45 0-.9-.05-1.32-.15l-.55-.13.2.53c.9.02 1.82.06 2.77.06z" />
+          <circle cx="5" cy="6" r=".9" />
+          <circle cx="8" cy="6" r=".9" />
+          <circle cx="11" cy="6" r=".9" />
+        </svg>
+        Assistant
+      </button> -->
 
       <!-- Menu Administration : visible uniquement si niveau = 10000 -->
       <template v-if="isAdmin">
@@ -156,6 +169,9 @@
       </button>
     </div>
   </aside>
+
+  <!-- Widget de l'assistant : monté ici car la sidebar est présente sur toutes les pages -->
+  <ChatWidget v-if="isLoggedIn" ref="chatWidget" @ouvrir="chatOuvert = true" @fermer="chatOuvert = false" />
 </template>
 
 <script setup>
@@ -165,6 +181,7 @@ import UtilisateurService from '../../services/UtilisateurService'
 import DemandeInteragenceService from '../../services/DemandeInteragenceService'
 import HistoriqueService from '../../services/HistoriqueService'
 import DocumentService from '../../services/DocumentService'
+import ChatWidget from './ChatWidget.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -172,6 +189,8 @@ const utilisateur = ref(null)
 const dossiersExpanded = ref(false)
 const demandesBadge = ref(0)
 const documentsBadge = ref(0)
+const chatWidget = ref(null)
+const chatOuvert = ref(false)
 let timer = null
 
 const isLoggedIn = computed(() => UtilisateurService.estConnecte())
@@ -212,6 +231,15 @@ const chargerBadges = async () => {
 
 const toggleDossiers = () => {
   dossiersExpanded.value = !dossiersExpanded.value
+}
+
+/** Ouvre ou ferme le panneau de l'assistant. */
+const basculerChat = () => {
+  if (chatOuvert.value) {
+    chatWidget.value?.fermer()
+  } else {
+    chatWidget.value?.ouvrir()
+  }
 }
 
 const isDossierActive = computed(() => {
@@ -363,6 +391,16 @@ const handleLogout = async () => {
   height: 18px;
   flex-shrink: 0;
   opacity: 0.7;
+}
+
+/* Le bouton Assistant est un <button>, on neutralise le rendu natif */
+.sidebar__chat-btn {
+  width: 100%;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  background: transparent;
+  border: none;
 }
 
 .sidebar__chevron {
