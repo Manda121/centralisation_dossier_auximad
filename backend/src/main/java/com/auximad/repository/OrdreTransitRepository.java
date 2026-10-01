@@ -86,4 +86,15 @@ public interface OrdreTransitRepository extends JpaRepository<OrdreTransit, Inte
 
     @Query("SELECT coalesce(max(ot.numeroOrdreTransit), 10000) FROM OrdreTransit ot")
     Integer findMaxNumeroOrdreTransit();
+
+    /**
+     * Nombre d'ordres de transit rattachés à un client, tous rôles confondus
+     * (donneur d'ordre, expediteur, destinataire). Utilisé avant une suppression
+     * de fiche client pour refuser une opération qui violerait une clé étrangère.
+     */
+    @Query("SELECT count(ot) FROM OrdreTransit ot "
+            + "WHERE ot.client.id = :clientId "
+            + "   OR ot.expediteur.id = :clientId "
+            + "   OR ot.destinataire.id = :clientId")
+    long countByClientId(@Param("clientId") Integer clientId);
 }
