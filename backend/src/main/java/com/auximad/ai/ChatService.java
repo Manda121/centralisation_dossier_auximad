@@ -103,7 +103,8 @@ public class ChatService {
             // On mémorise l'état exact de la boucle pour la reprendre après décision.
             session.attente = new Attente(resultat.confirmation(), resultat.argumentsBloquants(), List.copyOf(messages));
             return new ChatReponse(
-                    "Confirmez-vous cette opération ?",
+                    "Une confirmation est requise. Veuillez saisir votre identifiant d'utilisateur connecté (« "
+                            + contexte.nomUtilisateur() + " ») pour valider l'opération : " + resultat.confirmation().resume(),
                     sourcesDe(contexteRag),
                     resultat.confirmation(),
                     List.copyOf(outilsUtilises),
@@ -132,12 +133,10 @@ public class ChatService {
             return ChatReponse.simple("Cette demande de confirmation a expiré, reposez votre demande.");
         }
 
-        session.attente = null;
-
-        List<Map<String, Object>> messages = new ArrayList<>(attente.messages());
-        List<String> outilsUtilises = new ArrayList<>();
-
         if (!confirmation.estAccepte()) {
+            session.attente = null;
+            List<Map<String, Object>> messages = new ArrayList<>(attente.messages());
+            List<String> outilsUtilises = new ArrayList<>();
             messages.add(OllamaClient.messageOutil(attente.confirmation().outil(),
                     "L'utilisateur a refusé cette opération. N'insiste pas, confirme le refus et propose une alternative."));
             Boucle apresRefus;
@@ -149,12 +148,29 @@ public class ChatService {
             if (apresRefus.confirmation() != null) {
                 session.attente = new Attente(apresRefus.confirmation(), apresRefus.argumentsBloquants(),
                         List.copyOf(messages));
-                return new ChatReponse("Confirmez-vous cette opération ?", List.of(),
+                return new ChatReponse("Saisissez votre identifiant d'utilisateur connecté pour confirmer cette opération.", List.of(),
                         apresRefus.confirmation(), List.copyOf(outilsUtilises), null);
             }
             String reponse = reponseFinale(apresRefus.reponse());
             return new ChatReponse(reponse, List.of(), null, List.copyOf(outilsUtilises), null);
         }
+
+        // Vérification stricte de l'identifiant de l'utilisateur connecté
+        String identifiantAttendu = contexte.nomUtilisateur();
+        String identifiantSaisi = confirmation.identifiant() == null ? "" : confirmation.identifiant().trim();
+
+        if (identifiantSaisi.isEmpty() || !identifiantSaisi.equalsIgnoreCase(identifiantAttendu)) {
+            log.warn("Confirmation refusée : identifiant attendu='{}', saisi='{}'", identifiantAttendu, identifiantSaisi);
+            // Annulation de la demande en attente
+            session.attente = null;
+            return ChatReponse.erreur("Identifiant d'utilisateur incorrect (« " + (identifiantSaisi.isEmpty() ? "aucun" : identifiantSaisi)
+                    + " »). L'identifiant de l'utilisateur connecté (« " + identifiantAttendu + " ») était attendu. L'opération en base a été annulée.");
+        }
+
+        session.attente = null;
+
+        List<Map<String, Object>> messages = new ArrayList<>(attente.messages());
+        List<String> outilsUtilises = new ArrayList<>();
 
         // Validation : on contrôle de nouveau les droits, l'utilisateur a pu changer de profil.
         String resultat = executerOutil(attente.confirmation().outil(), attente.arguments(), contexte, outilsUtilises);
@@ -171,13 +187,11 @@ public class ChatService {
         }
         if (final_.confirmation() != null) {
             session.attente = new Attente(final_.confirmation(), final_.argumentsBloquants(), List.copyOf(messages));
-            return new ChatReponse("Confirmez-vous cette opération ?", List.of(),
+            return new ChatReponse("Saisissez votre identifiant d'utilisateur connecté pour confirmer cette opération.", List.of(),
                     final_.confirmation(), List.copyOf(outilsUtilises), null);
         }
 
         String reponse = reponseFinale(final_.reponse());
-        // L'exécution est déjà terminée : on n'affiche pas le résultat brut en avertissement
-        // (le frontend le rendrait en message d'erreur), le modèle le reformule pour l'utilisateur.
         return new ChatReponse(reponse, List.of(), null, List.copyOf(outilsUtilises), null);
     }
 
@@ -320,11 +334,9 @@ public class ChatService {
 
     private ChatReponse enAttente(Session session) {
         ChatReponse.Confirmation c = session.attente.confirmation();
-        String message = c.danger().equals("CRITIQUE")
-                ? "Opération critique en attente : " + c.resume()
-                + ". Confirmez-vous ? (répondez « confirmer » ou « annuler »)"
-                : "J'ai préparé l'opération suivante : " + c.resume()
-                + ". Confirmez-vous ? (répondez « confirmer » ou « annuler »)";
+        String message = "L'opération suivante modifie la base de données : " + c.resume()
+                + ". Veuillez saisir votre identifiant d'utilisateur connecté (« " + session.attente.confirmation().resume()
+                + " ») pour valider l'exécution en base.";
         return new ChatReponse(message, List.of(), c, List.of(), null);
     }
 
@@ -333,12 +345,12 @@ public class ChatService {
     private String promptSystem(ContexteChat contexte, ContexteRag contexteRag) {
         StringBuilder sb = new StringBuilder();
 
-        sb.append("Tu es l'assistant de l'application Auximad, logiciel de gestion des dossiers de transit ")
+        sb.append("Tu es l'assistant intelligent et proactif de l'application Auximad, logiciel de gestion des dossiers de transit ")
                 .append("et des ordres de transit douaniers.\n\n");
 
         sb.append("INTERLOCUTEUR\n")
                 .append("- Utilisateur : ").append(contexte.nomComplet())
-                .append(" (identifiant ").append(contexte.idUtilisateur()).append(")\n")
+                .append(" (identifiant d'utilisateur connecté : « ").append(contexte.nomUtilisateur()).append(" », ID: ").append(contexte.idUtilisateur()).append(")\n")
                 .append("- Rôle : ").append(contexte.role()).append('\n')
                 .append("- Agence : ").append(contexte.nomAgence()).append('\n')
                 .append("- Périmètre des données : ")
@@ -347,24 +359,24 @@ public class ChatService {
                         : "uniquement l'agence " + contexte.nomAgence() + ".")
                 .append("\n\n");
 
-        sb.append("RÈGLES\n")
-                .append("1. Réponds en français, de façon concise et factuelle (listes à puces quand c'est utile).\n")
+        sb.append("RÈGLES ET COMPORTEMENT DE L'ASSISTANT\n")
+                .append("1. Réponds en français, de façon concise, courtoise et structurée (avec listes à puces pour les étapes).\n")
                 .append("2. N'invente jamais un numéro, un nom, une date ou un montant : utilise les outils "
                         + "pour obtenir la donnée réelle. Si un outil ne renvoie rien, dis-le clairement.\n")
-                .append("3. Les chiffres du CONTEXTE ci-dessous sont l'état réel de la base à cet instant : "
-                        + "privilégie-les à toute approximation.\n")
+                .append("3. Les chiffres et données du CONTEXTE ci-dessous représentent l'état réel de la base à cet instant.\n")
                 .append("4. Appelle un outil dès que la réponse dépend de la base (statistiques, dossier, client, "
-                        + "ordre de transit, documents, historique, demandes inter-agences). N'en déduis pas "
-                        + "depuis le contexte seul quand un outil existe.\n")
-                .append("5. Une seule opération à la fois : si l'utilisateur demande deux actions, fais-les "
-                        + "séparément.\n")
-                .append("6. Une opération qui écrit dans la base n'est exécutée qu'après validation : tu dois "
-                        + "d'abord la préparer, l'outil te demandera confirmation, puis tu expliques le résultat "
-                        + "obtenu. Si l'utilisateur refuse, n'insiste pas.\n")
-                .append("7. Ne demande que les informations réellement manquantes, et une par une si elles sont "
-                        + "nombreuses.\n")
-                .append("8. Si l'utilisateur ne dispose pas des droits nécessaires, indique l'écran où il peut "
-                        + "effectuer l'opération lui-même.\n\n");
+                        + "ordre de transit, documents, historique, demandes inter-agences).\n")
+                .append("5. Une seule opération d'écriture à la fois.\n")
+                .append("6. SÉCURITÉ MODIFICATION BASE DE DONNÉES : Toutes les opérations de création, modification ou suppression "
+                        + "sont réellement exécutées en base après vérification de l'identifiant de l'utilisateur connecté (« "
+                        + contexte.nomUtilisateur() + " »). Lorsque tu demandes d'exécuter une action modifiant la base, "
+                        + "l'interface demandera la saisie de l'identifiant utilisateur.\n")
+                .append("7. RÔLE D'ASSISTANT ET WORKFLOWS OPÉRATIONNELS :\n")
+                .append("   - CRÉATION DE DOSSIER : 1. Rechercher/Créer le client -> 2. Créer ou associer l'Ordre de Transit -> 3. Créer le dossier avec nomenclature automatique -> 4. Assigner les documents obligatoires.\n")
+                .append("   - FINALISATION / CLÔTURE DE DOSSIER : 1. Obtenir le détail du dossier -> 2. Vérifier que les documents obligatoires sont tous remis (documents_du_dossier) -> 3. Effectuer la transition de phase jusqu'à livraison -> 4. Changer le statut à « Clôturé ».\n")
+                .append("   - ASSISTANCE GUIDÉE : Guide l'utilisateur pas-à-pas à chaque étape et propose d'exécuter les actions requises pour lui en base.\n")
+                .append("8. Ne demande que les informations réellement manquantes, et une par une si elles sont nombreuses.\n")
+                .append("9. Si l'utilisateur ne dispose pas des droits nécessaires, indique l'écran applicatif où effectuer l'action.\n\n");
 
         sb.append("OUTIL DISPONIBLES\n");
         for (OutilChat outil : registre.disponibles(contexte)) {

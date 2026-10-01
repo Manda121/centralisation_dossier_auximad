@@ -50,11 +50,10 @@
     <!-- ─────────── Messages ─────────── -->
     <div ref="zoneMessages" class="chat-panel__messages">
       <div v-if="messages.length === 0" class="chat-panel__intro">
-        <p class="chat-panel__intro-title">Que puis-je faire pour vous ?</p>
+        <p class="chat-panel__intro-title">Assistant Auximad</p>
         <p class="chat-panel__intro-text">
-          Je consulte les données réelles de l’application : dossiers, clients, ordres de transit, documents,
-          historique, demandes inter-agences. Toute opération modifiant la base vous sera d’abord présentée
-          pour confirmation.
+          Je consulte et gère vos dossiers, clients, ordres de transit, documents et demandes inter-agences.
+          Pour toute opération modifiant la base de données, la vérification de votre identifiant d'utilisateur connecté sera demandée.
         </p>
       </div>
 
@@ -72,22 +71,37 @@
         </div>
       </div>
 
-      <!-- ─────────── Carte de confirmation ─────────── -->
+      <!-- ─────────── Carte de confirmation par identifiant ─────────── -->
       <div v-if="confirmation" class="chat-confirm" :class="{ 'chat-confirm--critique': confirmation.danger === 'CRITIQUE' }">
         <div class="chat-confirm__head">
-          <span class="chat-confirm__badge">{{ confirmation.danger === 'CRITIQUE' ? 'Opération critique' : 'Confirmation requise' }}</span>
+          <span class="chat-confirm__badge">{{ confirmation.danger === 'CRITIQUE' ? 'Opération critique' : 'Modification base' }}</span>
           <span class="chat-confirm__outil">{{ confirmation.outil }}</span>
         </div>
         <p class="chat-confirm__resume">{{ confirmation.resume }}</p>
         <ul v-if="confirmation.details?.length" class="chat-confirm__details">
           <li v-for="(d, j) in confirmation.details" :key="j">{{ d }}</li>
         </ul>
+
+        <div class="chat-confirm__auth-form">
+          <label class="chat-confirm__label">
+            Entrez votre <strong>identifiant d'utilisateur connecté</strong> pour exécuter la modification :
+          </label>
+          <input
+            v-model="identifiantSaisi"
+            type="text"
+            class="chat-confirm__input"
+            :placeholder="'Identifiant (ex: ' + (nomUtilisateurConnected || 'admin') + ')'"
+            :disabled="enCours"
+            @keydown.enter.prevent="decider(true)"
+          />
+        </div>
+
         <div class="chat-confirm__actions">
           <button class="chat-confirm__btn chat-confirm__btn--cancel" type="button" :disabled="enCours" @click="decider(false)">
             Annuler
           </button>
-          <button class="chat-confirm__btn chat-confirm__btn--ok" type="button" :disabled="enCours" @click="decider(true)">
-            {{ confirmation.danger === 'CRITIQUE' ? 'Confirmer définitivement' : 'Confirmer' }}
+          <button class="chat-confirm__btn chat-confirm__btn--ok" type="button" :disabled="enCours || !identifiantSaisi.trim()" @click="decider(true)">
+            {{ confirmation.danger === 'CRITIQUE' ? 'Confirmer et exécuter' : 'Valider l\'opération' }}
           </button>
         </div>
       </div>
@@ -114,7 +128,7 @@
         v-model="brouillon"
         class="chat-panel__textarea"
         rows="1"
-        :placeholder="confirmation ? 'Confirmez ou annulez l’opération ci-dessus…' : 'Posez votre question…'"
+        :placeholder="confirmation ? 'Saisissez votre identifiant pour valider...' : 'Posez votre question...'"
         :disabled="enCours"
         @keydown.enter.exact.prevent="envoyer"
         @keydown.enter.shift.stop
@@ -129,10 +143,13 @@
 </template>
 
 <script setup>
-import { nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import ChatService from '../../services/ChatService'
 
 const emit = defineEmits(['ouvrir', 'fermer'])
+
+const STORAGE_KEY_MESSAGES = 'auximad_chat_messages'
+const STORAGE_KEY_CONFIRMATION = 'auximad_chat_confirmation'
 
 const ouvert = ref(false)
 const enCours = ref(false)
@@ -141,8 +158,50 @@ const avertissement = ref('')
 const brouillon = ref('')
 const suggestions = ref([])
 const confirmation = ref(null)
+const identifiantSaisi = ref('')
 const messages = ref([])
 const zoneMessages = ref(null)
+
+const nomUtilisateurConnected = computed(() => {
+  try {
+    const info = localStorage.getItem('auximad_user_info')
+    if (info) {
+      const parsed = JSON.parse(info)
+      return parsed.nomUtilisateur || parsed.nomComplet || ''
+    }
+  } catch (e) {
+    // ignorer
+  }
+  return ''
+})
+
+function sauvegarderSessionChat() {
+  try {
+    sessionStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify(messages.value))
+    if (confirmation.value) {
+      sessionStorage.setItem(STORAGE_KEY_CONFIRMATION, JSON.stringify(confirmation.value))
+    } else {
+      sessionStorage.removeItem(STORAGE_KEY_CONFIRMATION)
+    }
+  } catch (e) {
+    console.error("Erreur de sauvegarde de session du chat", e)
+  }
+}
+
+function restaurerSessionChat() {
+  try {
+    const savedMsg = sessionStorage.getItem(STORAGE_KEY_MESSAGES)
+    if (savedMsg) {
+      messages.value = JSON.parse(savedMsg)
+    }
+    const savedConfirm = sessionStorage.getItem(STORAGE_KEY_CONFIRMATION)
+    if (savedConfirm) {
+      confirmation.value = JSON.parse(savedConfirm)
+    }
+  } catch (e) {
+    console.error("Erreur de restauration de session du chat", e)
+  }
+}
 
 /** Ouvre le panneau et charge les suggestions au premier usage. */
 async function ouvrir() {
@@ -170,6 +229,7 @@ function ajouter(role, texte, data = {}) {
     sources: data.sources || [],
     outils: data.outilsUtilises || []
   })
+  sauvegarderSessionChat()
   faireDefiler()
 }
 
@@ -183,6 +243,7 @@ async function faireDefiler() {
 /** Applique la réponse du backend : texte, sources, outils et éventuelle confirmation. */
 function appliquerReponse(reponse) {
   confirmation.value = reponse.confirmation || null
+  sauvegarderSessionChat()
   if (reponse.confirmation) {
     avertissement.value = ''
     return
@@ -212,6 +273,12 @@ async function envoyer() {
 }
 
 async function envoyerTexte(texte) {
+  if (confirmation.value) {
+    // Si une confirmation est en attente, le texte saisi sert d'identifiant d'utilisateur
+    identifiantSaisi.value = texte
+    await decider(true)
+    return
+  }
   ajouter('user', texte)
   enCours.value = true
   try {
@@ -227,14 +294,21 @@ async function envoyerTexte(texte) {
 
 async function decider(accepte) {
   if (enCours.value || !confirmation.value) return
+  if (accepte && !identifiantSaisi.value.trim()) {
+    avertissement.value = "Veuillez saisir votre identifiant d'utilisateur connecté pour valider cette modification en base."
+    return
+  }
   const enCoursId = confirmation.value.id
+  const ident = identifiantSaisi.value.trim()
   enCours.value = true
   try {
-    const reponse = await ChatService.confirmer(enCoursId, accepte)
+    const reponse = await ChatService.confirmer(enCoursId, accepte, ident)
+    identifiantSaisi.value = ''
     appliquerReponse(reponse)
   } catch (e) {
     avertissement.value = ChatService.messageErreur(e)
     confirmation.value = null
+    sauvegarderSessionChat()
   } finally {
     enCours.value = false
     faireDefiler()
@@ -250,7 +324,10 @@ async function nouvelleConversation() {
   }
   messages.value = []
   confirmation.value = null
+  identifiantSaisi.value = ''
   avertissement.value = ''
+  sessionStorage.removeItem(STORAGE_KEY_MESSAGES)
+  sessionStorage.removeItem(STORAGE_KEY_CONFIRMATION)
   try {
     suggestions.value = await ChatService.getSuggestions()
   } catch (e) {
@@ -259,11 +336,11 @@ async function nouvelleConversation() {
 }
 
 onMounted(async () => {
-  // L'état du modèle est interrogé une fois pour signaler proprement une indisponibilité.
+  restaurerSessionChat()
   try {
     const etat = await ChatService.getEtat()
     disponible.value = etat?.disponible !== false
-    if (!disponible) {
+    if (!disponible.value) {
       avertissement.value =
         "Le modèle Ollama est injoignable. Lancez « ollama serve » puis « ollama pull qwen2.5:3b »."
     }
@@ -599,6 +676,38 @@ defineExpose({ ouvrir, fermer })
   padding-left: 16px;
   font-size: 0.75rem;
   color: var(--cw-text-muted);
+}
+
+.chat-confirm__auth-form {
+  margin: 8px 0 10px;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.chat-confirm__label {
+  display: block;
+  font-size: 0.76rem;
+  color: var(--cw-text);
+  margin-bottom: 6px;
+}
+
+.chat-confirm__input {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  border: 1px solid var(--cw-border);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--cw-text);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.chat-confirm__input:focus {
+  border-color: var(--cw-primary);
+  box-shadow: 0 0 0 2px rgba(59, 106, 156, 0.15);
 }
 
 .chat-confirm__actions {

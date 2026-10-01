@@ -130,11 +130,30 @@ public final class BaseConnaissance {
                             + "un client ou un montant. Pour répondre, il utilise des outils (recherche de dossiers, "
                             + "de clients, d'ordres de transit, consultation des documents, de l'historique, "
                             + "tableaux de bord…) et n'affirme que ce que ces outils lui ont retourné. "
-                            + "Toute opération qui écrit dans la base (changement de phase, remise de document, "
-                            + "réponse à une demande d'inter-agence, suppression…) n'est jamais exécutée sans votre "
-                            + "confirmation explicite. Si vous n'avez pas les droits nécessaires, l'assistant vous "
-                            + "le dira et vous orientera vers l'écran correspondant.",
-                    "assistant chatbot question outil reponse donnees reelle confirmation ecriture")
+                            + "Pour toute opération modifiant la base (création, changement de phase, remise de document, "
+                            + "réponse à une demande d'inter-agence, suppression…), l'assistant demande la vérification "
+                            + "de votre identifiant d'utilisateur connecté.",
+                    "assistant chatbot question outil reponse donnees reelle confirmation ecriture identifiant"),
+
+            new Fragment("workflow-creation-dossier",
+                    "Procédure et étapes de création d'un dossier",
+                    "Pour créer un dossier de transit dans Auximad, les étapes sont : "
+                            + "1. Rechercher ou créer le client (Recherche clients / Créer client). "
+                            + "2. Préparer ou associer un Ordre de Transit (OT) au client (Validation OT). "
+                            + "3. Créer le dossier via l'assistant (Type de production, Agence, Client, Incoterm, etc.). "
+                            + "   Le numéro de dossier unique est automatiquement généré selon la nomenclature. "
+                            + "4. Assigner et joindre les documents obligatoires (documents_du_dossier / assigner_documents_dossier). "
+                            + "5. Effectuer le premier mouvement de dossier.",
+                    "etape etapes creer creation dossier procedure processus assistant ordre transit client document"),
+
+            new Fragment("workflow-finalisation-dossier",
+                    "Procédure et étapes de finalisation / clôture d'un dossier",
+                    "Pour finaliser et clôturer un dossier dans Auximad, les étapes sont : "
+                            + "1. Obtenir les détails du dossier (obtenir_dossier). "
+                            + "2. Vérifier la complétude documentaire : s'assurer que tous les documents obligatoires sont remis (documents_du_dossier). "
+                            + "3. Faire progresser la phase du dossier à travers le workflow (transit, douane, livraison) via changer_phase_dossier. "
+                            + "4. Une fois la livraison effectuée et les documents complétés, modifier le statut du dossier à « Clôturé » via changer_statut_dossier.",
+                    "etape etapes finaliser finalisation cloturer cloture achever terminer dossier document obligatoire phase statut")
     );
 
     public static List<Fragment> tous() {

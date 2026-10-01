@@ -22,9 +22,9 @@ class ChatService {
         return res.data
     }
 
-    /** Valide (accepte = true) ou refuse une opération mise en attente. */
-    async confirmer(id, accepte) {
-        const res = await axios.post(`${API_URL}/confirmation`, { id, accepte }, { headers: authHeader() })
+    /** Valide (accepte = true) en transmettant l'identifiant d'utilisateur ou refuse une opération mise en attente. */
+    async confirmer(id, accepte, identifiant = '') {
+        const res = await axios.post(`${API_URL}/confirmation`, { id, accepte, identifiant }, { headers: authHeader() })
         return res.data
     }
 

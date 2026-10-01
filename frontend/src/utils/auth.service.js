@@ -65,6 +65,8 @@ class AuthService {
     logout() {
         localStorage.removeItem('auximad_token')
         localStorage.removeItem('auximad_user_info')
+        sessionStorage.removeItem('auximad_chat_messages')
+        sessionStorage.removeItem('auximad_chat_confirmation')
     }
 
     getToken() {
