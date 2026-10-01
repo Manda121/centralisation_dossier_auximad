@@ -114,7 +114,7 @@
       </router-link>
 
       <!-- Assistant conversationnel : accessible depuis toutes les pages -->
-      <button type="button" class="sidebar__nav-link sidebar__chat-btn"
+      <!-- <button type="button" class="sidebar__nav-link sidebar__chat-btn"
         :class="{ 'sidebar__nav-link--active': chatOuvert }" @click="basculerChat">
         <svg viewBox="0 0 16 16" fill="currentColor" class="sidebar__icon">
           <path
@@ -124,7 +124,7 @@
           <circle cx="11" cy="6" r=".9" />
         </svg>
         Assistant
-      </button>
+      </button> -->
 
       <!-- Menu Administration : visible uniquement si niveau = 10000 -->
       <template v-if="isAdmin">
