@@ -366,11 +366,9 @@ public class ChatService {
                 .append("3. Les chiffres et données du CONTEXTE ci-dessous représentent l'état réel de la base à cet instant.\n")
                 .append("4. Appelle un outil dès que la réponse dépend de la base (statistiques, dossier, client, "
                         + "ordre de transit, documents, historique, demandes inter-agences).\n")
-                .append("5. Une seule opération d'écriture à la fois.\n")
-                .append("6. SÉCURITÉ MODIFICATION BASE DE DONNÉES : Toutes les opérations de création, modification ou suppression "
-                        + "sont réellement exécutées en base après vérification de l'identifiant de l'utilisateur connecté (« "
-                        + contexte.nomUtilisateur() + " »). Lorsque tu demandes d'exécuter une action modifiant la base, "
-                        + "l'interface demandera la saisie de l'identifiant utilisateur.\n")
+                .append("5. APPEL D'OUTIL IMMÉDIAT POUR CRÉATION / MODIFICATION : Quand l'utilisateur demande de créer, modifier ou supprimer un élément (ex: « créer un client », « oui crée-le », « changer la phase »), tu DOIS IMMÉDIATEMENT émettre l'appel d'outil correspondant (ex: creer_client). NE RÉPONDS PAS par un texte sans appel d'outil !\n")
+                .append("6. SÉCURITÉ ET VALIDATION : L'application interceptera automatiquement l'appel d'outil émis et demandera la vérification de l'identifiant d'utilisateur connecté (« "
+                        + contexte.nomUtilisateur() + " ») pour valider la création en base.\n")
                 .append("7. RÔLE D'ASSISTANT ET WORKFLOWS OPÉRATIONNELS :\n")
                 .append("   - CRÉATION DE DOSSIER : 1. Rechercher/Créer le client -> 2. Créer ou associer l'Ordre de Transit -> 3. Créer le dossier avec nomenclature automatique -> 4. Assigner les documents obligatoires.\n")
                 .append("   - FINALISATION / CLÔTURE DE DOSSIER : 1. Obtenir le détail du dossier -> 2. Vérifier que les documents obligatoires sont tous remis (documents_du_dossier) -> 3. Effectuer la transition de phase jusqu'à livraison -> 4. Changer le statut à « Clôturé ».\n")
