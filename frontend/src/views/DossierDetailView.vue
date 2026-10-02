@@ -106,13 +106,12 @@ function ouvrirModalConteneur(c = null) {
 }
 
 async function supprimerConteneur(cId) {
-    if (confirm("Supprimer cette assignation de conteneur ?")) {
-        try {
-            await ConteneurService.supprimerConteneur(cId)
-            await chargerConteneurs()
-        } catch (e) {
-            alert(e.response?.data?.message || "Erreur de suppression du conteneur")
-        }
+    try {
+        await ConteneurService.supprimerConteneur(cId, dossier.value.id)
+        await chargerConteneurs()
+    } catch (e) {
+        if (e?.code === 'ERR_CANCELED') return
+        alert(e.response?.data?.message || 'Erreur de suppression du conteneur')
     }
 }
 onMounted(async () => {
@@ -196,16 +195,16 @@ async function envoyerDemande() {
 }
 
 async function supprimerDossier() {
-    if (confirm("Supprimer définitivement ce dossier ?")) {
-        loading.value = true
-        try {
-            await DossierService.deleteDossier(dossier.value.id)
-            alert("Dossier supprimé.")
-            router.push('/dossiers')
-        } catch (e) {
-            alert("Erreur lors de la suppression.")
-            loading.value = false
-        }
+    loading.value = true
+    try {
+        await DossierService.deleteDossier(dossier.value.id)
+        alert('Dossier supprimé.')
+        router.push('/dossiers')
+    } catch (e) {
+        if (e?.code === 'ERR_CANCELED') return
+        alert(e.response?.data?.message || 'Erreur lors de la suppression.')
+    } finally {
+        loading.value = false
     }
 }
 

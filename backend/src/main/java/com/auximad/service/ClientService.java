@@ -20,6 +20,8 @@ import java.util.Optional;
 @Service
 public class ClientService {
 
+    private final SuppressionService suppressionService;
+
     /**
      * Colonnes de tri autorisées (requête native sur la table clients).
      * Les clés sont les propriétés envoyées par le front, les valeurs les colonnes SQL.
@@ -45,7 +47,8 @@ public class ClientService {
 
     public ClientService(ClientRepository clientRepository,
                          PaysRepository paysRepository,
-                         TypeClientRepository typeClientRepository) {
+                         TypeClientRepository typeClientRepository, SuppressionService suppressionService) {
+        this.suppressionService = suppressionService;
         this.clientRepository = clientRepository;
         this.paysRepository = paysRepository;
         this.typeClientRepository = typeClientRepository;
@@ -117,10 +120,7 @@ public class ClientService {
 
     @Transactional
     public void deleteClient(Integer id) {
-        if (!clientRepository.existsById(id)) {
-            throw new IllegalArgumentException("Client introuvable avec l'id : " + id);
-        }
-        clientRepository.deleteById(id);
+        suppressionService.supprimer("clients", id);
     }
 
     @Transactional(readOnly = true)

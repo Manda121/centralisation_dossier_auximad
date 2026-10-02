@@ -64,16 +64,16 @@ async function validerOT() {
 }
 
 async function supprimerOT() {
-    if (confirm("Supprimer définitivement cet ordre de transit ? Les contrats et instructions liés seront éliminés.")) {
-        loading.value = true
-        try {
-            await OrdreTransitService.deleteOrdreTransit(otModel.value.id)
-            alert("Ordre de transit supprimé avec succès.")
-            router.push('/ordres-transit')
-        } catch (e) {
-            alert("Impossible de supprimer cet ordre de transit.")
-            loading.value = false
-        }
+    loading.value = true
+    try {
+        await OrdreTransitService.deleteOrdreTransit(otModel.value.id)
+        alert('Ordre de transit supprimé. Les dossiers liés ont été clôturés.')
+        router.push('/ordres-transit')
+    } catch (e) {
+        if (e?.code === 'ERR_CANCELED') return
+        alert(e.response?.data?.message || 'Impossible de supprimer cet ordre de transit.')
+    } finally {
+        loading.value = false
     }
 }
 

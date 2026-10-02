@@ -19,6 +19,8 @@ import java.util.UUID;
 @Service
 public class DocumentService {
 
+    private final SuppressionService suppressionService;
+
     private final DocumentRepository documentRepository;
     private final TypeDocumentRepository typeDocumentRepository;
     private final DossierRepository dossierRepository;
@@ -30,7 +32,8 @@ public class DocumentService {
     public DocumentService(DocumentRepository documentRepository,
                            TypeDocumentRepository typeDocumentRepository,
                            DossierRepository dossierRepository,
-                           RemiseRepository remiseRepository) {
+                           RemiseRepository remiseRepository, SuppressionService suppressionService) {
+        this.suppressionService = suppressionService;
         this.documentRepository = documentRepository;
         this.typeDocumentRepository = typeDocumentRepository;
         this.dossierRepository = dossierRepository;
@@ -295,6 +298,6 @@ public class DocumentService {
     /** Supprime définitivement un document */
     @Transactional
     public void deleteDocument(Integer id) {
-        documentRepository.deleteById(id);
+        suppressionService.supprimer("document", id);
     }
 }

@@ -123,16 +123,16 @@ function annulerModifications() {
 }
 
 async function supprimerClient() {
-    if (confirm("Êtes-vous sûr de vouloir supprimer ce client définitivement ?")) {
-        loading.value = true
-        try {
-            await ClientService.deleteClient(clientModel.value.id)
-            alert('Client supprimé avec succès.')
-            router.push('/clients')
-        } catch (e) {
-            alert('Erreur lors de la suppression du client. Il est probablement associé à des Ordres de Transit.')
-            loading.value = false
-        }
+    loading.value = true
+    try {
+        await ClientService.deleteClient(clientModel.value.id)
+        alert('Client supprimé avec succès.')
+        router.push('/clients')
+    } catch (e) {
+        if (e?.code === 'ERR_CANCELED') return
+        alert(e.response?.data?.message || 'Erreur lors de la suppression du client.')
+    } finally {
+        loading.value = false
     }
 }
 </script>

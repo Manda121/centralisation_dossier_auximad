@@ -1,3 +1,4 @@
+import { requeteSuppression } from './SuppressionService'
 /**
  * AdminService.js
  * Service pour les API d'administration (niveau autorisation = 10000)
@@ -33,7 +34,7 @@ async function modifier(endpoint, id, data) {
 }
 
 async function supprimer(endpoint, id) {
-    const r = await api.delete(`/${endpoint}/${id}`)
+    const r = await requeteSuppression(api, { method: 'delete', url: `/${endpoint}/${id}` })
     return r.data
 }
 
@@ -183,7 +184,7 @@ const AdminService = {
         creer: (data) => creer('operations-dossier', data),
         modifier: (id, data) => modifier('operations-dossier', id, data),
         supprimer: (id) => supprimer('operations-dossier', id),
-        supprimerBatch: (ids) => api.post('/operations-dossier/batch-delete', ids).then(r => r.data),
+        supprimerBatch: (ids) => requeteSuppression(api, { method: 'post', url: '/operations-dossier/batch-delete', data: ids }).then(r => r.data),
         reordonner: (ids) => api.put('/operations-dossier/reorder', ids).then(r => r.data),
     },
 }

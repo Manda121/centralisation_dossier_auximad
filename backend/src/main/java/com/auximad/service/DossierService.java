@@ -22,6 +22,8 @@ import java.util.Optional;
 @Service
 public class DossierService {
 
+    private final SuppressionService suppressionService;
+
     /**
      * Colonnes de tri autorisées pour la recherche native des dossiers.
      * Les clés sont les propriétés envoyées par le front, les valeurs sont les colonnes SQL
@@ -63,7 +65,8 @@ public class DossierService {
                           DossierInteragenceRepository interagenceRepository,
                           DocumentRepository documentRepository,
                           RemiseRepository remiseRepository,
-                          DemandeInteragenceRepository demandeInteragenceRepository, OrdreTransitService ordreTransitService) {
+                          DemandeInteragenceRepository demandeInteragenceRepository, OrdreTransitService ordreTransitService, SuppressionService suppressionService) {
+        this.suppressionService = suppressionService;
         this.ordreTransitService = ordreTransitService;
         this.dossierRepository = dossierRepository;
         this.phaseDossierRepository = phaseDossierRepository;
@@ -240,36 +243,7 @@ public class DossierService {
 
     @Transactional
     public void deleteDossier(Integer id) {
-        if (id == null) {
-            throw new IllegalArgumentException("L'ID du dossier ne peut pas être null");
-        }
-
-        // Vérifier que le dossier existe
-        Dossier dossier = dossierRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Dossier avec l'ID " + id + " non trouvé"));
-
-        // Supprimer les dépendances en cascade
-        // Cet ordre est important pour respecter les contraintes de clés étrangères
-        
-        // 1. Supprimer les demandes d'inter-agence
-        demandeInteragenceRepository.deleteByDossierId(id);
-        
-        // 2. Supprimer les liens de dossier inter-agence (dossier_interagence)
-        // Supprimer d'abord en tant que sous-dossier
-        interagenceRepository.findBySousDossierId(id).ifPresent(interagenceRepository::delete);
-        
-        // Puis en tant que dossier mère
-        List<DossierInteragence> interagenceLinksAsParent = interagenceRepository.findByDossierMereId(id);
-        interagenceLinksAsParent.forEach(interagenceRepository::delete);
-        
-        // 3. Supprimer les remises associées
-        remiseRepository.deleteByDossierId(id);
-        
-        // 4. Supprimer les documents associés
-        documentRepository.deleteByDossierId(id);
-        
-        // 5. Enfin, supprimer le dossier lui-même
-        dossierRepository.deleteById(id);
+        suppressionService.supprimer("dossier", id);
     }
 
     // Référentiels

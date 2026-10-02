@@ -17,13 +17,16 @@ import java.util.Optional;
 @Transactional
 public class ConteneurService {
 
+    private final SuppressionService suppressionService;
+
     private final ConteneurRepository conteneurRepository;
     private final TypeContainerRepository typeContainerRepository;
     private final DossierRepository dossierRepository;
 
     public ConteneurService(ConteneurRepository conteneurRepository,
                             TypeContainerRepository typeContainerRepository,
-                            DossierRepository dossierRepository) {
+                            DossierRepository dossierRepository, SuppressionService suppressionService) {
+        this.suppressionService = suppressionService;
         this.conteneurRepository = conteneurRepository;
         this.typeContainerRepository = typeContainerRepository;
         this.dossierRepository = dossierRepository;
@@ -105,18 +108,10 @@ public class ConteneurService {
     }
 
     public void deleteConteneur(Integer conteneurId, Integer dossierId) {
-        Conteneur conteneur = conteneurRepository.findById(conteneurId)
-                .orElseThrow(() -> new IllegalArgumentException("Conteneur introuvable."));
-
         if (dossierId != null) {
-            conteneur.getDossiers().removeIf(d -> d.getId().equals(dossierId));
-            if (conteneur.getDossiers().isEmpty()) {
-                conteneurRepository.delete(conteneur);
-            } else {
-                conteneurRepository.save(conteneur);
-            }
+            suppressionService.retirerAssignationConteneur(conteneurId, dossierId);
         } else {
-            conteneurRepository.delete(conteneur);
+            suppressionService.supprimer("conteneur", conteneurId);
         }
     }
 

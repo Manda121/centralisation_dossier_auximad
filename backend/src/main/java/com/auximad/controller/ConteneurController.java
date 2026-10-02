@@ -1,5 +1,9 @@
 package com.auximad.controller;
 
+import com.auximad.service.SuppressionConfirmationException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.PessimisticLockingFailureException;
+
 import com.auximad.entity.Conteneur;
 import com.auximad.entity.TypeContainer;
 import com.auximad.service.ConteneurService;
@@ -61,6 +65,8 @@ public class ConteneurController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("message", e.getMessage()));
+        } catch (SuppressionConfirmationException | DataIntegrityViolationException | PessimisticLockingFailureException e) {
+            throw e;
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Erreur lors de l'assignation du conteneur", "details", e.getMessage()));
@@ -77,6 +83,8 @@ public class ConteneurController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("message", e.getMessage()));
+        } catch (SuppressionConfirmationException | DataIntegrityViolationException | PessimisticLockingFailureException e) {
+            throw e;
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Erreur lors de la mise à jour du conteneur", "details", e.getMessage()));
@@ -92,6 +100,8 @@ public class ConteneurController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("message", e.getMessage()));
+        } catch (SuppressionConfirmationException | DataIntegrityViolationException | PessimisticLockingFailureException e) {
+            throw e;
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Erreur lors de la suppression du conteneur", "details", e.getMessage()));

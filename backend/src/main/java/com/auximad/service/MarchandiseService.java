@@ -15,13 +15,16 @@ import java.util.Optional;
 @Service
 public class MarchandiseService {
 
+    private final SuppressionService suppressionService;
+
     private final MarchandiseRepository marchandiseRepository;
     private final UniteMesureRepository uniteMesureRepository;
     private final NatureMarchandiseRepository natureMarchandiseRepository;
 
     public MarchandiseService(MarchandiseRepository marchandiseRepository,
                               UniteMesureRepository uniteMesureRepository,
-                              NatureMarchandiseRepository natureMarchandiseRepository) {
+                              NatureMarchandiseRepository natureMarchandiseRepository, SuppressionService suppressionService) {
+        this.suppressionService = suppressionService;
         this.marchandiseRepository = marchandiseRepository;
         this.uniteMesureRepository = uniteMesureRepository;
         this.natureMarchandiseRepository = natureMarchandiseRepository;
@@ -44,7 +47,7 @@ public class MarchandiseService {
 
     @Transactional
     public void deleteMarchandise(Integer id) {
-        marchandiseRepository.deleteById(id);
+        suppressionService.supprimer("marchandise", id);
     }
 
     // Référentiels

@@ -4,6 +4,8 @@ import com.auximad.entity.*;
 import com.auximad.repository.*;
 import com.auximad.security.JwtSecurityContext;
 import com.auximad.service.OperationDossierService;
+import com.auximad.service.SuppressionService;
+import com.auximad.service.SuppressionConfirmationException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +32,7 @@ import java.util.Optional;
 @Tag(name = "Administration", description = "Endpoints réservés aux administrateurs (niveau 10000)")
 public class AdminController {
 
+    private final SuppressionService suppressionService;
     private static final int NIVEAU_ADMIN = 10000;
 
     // ── Repositories ────────────────────────────────────────────────────────
@@ -80,7 +83,8 @@ public class AdminController {
             NavireRepository navireRepository,
             PaysRepository paysRepository,
             PasswordEncoder passwordEncoder,
-            OperationDossierService operationDossierService) {
+            OperationDossierService operationDossierService, SuppressionService suppressionService) {
+        this.suppressionService = suppressionService;
         this.utilisateurRepository = utilisateurRepository;
         this.roleRepository = roleRepository;
         this.autorisationRepository = autorisationRepository;
@@ -127,8 +131,10 @@ public class AdminController {
         try {
             deleteAction.run();
             return ResponseEntity.ok(Map.of("message", nomEntite + " supprimé(e) avec succès"));
+        } catch (SuppressionConfirmationException e) {
+            throw e;
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("erreur", "Impossible de supprimer cet enregistrement car il est référencé par d'autres données."));
+            return ResponseEntity.badRequest().body(Map.of("erreur", "La suppression a été annulée : les données liées ont changé ou une contrainte empêche cette opération."));
         }
     }
 
@@ -182,6 +188,8 @@ public class AdminController {
             autorisationRepository.save(aut);
 
             return ResponseEntity.ok(saved);
+        } catch (SuppressionConfirmationException e) {
+            throw e;
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("erreur", e.getMessage()));
         }
@@ -211,11 +219,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerUtilisateur(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!utilisateurRepository.existsById(id)) return ResponseEntity.notFound().build();
-        return securiserSuppression(() -> {
-            autorisationRepository.findByUtilisateurId(id).ifPresent(autorisationRepository::delete);
-            suspensionConnexionRepository.findByUtilisateurId(id).ifPresent(suspensionConnexionRepository::delete);
-            utilisateurRepository.deleteById(id);
-        }, "Utilisateur");
+        return securiserSuppression(() -> suppressionService.supprimer("utilisateur", id), "Utilisateur");
     }
 
     @PostMapping("/utilisateurs/{id}/reinitialiser-mdp")
@@ -264,7 +268,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerRole(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!roleRepository.existsById(id)) return ResponseEntity.notFound().build();
-        return securiserSuppression(() -> roleRepository.deleteById(id), "Rôle");
+        return securiserSuppression(() -> suppressionService.supprimer("role", id), "Rôle");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -343,7 +347,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerAction(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!actionRepository.existsById(id)) return ResponseEntity.notFound().build();
-        return securiserSuppression(() -> actionRepository.deleteById(id), "Action");
+        return securiserSuppression(() -> suppressionService.supprimer("action", id), "Action");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -381,7 +385,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerAgence(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!agenceRepository.existsById(id)) return ResponseEntity.notFound().build();
-        return securiserSuppression(() -> agenceRepository.deleteById(id), "Agence");
+        return securiserSuppression(() -> suppressionService.supprimer("agence", id), "Agence");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -418,7 +422,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerBureau(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!bureauRepository.existsById(id)) return ResponseEntity.notFound().build();
-        return securiserSuppression(() -> bureauRepository.deleteById(id), "Bureau");
+        return securiserSuppression(() -> suppressionService.supprimer("bureau", id), "Bureau");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -452,7 +456,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerModeTransport(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!modeTransportRepository.existsById(id)) return ResponseEntity.notFound().build();
-        return securiserSuppression(() -> modeTransportRepository.deleteById(id), "Mode de transport");
+        return securiserSuppression(() -> suppressionService.supprimer("mode_transport", id), "Mode de transport");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -478,6 +482,8 @@ public class AdminController {
             if (idMt != null) modeTransportRepository.findById(idMt).ifPresent(tp::setModeTransport);
 
             return ResponseEntity.ok(typeProductionRepository.save(tp));
+        } catch (SuppressionConfirmationException e) {
+            throw e;
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("erreur", e.getMessage()));
         }
@@ -504,7 +510,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerTypeProduction(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!typeProductionRepository.existsById(id)) return ResponseEntity.notFound().build();
-        return securiserSuppression(() -> typeProductionRepository.deleteById(id), "Type de production");
+        return securiserSuppression(() -> suppressionService.supprimer("type_production", id), "Type de production");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -539,7 +545,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerTypeRegime(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!typeRegimeRepository.existsById(id)) return ResponseEntity.notFound().build();
-        return securiserSuppression(() -> typeRegimeRepository.deleteById(id), "Type de régime");
+        return securiserSuppression(() -> suppressionService.supprimer("type_regime", id), "Type de régime");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -564,6 +570,8 @@ public class AdminController {
             if (idMt != null) modeTransportRepository.findById(idMt).ifPresent(pd::setModeTransport);
 
             return ResponseEntity.ok(phaseDossierRepository.save(pd));
+        } catch (SuppressionConfirmationException e) {
+            throw e;
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("erreur", e.getMessage()));
         }
@@ -589,7 +597,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerPhaseDossier(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!phaseDossierRepository.existsById(id)) return ResponseEntity.notFound().build();
-        return securiserSuppression(() -> phaseDossierRepository.deleteById(id), "Phase dossier");
+        return securiserSuppression(() -> suppressionService.supprimer("phase_dossier", id), "Phase dossier");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -623,7 +631,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerStatutDossier(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!statutDossierRepository.existsById(id)) return ResponseEntity.notFound().build();
-        return securiserSuppression(() -> statutDossierRepository.deleteById(id), "Statut dossier");
+        return securiserSuppression(() -> suppressionService.supprimer("statut_dossier", id), "Statut dossier");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -657,7 +665,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerStatutOt(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!statutOtRepository.existsById(id)) return ResponseEntity.notFound().build();
-        return securiserSuppression(() -> statutOtRepository.deleteById(id), "Statut OT");
+        return securiserSuppression(() -> suppressionService.supprimer("statut_ot", id), "Statut OT");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -692,7 +700,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerIncoterme(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!incontermeRepository.existsById(id)) return ResponseEntity.notFound().build();
-        return securiserSuppression(() -> incontermeRepository.deleteById(id), "Incoterme");
+        return securiserSuppression(() -> suppressionService.supprimer("inconterme", id), "Incoterme");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -725,7 +733,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerNatureMarchandise(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!natureMarchandiseRepository.existsById(id)) return ResponseEntity.notFound().build();
-        return securiserSuppression(() -> natureMarchandiseRepository.deleteById(id), "Nature de marchandise");
+        return securiserSuppression(() -> suppressionService.supprimer("nature_marchandise", id), "Nature de marchandise");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -760,7 +768,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerUniteMesure(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!uniteMesureRepository.existsById(id)) return ResponseEntity.notFound().build();
-        return securiserSuppression(() -> uniteMesureRepository.deleteById(id), "Unité de mesure");
+        return securiserSuppression(() -> suppressionService.supprimer("unite_mesure", id), "Unité de mesure");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -799,7 +807,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerTypeContainer(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!typeContainerRepository.existsById(id)) return ResponseEntity.notFound().build();
-        return securiserSuppression(() -> typeContainerRepository.deleteById(id), "Type de conteneur");
+        return securiserSuppression(() -> suppressionService.supprimer("type_container", id), "Type de conteneur");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -829,6 +837,8 @@ public class AdminController {
             if (idNm != null) natureMarchandiseRepository.findById(idNm).ifPresent(td::setNatureMarchandise);
 
             return ResponseEntity.ok(typeDocumentRepository.save(td));
+        } catch (SuppressionConfirmationException e) {
+            throw e;
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("erreur", e.getMessage()));
         }
@@ -859,7 +869,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerTypeDocument(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!typeDocumentRepository.existsById(id)) return ResponseEntity.notFound().build();
-        return securiserSuppression(() -> typeDocumentRepository.deleteById(id), "Type de document");
+        return securiserSuppression(() -> suppressionService.supprimer("type_document", id), "Type de document");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -888,6 +898,8 @@ public class AdminController {
             if (idMt != null) modeTransportRepository.findById(idMt).ifPresent(c::setModeTransport);
 
             return ResponseEntity.ok(compagnieRepository.save(c));
+        } catch (SuppressionConfirmationException e) {
+            throw e;
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("erreur", e.getMessage()));
         }
@@ -918,7 +930,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerCompagnie(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!compagnieRepository.existsById(id)) return ResponseEntity.notFound().build();
-        return securiserSuppression(() -> compagnieRepository.deleteById(id), "Compagnie");
+        return securiserSuppression(() -> suppressionService.supprimer("compagnie", id), "Compagnie");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -943,6 +955,8 @@ public class AdminController {
             if (idC != null) compagnieRepository.findById(idC).ifPresent(n::setCompagnie);
 
             return ResponseEntity.ok(navireRepository.save(n));
+        } catch (SuppressionConfirmationException e) {
+            throw e;
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("erreur", e.getMessage()));
         }
@@ -968,7 +982,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerNavire(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!navireRepository.existsById(id)) return ResponseEntity.notFound().build();
-        return securiserSuppression(() -> navireRepository.deleteById(id), "Navire");
+        return securiserSuppression(() -> suppressionService.supprimer("navire", id), "Navire");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -1002,7 +1016,7 @@ public class AdminController {
     public ResponseEntity<?> supprimerPays(@PathVariable Integer id) {
         if (!estAdmin()) return interdit();
         if (!paysRepository.existsById(id)) return ResponseEntity.notFound().build();
-        return securiserSuppression(() -> paysRepository.deleteById(id), "Pays");
+        return securiserSuppression(() -> suppressionService.supprimer("pays", id), "Pays");
     }
 
     // ── Opération Dossier ───────────────────────────────────────────────────

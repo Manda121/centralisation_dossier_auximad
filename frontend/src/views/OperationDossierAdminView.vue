@@ -408,21 +408,23 @@ const toggleSelectAll = () => {
 }
 
 const deleteBatch = async () => {
-  if (!confirm(`Voulez-vous vraiment supprimer les ${selectedOpIds.value.length} opérations sélectionnées ?`)) return
+  
   try {
     await AdminService.operationsDossier.supprimerBatch(selectedOpIds.value)
     loadOperationsForActiveType()
   } catch (err) {
+        if (err?.code === 'ERR_CANCELED') return
     alert('Erreur suppression en masse: ' + err.message)
   }
 }
 
 const deleteSingleOp = async (id) => {
-  if (!confirm('Voulez-vous supprimer cette opération ?')) return
+  
   try {
     await AdminService.operationsDossier.supprimer(id)
     loadOperationsForActiveType()
   } catch (err) {
+        if (err?.code === 'ERR_CANCELED') return
     alert('Erreur suppression: ' + err.message)
   }
 }
