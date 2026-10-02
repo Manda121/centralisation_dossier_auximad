@@ -42,6 +42,7 @@ public class DossierService {
 
     private static final String COLONNE_TRI_DEFAUT = "date_creation";
 
+    private final OrdreTransitService ordreTransitService;
     private final DossierRepository dossierRepository;
     private final PhaseDossierRepository phaseDossierRepository;
     private final StatutDossierRepository statutDossierRepository;
@@ -62,7 +63,8 @@ public class DossierService {
                           DossierInteragenceRepository interagenceRepository,
                           DocumentRepository documentRepository,
                           RemiseRepository remiseRepository,
-                          DemandeInteragenceRepository demandeInteragenceRepository) {
+                          DemandeInteragenceRepository demandeInteragenceRepository, OrdreTransitService ordreTransitService) {
+        this.ordreTransitService = ordreTransitService;
         this.dossierRepository = dossierRepository;
         this.phaseDossierRepository = phaseDossierRepository;
         this.statutDossierRepository = statutDossierRepository;
@@ -166,6 +168,9 @@ public class DossierService {
         String codeAgence = String.format("%02d", agence.getCode());
         String codeProd = String.valueOf(typeProduction.getCode());
         int chronologie = dossierRepository.findMaxChronologie() + 1;
+        if (chronologie > 9999) {
+            throw new IllegalArgumentException("La chronologie des dossiers a atteint la limite de 9999.");
+        }
         String seq = String.format("%04d", chronologie);
 
         return codeProd + "" + codeAgence + "" + mois + dernierChiffreAnnee + "" + seq;
@@ -197,7 +202,35 @@ public class DossierService {
 
     @Transactional
     public Dossier saveDossier(Dossier dossier) {
+        if (dossier.getId() == null) {
+            // Le verrou est conservé jusqu'au commit de la transaction, pas seulement au calcul.
+            dossierRepository.verrouillerNumerotation();
+        }
         verifierOtDisponible(dossier);
+        if (dossier.getOrdreTransit() != null) {
+            Integer otId = dossier.getOrdreTransit().getId();
+            if (otId == null) {
+                throw new IllegalArgumentException("L'ordre de transit doit exister avant de créer le dossier.");
+            }
+            OrdreTransit ot = ordreTransitService.getOrdreTransitById(otId)
+                    .orElseThrow(() -> new IllegalArgumentException("Ordre de transit introuvable : " + otId));
+            if (ot.getStatutOt() == null || !Integer.valueOf(3).equals(ot.getStatutOt().getId())) {
+                throw new IllegalArgumentException("Veuillez confirmer la validation de l'OT avant de créer le dossier.");
+            }
+            dossier.setOrdreTransit(ot);
+        } else if (dossier.getId() == null) {
+            if (dossier.getUtilisateur() == null || dossier.getAgence() == null) {
+                throw new IllegalArgumentException("L'utilisateur et l'agence sont requis pour créer l'OT lié.");
+            }
+            OrdreTransit ot = new OrdreTransit();
+            ot.setClient(dossier.getClient());
+            ot.setTypeProduction(dossier.getTypeProduction());
+            Utilisateur auteur = new Utilisateur();
+            auteur.setId(dossier.getUtilisateur().getId());
+            auteur.setAgence(dossier.getAgence());
+            OrdreTransit cree = ordreTransitService.createOrdreTransit(ot, auteur);
+            dossier.setOrdreTransit(ordreTransitService.validateOrdreTransit(cree.getId()));
+        }
         if (dossier.getId() == null) {
             dossier.setNumeroDossier(genererNumeroDossier(dossier));
             dossier.setDateCreation(LocalDateTime.now());

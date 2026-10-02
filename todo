@@ -38,3 +38,17 @@ et il faudrait valider le depot de declaraiton, on ajoute la date si il est vali
 ajout d'un menu declaration pour les autre type de delcaration.
 
 verification operation dossier a chaque action
+
+01/10/2026
+on devrait pouvoir configurer les filtres: ajouter des parametres ou en enlever
+on enregistre dans un fichier txt sous forme:
+    nompage:   
+        liste parametre
+
+        exemple liste parametre:
+        nom 1 (il est afficher si c'est 1)
+        prenom 0 (il n'est pas afficher si c'est 0)
+
+et pareil pour les colones a afficher, on devrait pouvoir les modifiers et on enregistre toujour dans un autre fichier txt.
+
+pour cela on doit prendre vraiment les colone disponible dans la base de donnee, avec les info necessaire depui d'autre table.
