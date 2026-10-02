@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
@@ -22,14 +23,19 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
     Optional<Dossier> findByNumeroDossier(String numeroDossier);
 
     /**
-     * Chronologie max (4 derniers chiffres) des numéros au format *-NNNN
+     * Chronologie max des numéros compacts et des anciens numéros au format *-NNNN
      */
     @Query(value = """
         SELECT COALESCE(MAX(CAST(RIGHT(numero_dossier, 4) AS INTEGER)), 0)
         FROM dossier
-        WHERE numero_dossier ~ '-[0-9]{4}$'
+        WHERE numero_dossier ~ '(^[0-9]{5,}$|-[0-9]{4}$)'
         """, nativeQuery = true)
     int findMaxChronologie();
+
+    /** Sérialise la numérotation jusqu'au commit, y compris lorsque la table est vide. */
+    @Modifying
+    @Query(value = "LOCK TABLE dossier IN SHARE ROW EXCLUSIVE MODE", nativeQuery = true)
+    void verrouillerNumerotation();
 
     /**
      * Recherche paginée et filtrée avec FTS.

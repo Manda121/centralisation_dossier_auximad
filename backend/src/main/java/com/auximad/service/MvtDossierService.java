@@ -163,6 +163,11 @@ public class MvtDossierService {
         Dossier dossier = dossierRepository.findById(req.getDossierId())
                 .orElseThrow(() -> new IllegalArgumentException("Dossier introuvable : " + req.getDossierId()));
 
+        if (!documentService.tousDocsObligatoiresRemis(dossier.getId())) {
+            throw new IllegalArgumentException(
+                    "Impossible d'effectuer un mouvement : des documents obligatoires ne sont pas encore remis.");
+        }
+
         OperationDossier operation = operationDossierRepository.findById(req.getOperationId())
                 .orElseThrow(() -> new IllegalArgumentException("Opération introuvable : " + req.getOperationId()));
 

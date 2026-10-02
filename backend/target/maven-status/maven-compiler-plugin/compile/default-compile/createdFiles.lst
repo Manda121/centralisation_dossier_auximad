@@ -88,6 +88,7 @@ com\auximad\dto\PageResponse.class
 com\auximad\ai\NiveauDanger.class
 com\auximad\security\JwtSecurityContext.class
 com\auximad\repository\ContratTransportRepository.class
+com\auximad\ai\ChatService$Attente.class
 com\auximad\ai\OllamaClient$OllamaIndisponibleException.class
 com\auximad\ai\outils\OutilsClient$CreerClient.class
 com\auximad\ai\outils\OutilsTableauBord.class
@@ -105,6 +106,7 @@ com\auximad\entity\Client.class
 com\auximad\ai\outils\OutilsDossier$AssignerDocumentsDossier.class
 com\auximad\entity\TypeProduction.class
 com\auximad\dto\LoginResponse.class
+com\auximad\ai\ChatService.class
 com\auximad\controller\ConteneurController.class
 com\auximad\controller\DocumentController.class
 com\auximad\repository\MvtDossierRepository.class
@@ -133,14 +135,17 @@ com\auximad\entity\ModeTransport.class
 com\auximad\controller\AdminController.class
 com\auximad\entity\Action.class
 com\auximad\entity\Historique.class
+com\auximad\ai\ChatService$Boucle.class
 com\auximad\repository\NavireRepository.class
 com\auximad\service\AgenceService.class
 com\auximad\ai\ContexteChat.class
 com\auximad\repository\UtilisateurRepository.class
 com\auximad\service\MarchandiseService.class
 com\auximad\entity\MvtDossier.class
+com\auximad\ai\ChatService$Session.class
 com\auximad\dto\DeclarationRequest.class
 com\auximad\entity\DemandeInteragence.class
+com\auximad\controller\ChatController.class
 com\auximad\dto\MvtDossierRequest.class
 com\auximad\repository\ClientRepository.class
 com\auximad\dto\ChatReponse.class

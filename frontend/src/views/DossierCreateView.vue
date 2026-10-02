@@ -16,9 +16,9 @@
 
                     <!-- Pré-remplissage depuis un OT validé -->
                     <div class="alert alert-info text-xs py-2 mb-4">
-                        Vous pouvez pré-remplir ce formulaire à partir d'un <strong>Ordre de Transit validé</strong>.
+                        Vous pouvez pré-remplir ce formulaire à partir d'un <strong>Ordre de Transit</strong>.
                         Tapez quelques chiffres : la liste des OT correspondants s'affiche si vous ne vous souvenez
-                        plus du numéro exact.
+                        plus du numéro exact. Un OT non validé devra être validé après confirmation. Sans OT sélectionné, un OT validé sera automatiquement créé et lié au dossier.
                     </div>
                     <div class="row g-3 mb-4 align-items-start">
                         <div class="col-md-4">
@@ -160,20 +160,20 @@
                             <div class="alert alert-info py-2 text-xs mb-3">
                                 Cochez les documents déjà disponibles. Les documents obligatoires <span
                                     class="badge bg-danger-subtle text-danger border border-danger-subtle">obligatoire</span>
-                                sont requis pour créer le dossier.
+                                sont requis pour effectuer des mouvements. Vous pouvez créer le dossier sans eux.
                             </div>
                             <DocumentsSection :dossier-id="null" :type-production-id="dossier.typeProduction?.id"
                                 :read-only="false" @docs-obligatoires-complets="docsObligatoiresComplets = $event"
                                 @documents-valides="docsCreation = $event" ref="docsSectionRef" />
                             <div v-if="!docsObligatoiresComplets" class="alert alert-warning py-2 text-xs mt-2">
-                                ⚠️ Tous les documents obligatoires doivent être cochés avant de créer le dossier.
+                                Le dossier peut être créé. Les mouvements seront bloqués tant que des documents obligatoires manquent.
                             </div>
                         </div>
 
                         <div class="d-flex justify-content-end gap-3 mt-5 pt-3 border-top">
                             <router-link to="/dossiers" class="btn btn-secondary btn-sm">Annuler</router-link>
                             <button type="submit" class="btn btn-primary btn-sm"
-                                :disabled="enCours || !docsObligatoiresComplets">
+                                :disabled="enCours || chargementOt">
                                 <span v-if="enCours" class="spinner-border spinner-border-sm me-2"></span>
                                 Créer le Dossier
                             </button>
@@ -337,6 +337,15 @@ async function creerDossier() {
         }
         console.log('agence dossier: ', dossier.value.agence)
         console.log('agence utilisateur: ', utilisateur.value.agence)
+        if (dossier.value.ordreTransit) {
+            const ot = await OrdreTransitService.getOrdreTransitById(dossier.value.ordreTransit.id)
+            if (ot.statutOt?.id !== 3) {
+                if (!window.confirm(`L'OT ${ot.numeroOrdreTransit} n'est pas validé. Confirmez-vous sa validation pour créer le dossier ?`)) return
+                const valide = await OrdreTransitService.validateOrdreTransit(ot.id)
+                dossier.value.ordreTransit = valide
+                otCharge.value = valide
+            }
+        }
         const result = await DossierService.createDossier(dossier.value.toJSON())
 
         // Traiter les documents sélectionnés lors de la création.
