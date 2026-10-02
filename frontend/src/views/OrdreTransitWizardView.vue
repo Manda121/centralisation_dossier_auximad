@@ -30,6 +30,7 @@ const typeRegimes = ref([])
 const bureaux = ref([])
 const compagnies = ref([])
 const navires = ref([])
+const modeCompagniesCharge = ref(null)
 
 const isMaritime = computed(() => {
     const mode = otModel.value.typeProduction?.idModeTransport
@@ -80,12 +81,16 @@ async function notifierCompagnieChange() {
 }
 
 async function chargerCompagniesSelonMode() {
-    contratModel.value.compagnie = null
-    contratModel.value.navire = null
-    navires.value = []
     const mode = otModel.value.typeProduction?.idModeTransport
         ?? otModel.value.typeProduction?.id_mode_transport
         ?? otModel.value.typeProduction?.modeTransport?.id
+    if (modeCompagniesCharge.value === mode) return
+    modeCompagniesCharge.value = mode
+    contratModel.value = {
+        numero: '', compagnie: null, navire: null, numeroVol: '',
+        lieuEmission: '', notify: '', datePrevue: '', dateArrivee: ''
+    }
+    navires.value = []
     if (!mode) {
         compagnies.value = []
         return
@@ -124,21 +129,36 @@ async function creerOrdreTransit() {
     sauvegardeEnCours.value = true
     try {
         const otPayload = otModel.value.toJSON()
-        const savedOt = await OrdreTransitService.createOrdreTransit(otPayload)
-
-        if (contratModel.value.numero || contratModel.value.compagnie || contratModel.value.numeroVol) {
-            const contratPayload = {
-                numero: contratModel.value.numero,
-                compagnie: contratModel.value.compagnie ? { id: contratModel.value.compagnie.id } : null,
-                navire: contratModel.value.navire ? { id: contratModel.value.navire.id } : null,
-                n_vol: contratModel.value.numeroVol,
-                lieu_emission: contratModel.value.lieuEmission,
-                notify: contratModel.value.notify,
-                date_prevue: contratModel.value.datePrevue ? new Date(contratModel.value.datePrevue).toISOString() : null,
-                date_arrivee: contratModel.value.dateArrivee ? new Date(contratModel.value.dateArrivee).toISOString() : null
+        const transport = contratModel.value
+        const aTransport = (isMaritime.value || isAerien.value) &&
+            Object.values(transport).some(value => value !== null && value !== '')
+        if (aTransport) {
+            const reference = value => value ? { id: value.id } : null
+            const dateAvecFuseau = value => value ? new Date(value).toISOString() : null
+            otPayload.expedition = {
+                modeTransport: { id: isMaritime.value ? 1 : 2 },
+                compagnie: reference(transport.compagnie),
+                navire: isMaritime.value ? reference(transport.navire) : null,
+                numeroBl: isMaritime.value ? transport.numero : null,
+                lieuBl: isMaritime.value ? transport.lieuEmission : null,
+                numeroLta: isAerien.value ? transport.numero : null,
+                lieuLta: isAerien.value ? transport.lieuEmission : null,
+                numeroVol: isAerien.value ? transport.numeroVol : null,
+                datePrevue: dateAvecFuseau(transport.datePrevue),
+                dateArrivee: dateAvecFuseau(transport.dateArrivee)
             }
-            await OrdreTransitService.saveContrat(savedOt.id, contratPayload)
+            otPayload.contratCreation = {
+                numero: transport.numero || null,
+                compagnie: reference(transport.compagnie),
+                navire: isMaritime.value ? reference(transport.navire) : null,
+                numeroVol: isAerien.value ? transport.numeroVol : null,
+                lieuEmission: transport.lieuEmission,
+                notify: transport.notify,
+                datePrevue: transport.datePrevue || null,
+                dateArrivee: transport.dateArrivee || null
+            }
         }
+        const savedOt = await OrdreTransitService.createOrdreTransit(otPayload)
 
         alert('Ordre de transit créé avec succès.')
         router.push(`/ordres-transit/${savedOt.id}`)

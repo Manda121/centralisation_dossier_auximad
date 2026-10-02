@@ -135,7 +135,21 @@ public class OrdreTransitService {
                 .orElseGet(() -> statutOtRepository.save(new StatutOt(2, "Non valide", "Ordre de transit en attente de validation"))));
         ot.setStatutOt(statutNonValide);
 
-        return ordreTransitRepository.save(ot);
+        if (ot.getExpedition() != null) {
+            Expedition expedition = ot.getExpedition();
+            expedition.setId(null);
+            expedition.setDossier(null);
+            expedition.setOrdreTransit(ot);
+        }
+        OrdreTransit saved = ordreTransitRepository.save(ot);
+        if (ot.getContratCreation() != null) {
+            ContratTransport contrat = ot.getContratCreation();
+            contrat.setId(null);
+            contrat.setOrdreTransit(saved);
+            contratTransportRepository.save(contrat);
+            saved.setContratCreation(null);
+        }
+        return saved;
     }
 
     @Transactional

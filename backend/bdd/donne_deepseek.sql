@@ -13,9 +13,9 @@ INSERT INTO statut_dossier (nom, description) VALUES
 -- 0bis. STATUT ORDRE DE TRANSIT
 -- ============================================================
 INSERT INTO statut_ot (nom, description) VALUES
-('creer', 'Ordre de transit créé'),
-('validee', 'Ordre de transit validé'),
-('supprimee', 'Ordre de transit supprimé');
+('Brouillon', 'Ordre de transit en preparation'),
+('Non valide', 'Ordre de transit en attente de validation'),
+('Valide', 'Ordre de transit valide');
 
 -- ============================================================
 -- 1. TABLES DE REFERENCE
@@ -555,6 +555,7 @@ DECLARE
     v_sous_dossier INT;
     v_mode_transport_maritime_id INT;
     v_mode_transport_aerien_id INT;
+    v_expedition_mode_transport_id INT;
     v_doc_id INT;
     v_mvt_id INT;
     v_est_remis BOOLEAN;
@@ -680,7 +681,8 @@ BEGIN
     FOR i IN 1..300 LOOP
         v_agence_id := v_agence_ids[1 + floor(random() * array_length(v_agence_ids, 1))::int];
         v_client_id := v_client_ids[1 + floor(random() * array_length(v_client_ids, 1))::int];
-        v_ot_id := v_ot_ids[1 + floor(random() * array_length(v_ot_ids, 1))::int];
+        -- Les 20 derniers OT restent sans dossier pour tester la saisie autonome.
+        v_ot_id := v_ot_ids[1 + floor(random() * (array_length(v_ot_ids, 1) - 20))::int];
         v_phase_id := v_phase_ids[1 + floor(random() * array_length(v_phase_ids, 1))::int];
         v_pays_origine := v_pays_ids[1 + floor(random() * array_length(v_pays_ids, 1))::int];
         v_pays_destination := v_pays_ids[1 + floor(random() * array_length(v_pays_ids, 1))::int];
@@ -755,25 +757,32 @@ BEGIN
         LIMIT 1;
     END LOOP;
 
-    -- EXPEDITIONS (250)
-    FOR i IN 1..250 LOOP
-        v_dossier_id := v_dossier_ids[1 + floor(random() * array_length(v_dossier_ids, 1))::int];
+    -- EXPEDITIONS : une par OT maritime/aerien, y compris sans dossier.
+    FOR i IN 1..array_length(v_ot_ids, 1) LOOP
+        v_ot_id := v_ot_ids[i];
+        SELECT tp.id_mode_transport INTO v_expedition_mode_transport_id
+        FROM ordre_transit ot JOIN type_production tp ON tp.id = ot.id_type_production
+        WHERE ot.id = v_ot_id;
+        IF v_expedition_mode_transport_id NOT IN (v_mode_transport_maritime_id, v_mode_transport_aerien_id) THEN
+            CONTINUE;
+        END IF;
+        SELECT id INTO v_dossier_id FROM dossier WHERE id_ordre_transit = v_ot_id ORDER BY id LIMIT 1;
         v_mode_acheminement_id := v_mode_acheminement_ids[1 + floor(random() * array_length(v_mode_acheminement_ids, 1))::int];
 
-        IF random() < 0.5 THEN
+        IF v_expedition_mode_transport_id = v_mode_transport_maritime_id THEN
             -- Maritime
             v_compagnie_id := v_compagnie_maritime_ids[1 + floor(random() * array_length(v_compagnie_maritime_ids, 1))::int];
-            v_navire_id := v_navire_ids[1 + floor(random() * array_length(v_navire_ids, 1))::int];
+            SELECT id INTO v_navire_id FROM navire WHERE id_compagnie = v_compagnie_id ORDER BY random() LIMIT 1;
             v_port_emb := v_port_ids[1 + floor(random() * array_length(v_port_ids, 1))::int];
             v_port_deb := v_port_ids[1 + floor(random() * array_length(v_port_ids, 1))::int];
 
             INSERT INTO expedition (
-                id_dossier, est_achemine, id_mode_transport, id_mode_acheminement,
+                id_ordre_transit, id_dossier, est_achemine, id_mode_transport, id_mode_acheminement,
                 id_compagnie, numero_bl, id_navire, date_bl, lieu_bl,
                 id_port_embarquement, id_port_debarquement,
                 lib_scan, date_depart, date_prevu, date_arrivee
             ) VALUES (
-                v_dossier_id,
+                v_ot_id, v_dossier_id,
                 (random() < 0.8),
                 v_mode_transport_maritime_id,
                 v_mode_acheminement_id,
@@ -796,12 +805,12 @@ BEGIN
             v_aeroport_deb := v_aeroport_ids[1 + floor(random() * array_length(v_aeroport_ids, 1))::int];
 
             INSERT INTO expedition (
-                id_dossier, est_achemine, id_mode_transport, id_mode_acheminement,
+                id_ordre_transit, id_dossier, est_achemine, id_mode_transport, id_mode_acheminement,
                 id_compagnie, numero_vol, numero_lta, date_lta, lieu_lta,
                 id_aeroport_embarquement, id_aeroport_debarquement,
                 lib_scan, date_depart, date_prevu, date_arrivee
             ) VALUES (
-                v_dossier_id,
+                v_ot_id, v_dossier_id,
                 (random() < 0.8),
                 v_mode_transport_aerien_id,
                 v_mode_acheminement_id,

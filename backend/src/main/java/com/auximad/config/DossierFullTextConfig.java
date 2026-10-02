@@ -3,12 +3,10 @@ package com.auximad.config;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.stereotype.Component;
 import javax.sql.DataSource;
 import java.nio.charset.StandardCharsets;
 
-/** Installs the PostgreSQL indexes after Hibernate has initialized the tables. */
-@Component
+/** SQL helper for isolated database tests. The application schema is created by base_centralisation.sql. */
 public class DossierFullTextConfig implements ApplicationRunner {
     private final DataSource dataSource;
 

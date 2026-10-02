@@ -186,6 +186,20 @@ function formatarDate(dt) {
                                 </div>
                             </div>
 
+                            <div class="card border shadow-sm mb-3" v-if="otModel.expedition">
+                                <div class="card-header bg-white border-bottom py-2">
+                                    <h5 class="mb-0 fw-semibold text-dark">Expédition</h5>
+                                </div>
+                                <div class="card-body row g-3 small">
+                                    <div class="col-md-6">B/L ou LTA : {{ otModel.expedition.numeroBl || otModel.expedition.numeroLta || '—' }}</div>
+                                    <div class="col-md-6">Compagnie : {{ otModel.expedition.compagnie?.nom || '—' }}</div>
+                                    <div class="col-md-6">Navire / vol : {{ otModel.expedition.navire?.nom || otModel.expedition.numeroVol || '—' }}</div>
+                                    <div class="col-md-6">Lieu d'émission : {{ otModel.expedition.lieuBl || otModel.expedition.lieuLta || '—' }}</div>
+                                    <div class="col-md-6">Date prévue : {{ formatarDate(otModel.expedition.datePrevue) }}</div>
+                                    <div class="col-md-6">Date d'arrivée : {{ formatarDate(otModel.expedition.dateArrivee) }}</div>
+                                </div>
+                            </div>
+
                             <div class="card border shadow-sm">
                                 <div class="card-header bg-white border-bottom py-2">
                                     <h5 class="mb-0 fw-semibold text-dark">Contrat de transport (B/L ou LTA)</h5>
