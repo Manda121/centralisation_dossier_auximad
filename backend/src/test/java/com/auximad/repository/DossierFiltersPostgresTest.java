@@ -9,6 +9,8 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import java.lang.reflect.Method;
+import com.auximad.config.DossierFullTextConfig;
+import org.springframework.boot.DefaultApplicationArguments;
 import java.sql.Types;
 import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -20,8 +22,9 @@ class DossierFiltersPostgresTest {
     private JdbcTemplate admin;
     private NamedParameterJdbcTemplate jdbc;
     private Method search;
+    private JdbcTemplate raw;
 
-    @BeforeEach void setup() {
+    @BeforeEach void setup() throws Exception {
         var ds = new DriverManagerDataSource(System.getenv("AUXIMAD_TEST_DATABASE_URL"),
                 System.getenv("AUXIMAD_TEST_DATABASE_USER"), System.getenv("AUXIMAD_TEST_DATABASE_PASSWORD"));
         admin = new JdbcTemplate(ds);
@@ -31,7 +34,7 @@ class DossierFiltersPostgresTest {
         var properties = new Properties();
         properties.setProperty("currentSchema", schema);
         isolated.setConnectionProperties(properties);
-        var raw = new JdbcTemplate(isolated);
+        raw = new JdbcTemplate(isolated);
         jdbc = new NamedParameterJdbcTemplate(isolated);
         search = Arrays.stream(DossierRepository.class.getMethods())
                 .filter(m -> m.getName().equals("searchDossiersFiltres")).findFirst().orElseThrow();
@@ -61,6 +64,7 @@ class DossierFiltersPostgresTest {
                  NULL, NULL, NULL, NULL, false, false, 0, NULL, NULL);
             INSERT INTO dossier_interagence VALUES(1, 2);
             """);
+        new DossierFullTextConfig(raw.getDataSource()).run(new DefaultApplicationArguments());
     }
 
     @AfterEach void cleanup() {
@@ -102,6 +106,55 @@ class DossierFiltersPostgresTest {
         expect(List.of(1), filters);
         expect(List.of(1, 3), Map.of("estPrepaye", false));
         expect(List.of(), Map.of("clientNom", "%"));
+    }
+
+    @Test void fullTextMatchesWordsAcrossFieldsAndSafelyHandlesPunctuation() {
+        expect(List.of(1, 2), Map.of("clientNom", "mar ann"));
+        expect(List.of(), Map.of("clientNom", "artin"));
+        expect(List.of(1), Map.of("query", "anne acme"));
+        expect(List.of(1), Map.of("query", "001 antana"));
+        expect(List.of(), Map.of("query", "unknown"));
+        expect(List.of(), Map.of("clientNom", "' | ! & %"));
+        expect(List.of(1, 2), Map.of("clientNom", "Martin & Anne"));
+    }
+
+    @Test void indexVectorsFollowClientAndDossierChanges() {
+        raw.update("UPDATE clients SET nom = 'Bernard', cp_client = '009' WHERE id = 1");
+        expect(List.of(), Map.of("query", "Martin"));
+        expect(List.of(1, 2), Map.of("query", "Bernard 009"));
+        expect(List.of(1, 2), Map.of("clientNom", "ber", "cpClient", "009"));
+        raw.update("UPDATE dossier SET pour_compte = 'Nouvelle entreprise' WHERE id = 1");
+        expect(List.of(), Map.of("query", "Acme"));
+        expect(List.of(1), Map.of("query", "bern nouv"));
+        raw.update("UPDATE dossier SET id_client = 2 WHERE id = 1");
+        expect(List.of(), Map.of("query", "bern nouv"));
+        expect(List.of(1), Map.of("query", "durand nouv"));
+    }
+
+    @Test void indexesSupportSearchAndInstallationIsIdempotent() throws Exception {
+        new DossierFullTextConfig(raw.getDataSource()).run(new DefaultApplicationArguments());
+        assertEquals(8, raw.queryForObject("SELECT COUNT(*) FROM pg_indexes WHERE schemaname = ? AND indexdef LIKE '%USING gin%'", Integer.class, schema));
+        // Small fixtures normally use a sequential scan; force the planner to
+        // demonstrate that the exact search expressions can use the GIN indexes.
+        try (var connection = raw.getDataSource().getConnection()) {
+            connection.setAutoCommit(false);
+            try (var statement = connection.createStatement()) {
+                statement.execute("SET LOCAL enable_seqscan = off");
+                try (var result = statement.executeQuery("EXPLAIN SELECT id FROM dossier WHERE recherche_fts @@ auximad_recherche_prefixe('anne acme')")) {
+                    StringBuilder plan = new StringBuilder();
+                    while (result.next()) plan.append(result.getString(1));
+                    assertTrue(plan.toString().contains("idx_dossier_recherche_fts"), plan.toString());
+                }
+                try (var result = statement.executeQuery("EXPLAIN SELECT id FROM clients WHERE auximad_vecteur(COALESCE(nom, '') || ' ' || COALESCE(prenom, '')) @@ auximad_recherche_prefixe('mart')")) {
+                    StringBuilder plan = new StringBuilder();
+                    while (result.next()) plan.append(result.getString(1));
+                    assertTrue(plan.toString().contains("idx_clients_clientnom_fts"), plan.toString());
+                }
+            } finally {
+                connection.rollback();
+            }
+        }
+        expect(List.of(1, 2), Map.of("clientNom", "mart"));
     }
 
     @Test void datesIncludeFinalDayAndExcludeNextMidnight() {

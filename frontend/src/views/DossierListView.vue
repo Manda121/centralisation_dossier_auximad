@@ -130,7 +130,7 @@ function formatarDate(dt) {
                                 <div class="row g-2">
                                     <div v-for="champ in filtresTexte" :key="champ.key" class="col-md-3">
                                         <label :for="`filtre-${champ.key}`" class="form-label small fw-semibold text-secondary">{{ champ.label }}</label>
-                                        <input :id="`filtre-${champ.key}`" v-model="slotFilters[champ.key]" type="text" class="form-control form-control-sm" placeholder="Contient…">
+                                        <input :id="`filtre-${champ.key}`" v-model="slotFilters[champ.key]" type="text" class="form-control form-control-sm" placeholder="Mots ou débuts de mots…">
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label small fw-semibold text-secondary" for="filtre-agence">Agence</label>

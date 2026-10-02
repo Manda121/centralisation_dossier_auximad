@@ -19,6 +19,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\ai\Resolve
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\AuximadApplication.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\config\AsyncConfig.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\config\AuditInterceptor.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\config\DossierFullTextConfig.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\config\OpenApiConfig.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\config\SecurityConfig.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\config\WebMvcConfig.java
