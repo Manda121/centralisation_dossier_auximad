@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 /**
- * Intercepteur qui journalise automatiquement TOUTE requête API dans l'historique :
+ * Intercepteur qui journalise automatiquement chaque requête API dans l'historique :
  * visualisation (GET), création (POST), modification (PUT/PATCH), suppression (DELETE).
  *
  * Le login/logout sont traités séparément (plus de détails),
@@ -45,12 +45,20 @@ public class AuditInterceptor implements HandlerInterceptor {
             }
 
             // L'utilisateur doit être authentifié (les 401 n'ont rien à tracer ici)
+            String methode = request.getMethod();
+            // Automatic badge and chat status reads do not represent user actions.
+            // Reading the audit journal must not create more audit entries.
+            if ("GET".equals(methode) && (uri.equals("/api/dossiers/sans-documents")
+                    || uri.equals("/api/documents/remises/urgentes")
+                    || uri.equals("/api/chat/etat")
+                    || uri.equals("/api/historiques") || uri.startsWith("/api/historiques/"))) {
+                return;
+            }
             Integer idUtilisateur = JwtSecurityContext.getIdUtilisateur();
             if (idUtilisateur == null) {
                 return;
             }
 
-            String methode = request.getMethod();
             if ("OPTIONS".equals(methode)) {
                 return;
             }
