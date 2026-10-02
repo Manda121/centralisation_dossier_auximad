@@ -1,6 +1,7 @@
 package com.auximad.service;
 
 import com.auximad.dto.PageResponse;
+import com.auximad.dto.DossierFiltres;
 import com.auximad.entity.*;
 import com.auximad.repository.*;
 import org.springframework.data.domain.Page;
@@ -111,6 +112,18 @@ public class DossierService {
                                                  Integer otId, Boolean estGroupage,
                                                  String dateMin, String dateMax,
                                                  Integer agenceId, String typeDossier) {
+        return searchDossiers(page, size, sortBy, sortDir, query, phaseId, statutId,
+                clientId, typeProductionId, otId, estGroupage, dateMin, dateMax,
+                agenceId, typeDossier, new DossierFiltres());
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<Dossier> searchDossiers(int page, int size, String sortBy, String sortDir,
+                                                 String query, Integer phaseId, Integer statutId,
+                                                 Integer clientId, Integer typeProductionId,
+                                                 Integer otId, Boolean estGroupage,
+                                                 String dateMin, String dateMax,
+                                                 Integer agenceId, String typeDossier, DossierFiltres filtres) {
         // Requête native : le tri doit porter sur des colonnes SQL, pas sur des propriétés JPA.
         // Toute clé inconnue retombe sur le tri par défaut (aucune erreur 500 côté SQL).
         String colonneTri = COLONNES_TRI.getOrDefault(sortBy == null ? "" : sortBy, COLONNE_TRI_DEFAUT);
@@ -120,16 +133,39 @@ public class DossierService {
 
         Pageable pageable = PageRequest.of(page, size, sort);
 
-        Page<Dossier> result = dossierRepository.searchDossiers(
+        Page<Dossier> result = dossierRepository.searchDossiersFiltres(
                 (query == null || query.isBlank()) ? null : query,
                 phaseId, statutId, clientId, typeProductionId, otId,
-                estGroupage, dateMin, dateMax, agenceId, typeDossier, pageable
+                estGroupage, dateMin, dateMax, agenceId, typeDossier,
+                normaliserFiltre(filtres.getNumeroDossier()),
+                normaliserFiltre(filtres.getClientNom()),
+                normaliserFiltre(filtres.getCpClient()),
+                filtres.getNumeroOt(),
+                filtres.getPaysOrigineId(),
+                filtres.getPaysDestinationId(),
+                filtres.getIncontermeId(),
+                normaliserFiltre(filtres.getPourCompte()),
+                normaliserFiltre(filtres.getDepart()),
+                normaliserFiltre(filtres.getAdresseLivraison()),
+                normaliserFiltre(filtres.getLieuPaiementFret()),
+                filtres.getEstPrepaye(),
+                filtres.getEstProvisionne(),
+                filtres.getProvisionMin(),
+                filtres.getProvisionMax(),
+                normaliserFiltre(filtres.getEcheanceMin()),
+                normaliserFiltre(filtres.getEcheanceMax()),
+                normaliserFiltre(filtres.getDateLivraisonMin()),
+                normaliserFiltre(filtres.getDateLivraisonMax()), pageable
         );
 
         // Enrichir chaque dossier récupéré avec ses données inter-agences
         result.getContent().forEach(this::enrichirInteragence);
 
         return PageResponse.of(result);
+    }
+
+    private String normaliserFiltre(String valeur) {
+        return valeur == null || valeur.isBlank() ? null : valeur.trim();
     }
 
     @Transactional(readOnly = true)

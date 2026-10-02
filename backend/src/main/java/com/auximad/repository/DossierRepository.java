@@ -51,14 +51,30 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
         LEFT JOIN ordre_transit ot ON d.id_ordre_transit = ot.id
         WHERE
           (:query IS NULL OR :query = '' OR
-            to_tsvector('french', COALESCE(d.numero_dossier, '') || ' ' ||
-              COALESCE(c.nom, '') || ' ' || COALESCE(c.prenom, '') || ' ' ||
-              COALESCE(d.pour_compte, '') || ' ' || COALESCE(d.depart, ''))
-            @@ plainto_tsquery('french', :query)
+            d.recherche_fts @@ auximad_recherche_prefixe(:query)
           )
           AND (:phaseId IS NULL OR d.id_phase = :phaseId)
           AND (:statutId IS NULL OR d.id_statut = :statutId)
           AND (:clientId IS NULL OR d.id_client = :clientId)
+          AND (:numeroDossier IS NULL OR auximad_vecteur(COALESCE(d.numero_dossier, '')) @@ auximad_recherche_prefixe(:numeroDossier))
+          AND (:clientNom IS NULL OR auximad_vecteur(COALESCE(c.nom, '') || ' ' || COALESCE(c.prenom, '')) @@ auximad_recherche_prefixe(:clientNom))
+          AND (:cpClient IS NULL OR auximad_vecteur(COALESCE(c.cp_client, '')) @@ auximad_recherche_prefixe(:cpClient))
+          AND (:numeroOt IS NULL OR ot.numero_ordre_transit = :numeroOt)
+          AND (:paysOrigineId IS NULL OR d.id_pays_origine = :paysOrigineId)
+          AND (:paysDestinationId IS NULL OR d.id_pays_destination = :paysDestinationId)
+          AND (:incontermeId IS NULL OR d.id_inconterme = :incontermeId)
+          AND (:pourCompte IS NULL OR auximad_vecteur(COALESCE(d.pour_compte, '')) @@ auximad_recherche_prefixe(:pourCompte))
+          AND (:depart IS NULL OR auximad_vecteur(COALESCE(d.depart, '')) @@ auximad_recherche_prefixe(:depart))
+          AND (:adresseLivraison IS NULL OR auximad_vecteur(COALESCE(d.adresse_livraison, '')) @@ auximad_recherche_prefixe(:adresseLivraison))
+          AND (:lieuPaiementFret IS NULL OR auximad_vecteur(COALESCE(d.lieu_paiement_fret, '')) @@ auximad_recherche_prefixe(:lieuPaiementFret))
+          AND (:estPrepaye IS NULL OR d.est_prepaye = :estPrepaye)
+          AND (:estProvisionne IS NULL OR d.est_provisionne = :estProvisionne)
+          AND (:provisionMin IS NULL OR d.provision_demandee >= :provisionMin)
+          AND (:provisionMax IS NULL OR d.provision_demandee <= :provisionMax)
+          AND (:echeanceMin IS NULL OR d.echeance >= CAST(:echeanceMin AS TIMESTAMP))
+          AND (:echeanceMax IS NULL OR d.echeance < CAST(:echeanceMax AS TIMESTAMP) + INTERVAL '1 day')
+          AND (:dateLivraisonMin IS NULL OR d.date_livraison >= CAST(:dateLivraisonMin AS TIMESTAMP))
+          AND (:dateLivraisonMax IS NULL OR d.date_livraison < CAST(:dateLivraisonMax AS TIMESTAMP) + INTERVAL '1 day')
           AND (:typeProductionId IS NULL OR d.id_type_production = :typeProductionId)
           AND (:otId IS NULL OR d.id_ordre_transit = :otId)
           AND (:estGroupage IS NULL OR d.est_groupage = :estGroupage)
@@ -78,16 +94,33 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
         countQuery = """
         SELECT COUNT(*) FROM dossier d
         LEFT JOIN clients c ON d.id_client = c.id
+        LEFT JOIN ordre_transit ot ON d.id_ordre_transit = ot.id
         WHERE
           (:query IS NULL OR :query = '' OR
-            to_tsvector('french', COALESCE(d.numero_dossier, '') || ' ' ||
-              COALESCE(c.nom, '') || ' ' || COALESCE(c.prenom, '') || ' ' ||
-              COALESCE(d.pour_compte, '') || ' ' || COALESCE(d.depart, ''))
-            @@ plainto_tsquery('french', :query)
+            d.recherche_fts @@ auximad_recherche_prefixe(:query)
           )
           AND (:phaseId IS NULL OR d.id_phase = :phaseId)
           AND (:statutId IS NULL OR d.id_statut = :statutId)
           AND (:clientId IS NULL OR d.id_client = :clientId)
+          AND (:numeroDossier IS NULL OR auximad_vecteur(COALESCE(d.numero_dossier, '')) @@ auximad_recherche_prefixe(:numeroDossier))
+          AND (:clientNom IS NULL OR auximad_vecteur(COALESCE(c.nom, '') || ' ' || COALESCE(c.prenom, '')) @@ auximad_recherche_prefixe(:clientNom))
+          AND (:cpClient IS NULL OR auximad_vecteur(COALESCE(c.cp_client, '')) @@ auximad_recherche_prefixe(:cpClient))
+          AND (:numeroOt IS NULL OR ot.numero_ordre_transit = :numeroOt)
+          AND (:paysOrigineId IS NULL OR d.id_pays_origine = :paysOrigineId)
+          AND (:paysDestinationId IS NULL OR d.id_pays_destination = :paysDestinationId)
+          AND (:incontermeId IS NULL OR d.id_inconterme = :incontermeId)
+          AND (:pourCompte IS NULL OR auximad_vecteur(COALESCE(d.pour_compte, '')) @@ auximad_recherche_prefixe(:pourCompte))
+          AND (:depart IS NULL OR auximad_vecteur(COALESCE(d.depart, '')) @@ auximad_recherche_prefixe(:depart))
+          AND (:adresseLivraison IS NULL OR auximad_vecteur(COALESCE(d.adresse_livraison, '')) @@ auximad_recherche_prefixe(:adresseLivraison))
+          AND (:lieuPaiementFret IS NULL OR auximad_vecteur(COALESCE(d.lieu_paiement_fret, '')) @@ auximad_recherche_prefixe(:lieuPaiementFret))
+          AND (:estPrepaye IS NULL OR d.est_prepaye = :estPrepaye)
+          AND (:estProvisionne IS NULL OR d.est_provisionne = :estProvisionne)
+          AND (:provisionMin IS NULL OR d.provision_demandee >= :provisionMin)
+          AND (:provisionMax IS NULL OR d.provision_demandee <= :provisionMax)
+          AND (:echeanceMin IS NULL OR d.echeance >= CAST(:echeanceMin AS TIMESTAMP))
+          AND (:echeanceMax IS NULL OR d.echeance < CAST(:echeanceMax AS TIMESTAMP) + INTERVAL '1 day')
+          AND (:dateLivraisonMin IS NULL OR d.date_livraison >= CAST(:dateLivraisonMin AS TIMESTAMP))
+          AND (:dateLivraisonMax IS NULL OR d.date_livraison < CAST(:dateLivraisonMax AS TIMESTAMP) + INTERVAL '1 day')
           AND (:typeProductionId IS NULL OR d.id_type_production = :typeProductionId)
           AND (:otId IS NULL OR d.id_ordre_transit = :otId)
           AND (:estGroupage IS NULL OR d.est_groupage = :estGroupage)
@@ -105,7 +138,7 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
           )
         """,
         nativeQuery = true)
-    Page<Dossier> searchDossiers(
+    Page<Dossier> searchDossiersFiltres(
             @Param("query") String query,
             @Param("phaseId") Integer phaseId,
             @Param("statutId") Integer statutId,
@@ -117,8 +150,35 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
             @Param("dateMax") String dateMax,
             @Param("agenceId") Integer agenceId,
             @Param("typeDossier") String typeDossier,
+            @Param("numeroDossier") String numeroDossier,
+            @Param("clientNom") String clientNom,
+            @Param("cpClient") String cpClient,
+            @Param("numeroOt") Integer numeroOt,
+            @Param("paysOrigineId") Integer paysOrigineId,
+            @Param("paysDestinationId") Integer paysDestinationId,
+            @Param("incontermeId") Integer incontermeId,
+            @Param("pourCompte") String pourCompte,
+            @Param("depart") String depart,
+            @Param("adresseLivraison") String adresseLivraison,
+            @Param("lieuPaiementFret") String lieuPaiementFret,
+            @Param("estPrepaye") Boolean estPrepaye,
+            @Param("estProvisionne") Boolean estProvisionne,
+            @Param("provisionMin") java.math.BigDecimal provisionMin,
+            @Param("provisionMax") java.math.BigDecimal provisionMax,
+            @Param("echeanceMin") String echeanceMin,
+            @Param("echeanceMax") String echeanceMax,
+            @Param("dateLivraisonMin") String dateLivraisonMin,
+            @Param("dateLivraisonMax") String dateLivraisonMax,
             Pageable pageable
     );
+    default Page<Dossier> searchDossiers(String query, Integer phaseId, Integer statutId,
+            Integer clientId, Integer typeProductionId, Integer otId, Boolean estGroupage,
+            String dateMin, String dateMax, Integer agenceId, String typeDossier, Pageable pageable) {
+        return searchDossiersFiltres(query, phaseId, statutId, clientId, typeProductionId, otId,
+                estGroupage, dateMin, dateMax, agenceId, typeDossier,
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, pageable);
+    }
+
     /**
      * Dossiers qui ont des types de documents obligatoires non remis (actifs)
      */

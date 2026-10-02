@@ -1,6 +1,7 @@
 package com.auximad.controller;
 
 import com.auximad.dto.PageResponse;
+import com.auximad.dto.DossierFiltres;
 import com.auximad.entity.*;
 import com.auximad.service.SuppressionConfirmationException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -42,10 +43,11 @@ public class DossierController {
             @RequestParam(required = false) Boolean estGroupage,
             @RequestParam(required = false) String dateMin,
             @RequestParam(required = false) String dateMax,
-            @RequestParam(required = false) String typeDossier  // "MERE", "SOUS_DOSSIER", ou null = tous
+            @RequestParam(required = false) String typeDossier,
+            @RequestParam(required = false) Integer agenceId,
+            @ModelAttribute DossierFiltres filtres
     ) {
         // Filtre automatique par agence si l'utilisateur n'a pas la portée TOUTES
-        Integer agenceId = null;
         boolean peutVoirTout = JwtSecurityContext.aPermission(
                 AutorisationHelper.PORTEE_TOUTES_LECTURE, AutorisationHelper.ACTION_OT);
         if (!peutVoirTout) {
@@ -55,7 +57,7 @@ public class DossierController {
         return ResponseEntity.ok(dossierService.searchDossiers(
                 page, size, sortBy, sortDir, query, phaseId, statutId,
                 clientId, typeProductionId, otId, estGroupage, dateMin, dateMax,
-                agenceId, typeDossier
+                agenceId, typeDossier, filtres
         ));
     }
 
