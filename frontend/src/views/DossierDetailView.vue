@@ -231,7 +231,7 @@ function formatarDate(dt) {
                     <div class="d-flex justify-content-between align-items-start mb-4">
                         <div>
                             <h1 class="h4 fw-bold text-dark mb-1">{{ dossier.numeroDossier }}</h1>
-                            <p class="text-secondary mb-0 small">Créé le {{ formatarDate(dossier.dateCreation) }}</p>
+                            <p class="text-secondary mb-0 small">Créé le {{ formatarDate(dossier.dateCreation) }} · Agence : {{ dossier.agence?.nom || '—' }}</p>
                         </div>
                         <div class="d-flex gap-2">
                             <router-link v-if="dossier.ordreTransit" :to="`/ordres-transit/${dossier.ordreTransit.id}`"

@@ -44,6 +44,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\ChatRe
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\DeclarationRequest.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\DemandeInteragenceReponseRequest.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\DemandeInteragenceRequest.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\DossierFiltres.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\LoginRequest.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\LoginResponse.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\MvtDossierRequest.java

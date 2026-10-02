@@ -59,6 +59,25 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
           AND (:phaseId IS NULL OR d.id_phase = :phaseId)
           AND (:statutId IS NULL OR d.id_statut = :statutId)
           AND (:clientId IS NULL OR d.id_client = :clientId)
+          AND (:numeroDossier IS NULL OR POSITION(LOWER(:numeroDossier) IN LOWER(d.numero_dossier)) > 0)
+          AND (:clientNom IS NULL OR POSITION(LOWER(:clientNom) IN LOWER(COALESCE(c.nom, '') || ' ' || COALESCE(c.prenom, ''))) > 0)
+          AND (:cpClient IS NULL OR POSITION(LOWER(:cpClient) IN LOWER(COALESCE(c.cp_client, ''))) > 0)
+          AND (:numeroOt IS NULL OR ot.numero_ordre_transit = :numeroOt)
+          AND (:paysOrigineId IS NULL OR d.id_pays_origine = :paysOrigineId)
+          AND (:paysDestinationId IS NULL OR d.id_pays_destination = :paysDestinationId)
+          AND (:incontermeId IS NULL OR d.id_inconterme = :incontermeId)
+          AND (:pourCompte IS NULL OR POSITION(LOWER(:pourCompte) IN LOWER(COALESCE(d.pour_compte, ''))) > 0)
+          AND (:depart IS NULL OR POSITION(LOWER(:depart) IN LOWER(COALESCE(d.depart, ''))) > 0)
+          AND (:adresseLivraison IS NULL OR POSITION(LOWER(:adresseLivraison) IN LOWER(COALESCE(d.adresse_livraison, ''))) > 0)
+          AND (:lieuPaiementFret IS NULL OR POSITION(LOWER(:lieuPaiementFret) IN LOWER(COALESCE(d.lieu_paiement_fret, ''))) > 0)
+          AND (:estPrepaye IS NULL OR d.est_prepaye = :estPrepaye)
+          AND (:estProvisionne IS NULL OR d.est_provisionne = :estProvisionne)
+          AND (:provisionMin IS NULL OR d.provision_demandee >= :provisionMin)
+          AND (:provisionMax IS NULL OR d.provision_demandee <= :provisionMax)
+          AND (:echeanceMin IS NULL OR d.echeance >= CAST(:echeanceMin AS TIMESTAMP))
+          AND (:echeanceMax IS NULL OR d.echeance < CAST(:echeanceMax AS TIMESTAMP) + INTERVAL '1 day')
+          AND (:dateLivraisonMin IS NULL OR d.date_livraison >= CAST(:dateLivraisonMin AS TIMESTAMP))
+          AND (:dateLivraisonMax IS NULL OR d.date_livraison < CAST(:dateLivraisonMax AS TIMESTAMP) + INTERVAL '1 day')
           AND (:typeProductionId IS NULL OR d.id_type_production = :typeProductionId)
           AND (:otId IS NULL OR d.id_ordre_transit = :otId)
           AND (:estGroupage IS NULL OR d.est_groupage = :estGroupage)
@@ -78,6 +97,7 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
         countQuery = """
         SELECT COUNT(*) FROM dossier d
         LEFT JOIN clients c ON d.id_client = c.id
+        LEFT JOIN ordre_transit ot ON d.id_ordre_transit = ot.id
         WHERE
           (:query IS NULL OR :query = '' OR
             to_tsvector('french', COALESCE(d.numero_dossier, '') || ' ' ||
@@ -88,6 +108,25 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
           AND (:phaseId IS NULL OR d.id_phase = :phaseId)
           AND (:statutId IS NULL OR d.id_statut = :statutId)
           AND (:clientId IS NULL OR d.id_client = :clientId)
+          AND (:numeroDossier IS NULL OR POSITION(LOWER(:numeroDossier) IN LOWER(d.numero_dossier)) > 0)
+          AND (:clientNom IS NULL OR POSITION(LOWER(:clientNom) IN LOWER(COALESCE(c.nom, '') || ' ' || COALESCE(c.prenom, ''))) > 0)
+          AND (:cpClient IS NULL OR POSITION(LOWER(:cpClient) IN LOWER(COALESCE(c.cp_client, ''))) > 0)
+          AND (:numeroOt IS NULL OR ot.numero_ordre_transit = :numeroOt)
+          AND (:paysOrigineId IS NULL OR d.id_pays_origine = :paysOrigineId)
+          AND (:paysDestinationId IS NULL OR d.id_pays_destination = :paysDestinationId)
+          AND (:incontermeId IS NULL OR d.id_inconterme = :incontermeId)
+          AND (:pourCompte IS NULL OR POSITION(LOWER(:pourCompte) IN LOWER(COALESCE(d.pour_compte, ''))) > 0)
+          AND (:depart IS NULL OR POSITION(LOWER(:depart) IN LOWER(COALESCE(d.depart, ''))) > 0)
+          AND (:adresseLivraison IS NULL OR POSITION(LOWER(:adresseLivraison) IN LOWER(COALESCE(d.adresse_livraison, ''))) > 0)
+          AND (:lieuPaiementFret IS NULL OR POSITION(LOWER(:lieuPaiementFret) IN LOWER(COALESCE(d.lieu_paiement_fret, ''))) > 0)
+          AND (:estPrepaye IS NULL OR d.est_prepaye = :estPrepaye)
+          AND (:estProvisionne IS NULL OR d.est_provisionne = :estProvisionne)
+          AND (:provisionMin IS NULL OR d.provision_demandee >= :provisionMin)
+          AND (:provisionMax IS NULL OR d.provision_demandee <= :provisionMax)
+          AND (:echeanceMin IS NULL OR d.echeance >= CAST(:echeanceMin AS TIMESTAMP))
+          AND (:echeanceMax IS NULL OR d.echeance < CAST(:echeanceMax AS TIMESTAMP) + INTERVAL '1 day')
+          AND (:dateLivraisonMin IS NULL OR d.date_livraison >= CAST(:dateLivraisonMin AS TIMESTAMP))
+          AND (:dateLivraisonMax IS NULL OR d.date_livraison < CAST(:dateLivraisonMax AS TIMESTAMP) + INTERVAL '1 day')
           AND (:typeProductionId IS NULL OR d.id_type_production = :typeProductionId)
           AND (:otId IS NULL OR d.id_ordre_transit = :otId)
           AND (:estGroupage IS NULL OR d.est_groupage = :estGroupage)
@@ -105,7 +144,7 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
           )
         """,
         nativeQuery = true)
-    Page<Dossier> searchDossiers(
+    Page<Dossier> searchDossiersFiltres(
             @Param("query") String query,
             @Param("phaseId") Integer phaseId,
             @Param("statutId") Integer statutId,
@@ -117,8 +156,35 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
             @Param("dateMax") String dateMax,
             @Param("agenceId") Integer agenceId,
             @Param("typeDossier") String typeDossier,
+            @Param("numeroDossier") String numeroDossier,
+            @Param("clientNom") String clientNom,
+            @Param("cpClient") String cpClient,
+            @Param("numeroOt") Integer numeroOt,
+            @Param("paysOrigineId") Integer paysOrigineId,
+            @Param("paysDestinationId") Integer paysDestinationId,
+            @Param("incontermeId") Integer incontermeId,
+            @Param("pourCompte") String pourCompte,
+            @Param("depart") String depart,
+            @Param("adresseLivraison") String adresseLivraison,
+            @Param("lieuPaiementFret") String lieuPaiementFret,
+            @Param("estPrepaye") Boolean estPrepaye,
+            @Param("estProvisionne") Boolean estProvisionne,
+            @Param("provisionMin") java.math.BigDecimal provisionMin,
+            @Param("provisionMax") java.math.BigDecimal provisionMax,
+            @Param("echeanceMin") String echeanceMin,
+            @Param("echeanceMax") String echeanceMax,
+            @Param("dateLivraisonMin") String dateLivraisonMin,
+            @Param("dateLivraisonMax") String dateLivraisonMax,
             Pageable pageable
     );
+    default Page<Dossier> searchDossiers(String query, Integer phaseId, Integer statutId,
+            Integer clientId, Integer typeProductionId, Integer otId, Boolean estGroupage,
+            String dateMin, String dateMax, Integer agenceId, String typeDossier, Pageable pageable) {
+        return searchDossiersFiltres(query, phaseId, statutId, clientId, typeProductionId, otId,
+                estGroupage, dateMin, dateMax, agenceId, typeDossier,
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, pageable);
+    }
+
     /**
      * Dossiers qui ont des types de documents obligatoires non remis (actifs)
      */

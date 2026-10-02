@@ -19,7 +19,7 @@ class DossierService {
             const v = filters[key]
             if (v !== '' && v !== null && v !== undefined) {
                 if ((key === 'dateMin' || key === 'dateMax') && v) {
-                    params.append(key, new Date(v).toISOString())
+                    params.append(key, `${v}T${key === 'dateMax' ? '23:59:59.999' : '00:00:00'}`)
                 } else {
                     params.append(key, v)
                 }
