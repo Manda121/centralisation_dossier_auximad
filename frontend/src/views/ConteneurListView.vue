@@ -123,14 +123,13 @@ async function onConteneurEnregistre() {
 }
 
 async function supprimerConteneur(cId, dossierId = null) {
-  if (confirm("Supprimer cette assignation de conteneur ?")) {
     try {
-      await ConteneurService.supprimerConteneur(cId, dossierId)
-      await chargerTousLesConteneurs()
+        await ConteneurService.supprimerConteneur(cId, dossierId)
+        await chargerTousLesConteneurs()
     } catch (e) {
-      alert(e.response?.data?.message || "Erreur de suppression du conteneur")
+        if (e?.code === 'ERR_CANCELED') return
+        alert(e.response?.data?.message || 'Erreur de suppression du conteneur')
     }
-  }
 }
 
 function formatarDate(dt) {

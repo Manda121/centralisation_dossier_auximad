@@ -93,7 +93,7 @@
                                                 <td class="col-actions">
                                                     <button v-if="!activeConfig.readOnly" class="btn-edit" @click="openEdit(row)"
                                                         title="Modifier">✏️</button>
-                                                    <button v-if="!activeConfig.readOnly" class="btn-delete" @click="confirmerSuppression(row)"
+                                                    <button v-if="!activeConfig.readOnly" class="btn-delete" :disabled="saving" @click="confirmerSuppression(row)"
                                                         title="Supprimer">🗑️</button>
                                                     <!-- Actions spéciales utilisateurs -->
                                                     <template v-if="activeKey === 'utilisateurs'">
@@ -196,28 +196,6 @@
             </div>
         </div>
 
-        <!-- Modal confirmation suppression -->
-        <div v-if="showConfirmDelete" class="modal-overlay" @click.self="showConfirmDelete = false">
-            <div class="modal-box modal-box--sm">
-                <div class="modal-header modal-header--danger">
-                    <h3>Confirmer la suppression</h3>
-                    <button class="modal-close" @click="showConfirmDelete = false">✕</button>
-                </div>
-                <div class="modal-body">
-                    <p>Voulez-vous vraiment supprimer <strong>{{ deleteTarget?.nom || deleteTarget?.nomUtilisateur ||
-                            '#' +
-                            deleteTarget?.id }}</strong> ?</p>
-                    <p class="text-muted">Cette action est irréversible.</p>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn-cancel" @click="showConfirmDelete = false">Annuler</button>
-                    <button class="btn-delete-confirm" @click="supprimerConfirme" :disabled="saving">
-                        {{ saving ? '...' : 'Supprimer' }}
-                    </button>
-                </div>
-            </div>
-        </div>
-
         <!-- Toast notification -->
         <transition name="toast">
             <div v-if="toast"
@@ -251,7 +229,6 @@ const toast = ref(null)
 // Modals
 const showModal = ref(false)
 const showResetMdp = ref(false)
-const showConfirmDelete = ref(false)
 const editMode = ref(false)
 const editTarget = ref(null)
 const deleteTarget = ref(null)
@@ -869,19 +846,20 @@ const closeModal = () => {
 }
 
 // ── Suppression ───────────────────────────────────────────────────────────
-const confirmerSuppression = (row) => {
+const confirmerSuppression = async (row) => {
+    if (saving.value) return
     deleteTarget.value = row
-    showConfirmDelete.value = true
+    await supprimerConfirme()
 }
 
 const supprimerConfirme = async () => {
     saving.value = true
     try {
         await activeConfig.value.service.supprimer(deleteTarget.value.id)
-        showConfirmDelete.value = false
         await chargerDonnees()
         afficherToast('Suppression effectuée ✓')
     } catch (e) {
+        if (e?.code === 'ERR_CANCELED') return
         afficherToast(e.response?.data?.erreur || 'Erreur lors de la suppression', 'error')
     } finally {
         saving.value = false

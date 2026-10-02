@@ -105,7 +105,7 @@ async function soumettre(form) {
 }
 
 async function supprimer(m) {
-  if (!confirm('Voulez-vous supprimer cette ligne de marchandise définitivement ?')) return
+  
 
   loading.value = true
   try {
@@ -113,6 +113,7 @@ async function supprimer(m) {
     marchandises.value = marchandises.value.filter(item => item.id !== m.id)
     alert('Marchandise retirée avec succès.')
   } catch (e) {
+        if (e?.code === 'ERR_CANCELED') return
     console.error(e)
     alert('Erreur technique lors de la suppression.')
   } finally {

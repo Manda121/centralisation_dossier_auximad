@@ -18,6 +18,8 @@ import java.util.Optional;
 @Service
 public class OrdreTransitService {
 
+    private final SuppressionService suppressionService;
+
     /**
      * Colonnes de tri autorisées pour la recherche native des ordres de transit.
      * Les clés sont les propriétés envoyées par le front, les valeurs sont les colonnes SQL
@@ -58,7 +60,8 @@ public class OrdreTransitService {
                                NavireRepository navireRepository,
                                TypeProductionRepository typeProductionRepository,
                                TypeRegimeRepository typeRegimeRepository,
-                               BureauRepository bureauRepository) {
+                               BureauRepository bureauRepository, SuppressionService suppressionService) {
+        this.suppressionService = suppressionService;
         this.ordreTransitRepository = ordreTransitRepository;
         this.contratTransportRepository = contratTransportRepository;
         this.instructionRepository = instructionRepository;
@@ -150,15 +153,7 @@ public class OrdreTransitService {
 
     @Transactional
     public void deleteOrdreTransit(Integer id) {
-        OrdreTransit ot = ordreTransitRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Ordre de transit introuvable pour l'id: " + id));
-
-        // Au lieu de supprimer physiquement, si on a un statut Brouillon, on peut le supprimer ou le soft-supprimer. Let's delete instructions et contrat associés puis supprimer
-        contratTransportRepository.findByOrdreTransitId(id).ifPresent(contratTransportRepository::delete);
-        List<Instruction> instructions = instructionRepository.findByOrdreTransitId(id);
-        instructionRepository.deleteAll(instructions);
-
-        ordreTransitRepository.delete(ot);
+        suppressionService.supprimer("ordre_transit", id);
     }
 
     // ========== Contrat de Transport ==========

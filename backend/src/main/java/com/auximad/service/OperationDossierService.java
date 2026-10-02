@@ -17,6 +17,8 @@ import java.util.Map;
 @Service
 public class OperationDossierService {
 
+    private final SuppressionService suppressionService;
+
     private final OperationDossierRepository operationDossierRepository;
     private final PhaseDossierRepository phaseDossierRepository;
     private final StatutDossierRepository statutDossierRepository;
@@ -25,7 +27,8 @@ public class OperationDossierService {
     public OperationDossierService(OperationDossierRepository operationDossierRepository,
                                   PhaseDossierRepository phaseDossierRepository,
                                   StatutDossierRepository statutDossierRepository,
-                                  TypeProductionRepository typeProductionRepository) {
+                                  TypeProductionRepository typeProductionRepository, SuppressionService suppressionService) {
+        this.suppressionService = suppressionService;
         this.operationDossierRepository = operationDossierRepository;
         this.phaseDossierRepository = phaseDossierRepository;
         this.statutDossierRepository = statutDossierRepository;
@@ -79,14 +82,12 @@ public class OperationDossierService {
 
     @Transactional
     public void deleteOperation(Integer id) {
-        operationDossierRepository.deleteById(id);
+        suppressionService.supprimer("operation_dossier", id);
     }
 
     @Transactional
     public void deleteBatch(List<Integer> ids) {
-        if (ids != null && !ids.isEmpty()) {
-            operationDossierRepository.deleteAllById(ids);
-        }
+        suppressionService.supprimerLot("operation_dossier", ids);
     }
 
     @Transactional

@@ -37,6 +37,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\MarchandiseController.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\MvtDossierController.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\OrdreTransitController.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\SuppressionExceptionHandler.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\ChatConfirmation.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\ChatReponse.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\ChatRequete.java
@@ -146,3 +147,5 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\Ma
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\MvtDossierService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\OperationDossierService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\OrdreTransitService.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\SuppressionConfirmationException.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\SuppressionService.java

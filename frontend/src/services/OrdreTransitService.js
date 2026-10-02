@@ -1,3 +1,4 @@
+import { requeteSuppression } from './SuppressionService'
 import axios from 'axios'
 
 const API_URL = 'http://localhost:8080/api/ordres-transit'
@@ -52,7 +53,7 @@ class OrdreTransitService {
     }
 
     async deleteOrdreTransit(id) {
-        const response = await axios.delete(`${API_URL}/${id}`, { headers: authHeader() })
+        const response = await requeteSuppression(axios, { method: 'delete', url: `${API_URL}/${id}`, headers: authHeader() })
         return response.data
     }
 

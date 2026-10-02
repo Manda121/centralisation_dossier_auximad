@@ -1,3 +1,4 @@
+import { requeteSuppression } from './SuppressionService'
 import axios from 'axios'
 
 const API_URL = 'http://localhost:8080/api/conteneurs'
@@ -35,7 +36,7 @@ class ConteneurService {
 
     async supprimerConteneur(id, dossierId = null) {
         const url = dossierId ? `${API_URL}/${id}?dossierId=${dossierId}` : `${API_URL}/${id}`
-        const response = await axios.delete(url, { headers: authHeader() })
+        const response = await requeteSuppression(axios, { method: 'delete', url: url, headers: authHeader() })
         return response.data
     }
 

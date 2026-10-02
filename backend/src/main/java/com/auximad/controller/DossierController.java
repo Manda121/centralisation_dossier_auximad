@@ -2,6 +2,9 @@ package com.auximad.controller;
 
 import com.auximad.dto.PageResponse;
 import com.auximad.entity.*;
+import com.auximad.service.SuppressionConfirmationException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import com.auximad.security.AutorisationHelper;
 import com.auximad.security.JwtSecurityContext;
 import com.auximad.service.DossierService;
@@ -96,6 +99,8 @@ public class DossierController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("message", "Erreur lors de la suppression du dossier", 
                                  "details", e.getMessage()));
+        } catch (SuppressionConfirmationException | DataIntegrityViolationException | PessimisticLockingFailureException e) {
+            throw e;
         } catch (Exception e) {
             // Gestion des erreurs de contrainte de base de données ou autres erreurs
             String errorMessage = "Erreur lors de la suppression du dossier";
