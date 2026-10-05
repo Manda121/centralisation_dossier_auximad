@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import OrdreTransitService from '../../services/OrdreTransitService'
 import AutocompleteRecherche from '../inc/AutocompleteRecherche.vue'
+import { useNotification } from '../../composables/useNotification'
 
 const props = defineProps({
   /** Permet de pré-remplir le numéro (ex: depuis route.query) */
@@ -9,6 +10,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['ot-selected'])
+const { notifyWarning, notifyError } = useNotification()
 
 const numero = ref(props.initialNumero || '')
 const loading = ref(false)
@@ -48,7 +50,7 @@ async function rechercherExact() {
   const valeur = String(numero.value || '').trim()
   if (!valeur) return
   if (!/^\d+$/.test(valeur)) {
-    alert('Le numéro d’OT ne doit contenir que des chiffres.')
+    notifyWarning('Le numéro d’OT ne doit contenir que des chiffres.')
     return
   }
 
@@ -65,11 +67,11 @@ async function rechercherExact() {
     if (result.content?.length > 0) {
       onOtSuggestion(result.content[0])
     } else {
-      alert('Aucun ordre de transit trouvé sous ce numéro.')
+      notifyWarning('Aucun ordre de transit trouvé sous ce numéro.')
     }
   } catch (e) {
     console.error(e)
-    alert('Erreur technique lors de la recherche.')
+    notifyError('Erreur technique lors de la recherche.')
   } finally {
     loading.value = false
   }

@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRouter, START_LOCATION } from 'vue-router'
 import PageSkeleton from './components/inc/PageSkeleton.vue'
+import NotificationModal from './components/inc/NotificationModal.vue'
 
 const router = useRouter()
 const isNavigating = ref(false)
@@ -39,4 +40,7 @@ router.onError(() => {
         <PageSkeleton v-if="isNavigating" :variant="currentVariant" />
         <component :is="Component" v-show="!isNavigating" />
     </router-view>
+
+    <!-- Fenetre de notification commune (remplace les popups alert()) -->
+    <NotificationModal />
 </template>

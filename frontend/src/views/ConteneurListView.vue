@@ -5,7 +5,9 @@ import DataTable from '../components/inc/DataTable.vue'
 import DossierService from '../services/DossierService'
 import ConteneurService from '../services/ConteneurService'
 import ModalConteneur from '../components/conteneur/ModalConteneur.vue'
+import { useNotification } from '../composables/useNotification'
 
+const { notifyError } = useNotification()
 const datatableRef = ref(null)
 
 // Date du jour par défaut (Format YYYY-MM-DD)
@@ -128,7 +130,7 @@ async function supprimerConteneur(cId, dossierId = null) {
         await chargerTousLesConteneurs()
     } catch (e) {
         if (e?.code === 'ERR_CANCELED') return
-        alert(e.response?.data?.message || 'Erreur de suppression du conteneur')
+        notifyError(e.response?.data?.message || 'Erreur de suppression du conteneur')
     }
 }
 

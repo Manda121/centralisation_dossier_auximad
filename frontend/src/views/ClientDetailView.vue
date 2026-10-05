@@ -6,9 +6,11 @@ import PageSkeleton from '../components/inc/PageSkeleton.vue'
 import Client from '../models/Client'
 import ClientService from '../services/ClientService'
 import PermissionService, { PORTEE_PROPRE_ECRITURE, PORTEE_PROPRE_SUPPRESSION, ACTION_OT } from '../utils/permission.service'
+import { useNotification } from '../composables/useNotification'
 
 const route = useRoute()
 const router = useRouter()
+const { notifySuccess, notifyError, notifyWarning } = useNotification()
 
 const loading = ref(true)
 const erreur = ref(null)
@@ -87,7 +89,7 @@ async function enregistrerClient() {
 
     const validation = clientModel.value.valider()
     if (!validation.valide) {
-        alert(validation.erreurs.join('\n'))
+        notifyWarning(validation.erreurs.join('\n'))
         return
     }
 
@@ -95,18 +97,18 @@ async function enregistrerClient() {
     try {
         if (estNouveau.value) {
             const data = await ClientService.createClient(clientModel.value.toJSON())
-            alert('Client créé avec succès.')
+            notifySuccess('Client créé avec succès.')
             router.push(`/clients/${data.id}`)
         } else {
             const data = await ClientService.updateClient(clientModel.value.id, clientModel.value.toJSON())
-            alert('Client mis à jour avec succès.')
+            notifySuccess('Client mis à jour avec succès.')
             clientModel.value = new Client(data)
             originalData.value = { ...data }
             editionMode.value = false
             loading.value = false
         }
     } catch (e) {
-        alert("Erreur lors de l'enregistrement : données erronées ou doublon de NIF/STAT/Email.")
+        notifyError("Erreur lors de l'enregistrement : données erronées ou doublon de NIF/STAT/Email.")
         loading.value = false
     }
 }
@@ -126,11 +128,11 @@ async function supprimerClient() {
     loading.value = true
     try {
         await ClientService.deleteClient(clientModel.value.id)
-        alert('Client supprimé avec succès.')
+        notifySuccess('Client supprimé avec succès.')
         router.push('/clients')
     } catch (e) {
         if (e?.code === 'ERR_CANCELED') return
-        alert(e.response?.data?.message || 'Erreur lors de la suppression du client.')
+        notifyError(e.response?.data?.message || 'Erreur lors de la suppression du client.')
     } finally {
         loading.value = false
     }

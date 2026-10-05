@@ -5,9 +5,11 @@ import Header from '../components/inc/Header.vue'
 import PageSkeleton from '../components/inc/PageSkeleton.vue'
 import OrdreTransitService from '../services/OrdreTransitService'
 import PermissionService, { PORTEE_PROPRE_VALIDATION, PORTEE_PROPRE_SUPPRESSION, ACTION_OT } from '../utils/permission.service'
+import { useNotification } from '../composables/useNotification'
 
 const route = useRoute()
 const router = useRouter()
+const { notifySuccess, notifyError, confirm } = useNotification()
 
 const loading = ref(true)
 const erreur = ref(null)
@@ -49,17 +51,17 @@ async function chargerTout(id) {
 }
 
 async function validerOT() {
-    if (confirm("Êtes-vous sûr de vouloir valider cet ordre de transit ? Cette action est irréversible.")) {
-        loading.value = true
-        try {
-            const up = await OrdreTransitService.validateOrdreTransit(otModel.value.id)
-            otModel.value = up
-            alert("Ordre de transit validé avec succès.")
-        } catch (e) {
-            alert("Erreur technique lors de la validation.")
-        } finally {
-            loading.value = false
-        }
+    const ok = await confirm("Êtes-vous sûr de vouloir valider cet ordre de transit ? Cette action est irréversible.")
+    if (!ok) return
+    loading.value = true
+    try {
+        const up = await OrdreTransitService.validateOrdreTransit(otModel.value.id)
+        otModel.value = up
+        notifySuccess("Ordre de transit validé avec succès.")
+    } catch (e) {
+        notifyError("Erreur technique lors de la validation.")
+    } finally {
+        loading.value = false
     }
 }
 
@@ -67,11 +69,11 @@ async function supprimerOT() {
     loading.value = true
     try {
         await OrdreTransitService.deleteOrdreTransit(otModel.value.id)
-        alert('Ordre de transit supprimé. Les dossiers liés ont été clôturés.')
+        notifySuccess('Ordre de transit supprimé. Les dossiers liés ont été clôturés.')
         router.push('/ordres-transit')
     } catch (e) {
         if (e?.code === 'ERR_CANCELED') return
-        alert(e.response?.data?.message || 'Impossible de supprimer cet ordre de transit.')
+        notifyError(e.response?.data?.message || 'Impossible de supprimer cet ordre de transit.')
     } finally {
         loading.value = false
     }
@@ -84,7 +86,7 @@ async function ajouterInstruction() {
         instructions.value.push(inst)
         nouvelleInstruction.value = ''
     } catch (e) {
-        alert("Erreur lors de l'ajout de l'instruction.")
+        notifyError("Erreur lors de l'ajout de l'instruction.")
     }
 }
 

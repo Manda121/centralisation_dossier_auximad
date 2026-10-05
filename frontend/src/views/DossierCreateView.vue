@@ -198,8 +198,10 @@ import DossierService from '../services/DossierService'
 import ClientService from '../services/ClientService'
 import OrdreTransitService from '../services/OrdreTransitService'
 import UtilisateurService from '@/services/UtilisateurService.js'
+import { useNotification } from '../composables/useNotification'
 
 const router = useRouter()
+const { notifySuccess, notifyError, notifyWarning, confirm } = useNotification()
 const enCours = ref(false)
 const chargement = ref(true)
 const chargementOt = ref(false)
@@ -275,7 +277,7 @@ async function utiliserOt(ot) {
         })
         if (dossiersOt.content && dossiersOt.content.length > 0) {
             const existant = dossiersOt.content[0]
-            alert(`Un dossier existe déjà pour cet OT (${existant.numeroDossier || existant.id}).`)
+            notifyWarning(`Un dossier existe déjà pour cet OT (${existant.numeroDossier || existant.id}).`)
             otCharge.value = null
             dossier.value.ordreTransit = null
             return
@@ -286,7 +288,7 @@ async function utiliserOt(ot) {
         dossier.value.typeProduction = ot.typeProduction
         dossier.value.ordreTransit = ot
     } catch (e) {
-        alert("Erreur technique lors du chargement de l'OT.")
+        notifyError("Erreur technique lors du chargement de l'OT.")
     } finally {
         chargementOt.value = false
     }
@@ -297,7 +299,7 @@ async function preRemplirDepuisOt() {
     const numero = String(rechercheOt.value || '').trim()
     if (!numero) return
     if (!/^\d+$/.test(numero)) {
-        alert('Le numéro d’OT ne doit contenir que des chiffres.')
+        notifyWarning('Le numéro d’OT ne doit contenir que des chiffres.')
         return
     }
     chargementOt.value = true
@@ -306,10 +308,10 @@ async function preRemplirDepuisOt() {
         if (result.content && result.content.length > 0) {
             await utiliserOt(result.content[0])
         } else {
-            alert("Aucun OT trouvé pour ce numéro.")
+            notifyWarning("Aucun OT trouvé pour ce numéro.")
         }
     } catch (e) {
-        alert("Erreur technique lors de la recherche de l'OT.")
+        notifyError("Erreur technique lors de la recherche de l'OT.")
     } finally {
         chargementOt.value = false
     }
@@ -318,7 +320,7 @@ async function preRemplirDepuisOt() {
 async function creerDossier() {
     const validation = dossier.value.valider()
     if (!validation.valide) {
-        alert(validation.erreurs.join('\n'))
+        notifyWarning(validation.erreurs.join('\n'))
         return
     }
     enCours.value = true
@@ -347,7 +349,8 @@ async function creerDossier() {
         if (dossier.value.ordreTransit) {
             const ot = await OrdreTransitService.getOrdreTransitById(dossier.value.ordreTransit.id)
             if (ot.statutOt?.id !== 3) {
-                if (!window.confirm(`L'OT ${ot.numeroOrdreTransit} n'est pas validé. Confirmez-vous sa validation pour créer le dossier ?`)) return
+                const ok = await confirm(`L'OT ${ot.numeroOrdreTransit} n'est pas validé. Confirmez-vous sa validation pour créer le dossier ?`)
+                if (!ok) { enCours.value = false; return }
                 const valide = await OrdreTransitService.validateOrdreTransit(ot.id)
                 dossier.value.ordreTransit = valide
                 otCharge.value = valide
@@ -376,16 +379,16 @@ async function creerDossier() {
                 docsEnregistres = typeIdsCoches.length
             } catch (e) {
                 console.error('Documents non sauvegardés :', e)
-                alert(`Dossier ${result.numeroDossier} créé, mais les documents n'ont pas pu être enregistrés.`)
+                notifyWarning(`Dossier ${result.numeroDossier} créé, mais les documents n'ont pas pu être enregistrés.`)
             }
         }
 
-        alert(`Dossier ${result.numeroDossier} créé avec succès.` +
+        notifySuccess(`Dossier ${result.numeroDossier} créé avec succès.` +
             (docsEnregistres ? ` ${docsEnregistres} document(s) rattaché(s).` : ''))
         router.push(`/dossiers/${result.id}`)
     } catch (e) {
         const msg = e?.response?.data
-        alert(typeof msg === 'string' && msg ? msg : "Erreur lors de la création du dossier.")
+        notifyError(typeof msg === 'string' && msg ? msg : "Erreur lors de la création du dossier.")
     } finally {
         enCours.value = false
     }

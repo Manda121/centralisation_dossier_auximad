@@ -528,6 +528,19 @@ CREATE TABLE document_mvt(
     id_document INTEGER  REFERENCES document(id)
 );
 
+-- Documents obligatoires a remettre avant de pouvoir effectuer le mouvement
+-- d'une operation donnee (mvt_dossier). Si un type de document requis pour
+-- l'operation n'a pas de document actif remis sur le dossier (table document),
+-- la creation du mouvement de CETTE operation est refusee.
+-- Les operations sans document requis restent realizables normalement.
+CREATE TABLE document_obligatoire_mvt(
+    id SERIAL PRIMARY KEY,
+    id_operation INTEGER NOT NULL REFERENCES operation_dossier(id),
+    id_type_document INTEGER NOT NULL REFERENCES type_document(id),
+    description TEXT,
+    UNIQUE (id_operation, id_type_document)
+);
+
 CREATE TABLE suspension_connexion(
     id SERIAL PRIMARY KEY,
     id_utilisateur INTEGER  UNIQUE REFERENCES utilisateur(id),

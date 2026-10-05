@@ -1,5 +1,8 @@
 <script setup>
 import { computed } from 'vue'
+import { useNotification } from '../../composables/useNotification'
+
+const { notifyWarning } = useNotification()
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -19,7 +22,7 @@ const titre = computed(() =>
 function onSubmit() {
   const validation = props.formModel.valider()
   if (!validation.valide) {
-    alert(validation.erreurs.join('\n'))
+    notifyWarning(validation.erreurs.join('\n'))
     return
   }
   emit('soumettre', props.formModel)

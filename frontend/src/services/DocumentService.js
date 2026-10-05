@@ -28,6 +28,12 @@ class DocumentService {
         return res.data
     }
 
+    /** Lister les types de documents obligatoires d'une opération (table document_obligatoire_mvt) non encore remis */
+    async getDocsObligatoiresManquants(dossierId, operationId) {
+        const res = await axios.get(`${API_URL}/obligatoires-manquants/${dossierId}/${operationId}`, { headers: authHeader() })
+        return res.data
+    }
+
     /**
      * Traitement batch (cocher/décocher + uploads)
      * @param {number} dossierId

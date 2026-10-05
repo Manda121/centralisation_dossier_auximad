@@ -248,6 +248,22 @@ FROM (VALUES
 JOIN type_production tp ON tp.nom = t.sens;
 END $$;
 
+-- ============================================================
+-- DOCUMENTS OBLIGATOIRES PAR OPERATION POUR UN MOUVEMENT DE DOSSIER
+-- (table document_obligatoire_mvt)
+-- Chaque ligne lie un type de document a une operation : le document doit
+-- avoir un document actif remis sur le dossier avant de pouvoir enregistrer
+-- le mouvement de CETTE operation. Les operations non listees ici
+-- n'exigent aucun document et restent realizables normalement.
+-- ============================================================
+INSERT INTO document_obligatoire_mvt (id_operation, id_type_document, description)
+SELECT op.id, td.id, 'Document obligatoire pour l''operation ' || op.description || ' : ' || td.nom
+FROM operation_dossier op
+JOIN type_document td ON td.id_type_production = op.id_type_production
+WHERE (op.description = 'Reception BL/LTA' AND td.nom IN ('Connaissement maritime', 'Lettre de transport aerien'))
+   OR (op.description = 'Declaration' AND td.nom = 'Declaration en douane')
+   OR (op.description = 'Facturation' AND td.nom = 'Facture commerciale');
+
 INSERT INTO inconterme (nom, abreviation, description) VALUES
 ('Ex Works', 'EXW', 'Depart usine'),
 ('Free Carrier', 'FCA', 'Franco transporteur'),

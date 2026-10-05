@@ -225,6 +225,60 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal : document obligatoire manquant (blocage du mouvement) -->
+    <div v-if="showDocModal" class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+          <div class="modal-header bg-danger text-white">
+            <h5 class="modal-title fw-bold">Document obligatoire manquant</h5>
+            <button type="button" class="btn-close btn-close-white" @click="closeDocModal"></button>
+          </div>
+          <div class="modal-body p-4">
+            <div class="alert alert-warning small">
+              L'opération <strong>{{ pendingMouvementOp?.operation.description }}</strong> ne peut pas être enregistrée :
+              des documents obligatoires ne sont pas encore remis pour le dossier
+              <strong>{{ selectedDossier?.numeroDossier }}</strong>.
+              Assignez le document manquant pour pouvoir valider le mouvement.
+            </div>
+            <div v-if="loadingDocsManquants" class="text-center py-4">
+              <div class="spinner-border text-primary" role="status"></div>
+              <p class="text-muted small mt-2">Chargement des documents manquants...</p>
+            </div>
+            <div v-else class="row g-3">
+              <div class="col-12">
+                <label class="form-label small fw-bold">Document manquant <span class="text-danger">*</span></label>
+                <select v-model="docForm.typeDocumentId" class="form-select">
+                  <option :value="null">Sélectionnez un document...</option>
+                  <option v-for="t in docsManquants" :key="t.id" :value="t.id">
+                    {{ t.nom }}{{ t.typeProduction ? ` (${t.typeProduction.nom})` : '' }}
+                  </option>
+                </select>
+                <div v-if="docsManquants.length === 0" class="text-muted small mt-1">
+                  Aucun document manquant trouvé. Réessayez le mouvement.
+                </div>
+              </div>
+              <div class="col-12">
+                <label class="form-label small fw-bold">Fichier du document <span class="text-danger">*</span></label>
+                <input type="file" @change="onDocFileSelected" class="form-control" />
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer bg-light">
+            <button type="button" class="btn btn-secondary btn-sm" @click="closeDocModal">Plus tard</button>
+            <button
+              type="button"
+              class="btn btn-primary btn-sm"
+              :disabled="savingDoc || !docForm.typeDocumentId || !docForm.fichier"
+              @click="assignerEtValiderMouvement"
+            >
+              <span v-if="savingDoc" class="spinner-border spinner-border-sm me-1"></span>
+              Assigner et valider le mouvement
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -235,8 +289,11 @@ import DossierService from '../services/DossierService'
 import MvtDossierService from '../services/MvtDossierService'
 import DeclarationService from '../services/DeclarationService'
 import AdminService from '../services/AdminService'
+import DocumentService from '../services/DocumentService'
+import { useNotification } from '../composables/useNotification'
 
 const router = useRouter()
+const { notifyError, notifySuccess, notifyWarning } = useNotification()
 
 const dossierSearchQuery = ref('')
 const suggestions = ref([])
@@ -255,6 +312,14 @@ const bureaux = ref([])
 const typeDeclarations = ref([])
 const declarationFile = ref(null)
 const currentDeclarationOpDto = ref(null)
+
+// Modal : document obligatoire manquant (blocage du mouvement)
+const showDocModal = ref(false)
+const loadingDocsManquants = ref(false)
+const savingDoc = ref(false)
+const docsManquants = ref([])
+const pendingMouvementOp = ref(null)
+const docForm = ref({ typeDocumentId: null, fichier: null })
 
 const declarationForm = ref({
   numeroDeclaration: '',
@@ -341,9 +406,73 @@ const executeMouvement = async (opDto) => {
     selectedDossier.value = updatedDos
   } catch (err) {
     const msg = err.response?.data?.erreur || err.message
-    alert('Erreur : ' + msg)
+    if (estErreurDocumentsObligatoires(msg)) {
+      // Un document obligatoire manque : ouvrir la fenetre d'assignation
+      await openDocModal(opDto)
+    } else {
+      notifyError(msg)
+    }
   } finally {
     savingOpId.value = null
+  }
+}
+
+// ─── Fenetre d'assignation d'un document obligatoire manquant ───
+
+const estErreurDocumentsObligatoires = (msg) =>
+  (msg || '').toLowerCase().includes('documents obligatoires')
+
+const openDocModal = async (opDto) => {
+  pendingMouvementOp.value = opDto
+  docForm.value = { typeDocumentId: null, fichier: null }
+  showDocModal.value = true
+  loadingDocsManquants.value = true
+  try {
+    docsManquants.value = await DocumentService.getDocsObligatoiresManquants(
+      selectedDossier.value.id,
+      opDto.operation.id
+    )
+    if (docsManquants.value.length > 0) {
+      docForm.value.typeDocumentId = docsManquants.value[0].id
+    }
+  } catch (err) {
+    console.error('Erreur chargement documents obligatoires manquants:', err)
+    docsManquants.value = []
+  } finally {
+    loadingDocsManquants.value = false
+  }
+}
+
+const closeDocModal = () => {
+  showDocModal.value = false
+  pendingMouvementOp.value = null
+}
+
+const onDocFileSelected = (e) => {
+  docForm.value.fichier = e.target.files[0] || null
+}
+
+const assignerEtValiderMouvement = async () => {
+  if (!docForm.value.typeDocumentId || !docForm.value.fichier) {
+    notifyWarning('Sélectionnez le document manquant et joignez le fichier correspondant.')
+    return
+  }
+  savingDoc.value = true
+  try {
+    await DocumentService.saveDocument(selectedDossier.value.id, docForm.value.typeDocumentId, docForm.value.fichier)
+    notifySuccess('Document assigné au dossier.')
+    const opDto = pendingMouvementOp.value
+    showDocModal.value = false
+    pendingMouvementOp.value = null
+    if (opDto) {
+      await executeMouvement(opDto)
+    }
+  } catch (err) {
+    const data = err.response?.data
+    const msg = (typeof data === 'string' && data) ? data : (data?.erreur || err.message)
+    notifyError(typeof msg === 'string' ? msg : "Erreur lors de l'assignation du document.")
+  } finally {
+    savingDoc.value = false
   }
 }
 
@@ -386,7 +515,7 @@ const onDeclarationFileSelected = (e) => {
 
 const saveDeclaration = async () => {
   if (!declarationForm.value.numeroDeclaration) {
-    alert('Le numéro de déclaration est obligatoire.')
+    notifyWarning('Le numéro de déclaration est obligatoire.')
     return
   }
 
@@ -412,7 +541,7 @@ const saveDeclaration = async () => {
     await loadOperationsStatus()
   } catch (err) {
     const msg = err.response?.data?.erreur || err.message
-    alert('Erreur déclaration : ' + msg)
+    notifyError('Erreur déclaration : ' + msg)
   } finally {
     savingDeclaration.value = false
   }

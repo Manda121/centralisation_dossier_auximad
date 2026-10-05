@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { useNotification } from '../composables/useNotification'
 
 export function messageSuppression(impact) {
     const lignes = ['Confirmer la suppression définitive ?']
@@ -15,8 +16,9 @@ export function messageSuppression(impact) {
 
 /** Le serveur calcule l'impact avant toute modification. Une annulation ne relance pas la requête. */
 export async function requeteSuppression(client, configuration) {
+    const { confirm } = useNotification()
     let confirmation
-    for (;;) {
+    for (; ;) {
         try {
             return await client.request({
                 ...configuration,
@@ -25,7 +27,8 @@ export async function requeteSuppression(client, configuration) {
         } catch (error) {
             const data = error.response?.data
             if (error.response?.status !== 409 || data?.code !== 'CONFIRMATION_SUPPRESSION') throw error
-            if (!window.confirm(messageSuppression(data.impact))) throw new axios.CanceledError('Suppression annulée')
+            const ok = await confirm(messageSuppression(data.impact))
+            if (!ok) throw new axios.CanceledError('Suppression annulée')
             confirmation = data.impact.confirmation
         }
     }

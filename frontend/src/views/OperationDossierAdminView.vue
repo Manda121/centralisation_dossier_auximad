@@ -238,7 +238,9 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import AdminService from '../services/AdminService'
+import { useNotification } from '../composables/useNotification'
 
+const { notifySuccess, notifyError, notifyWarning } = useNotification()
 const typesProduction = ref([])
 const phases = ref([])
 const statuts = ref([])
@@ -387,9 +389,9 @@ const saveReorder = async () => {
   try {
     await AdminService.operationsDossier.reordonner(ids)
     isOrderChanged.value = false
-    alert('Ordre des opérations sauvegardé avec succès !')
+    notifySuccess('Ordre des opérations sauvegardé avec succès !')
   } catch (err) {
-    alert('Erreur réordonnancement: ' + err.message)
+    notifyError('Erreur réordonnancement: ' + err.message)
   }
 }
 
@@ -414,7 +416,7 @@ const deleteBatch = async () => {
     loadOperationsForActiveType()
   } catch (err) {
         if (err?.code === 'ERR_CANCELED') return
-    alert('Erreur suppression en masse: ' + err.message)
+    notifyError('Erreur suppression en masse: ' + err.message)
   }
 }
 
@@ -425,7 +427,7 @@ const deleteSingleOp = async (id) => {
     loadOperationsForActiveType()
   } catch (err) {
         if (err?.code === 'ERR_CANCELED') return
-    alert('Erreur suppression: ' + err.message)
+    notifyError('Erreur suppression: ' + err.message)
   }
 }
 
@@ -455,7 +457,7 @@ const editOp = (op) => {
 
 const saveOp = async () => {
   if (!opForm.value.description) {
-    alert('La description est requise.')
+    notifyWarning('La description est requise.')
     return
   }
 
@@ -474,7 +476,7 @@ const saveOp = async () => {
     showOpModal.value = false
     loadOperationsForActiveType()
   } catch (err) {
-    alert('Erreur sauvegarde opération: ' + err.message)
+    notifyError('Erreur sauvegarde opération: ' + err.message)
   }
 }
 

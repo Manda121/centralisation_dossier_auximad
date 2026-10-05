@@ -6,6 +6,7 @@ import PageSkeleton from '../components/inc/PageSkeleton.vue'
 import DossierService from '../services/DossierService'
 import InterAgenceService from '../services/InterAgenceService'
 import DemandeInteragenceService from '../services/DemandeInteragenceService'
+import { useNotification } from '../composables/useNotification'
 import ListeMarchandises from '@/components/marchandise/ListeMarchandises.vue'
 import DocumentsSection from '@/components/DocumentsSection.vue'
 import ConteneurService from '../services/ConteneurService'
@@ -17,6 +18,7 @@ import PermissionService, {
 import axios from 'axios'
 
 const route = useRoute()
+const { notifySuccess, notifyError } = useNotification()
 const router = useRouter()
 
 const loading = ref(true)
@@ -111,7 +113,7 @@ async function supprimerConteneur(cId) {
         await chargerConteneurs()
     } catch (e) {
         if (e?.code === 'ERR_CANCELED') return
-        alert(e.response?.data?.message || 'Erreur de suppression du conteneur')
+        notifyError(e.response?.data?.message || 'Erreur de suppression du conteneur')
     }
 }
 onMounted(async () => {
@@ -198,11 +200,11 @@ async function supprimerDossier() {
     loading.value = true
     try {
         await DossierService.deleteDossier(dossier.value.id)
-        alert('Dossier supprimé.')
+        notifySuccess('Dossier supprimé.')
         router.push('/dossiers')
     } catch (e) {
         if (e?.code === 'ERR_CANCELED') return
-        alert(e.response?.data?.message || 'Erreur lors de la suppression.')
+        notifyError(e.response?.data?.message || 'Erreur lors de la suppression.')
     } finally {
         loading.value = false
     }

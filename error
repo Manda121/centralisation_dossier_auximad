@@ -1,0 +1,13 @@
+Trajectory ID: 8299552a-f19c-4dd4-b39d-deef4d5b2700
+Error: HTTP 400 Bad Request
+Sherlog: 
+TraceID: 0xbb1ce2e1e1cb127f
+Headers: {"Alt-Svc":["h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000"],"Content-Length":["175"],"Content-Type":["text/event-stream"],"Date":["Mon, 05 Oct 2026 08:50:26 GMT"],"Server":["ESF"],"Server-Timing":["gfet4t7; dur=1376"],"Vary":["Origin","X-Origin","Referer"],"X-Cloudaicompanion-Trace-Id":["bb1ce2e1e1cb127f"],"X-Content-Type-Options":["nosniff"],"X-Frame-Options":["SAMEORIGIN"],"X-Xss-Protection":["0"]}
+
+{
+  "error": {
+    "code": 400,
+    "message": "TextEncodeInput must be Union[TextInputSequence, Tuple[InputSequence, InputSequence]]",
+    "status": "INVALID_ARGUMENT"
+  }
+}
