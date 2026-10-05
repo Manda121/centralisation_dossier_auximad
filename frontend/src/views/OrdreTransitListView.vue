@@ -10,12 +10,14 @@ import PermissionService, { PORTEE_PROPRE_ECRITURE, ACTION_OT } from '../utils/p
 
 const router = useRouter()
 const datatableRef = ref(null)
+const aujourdhui = new Date().toLocaleDateString('en-CA')
 
 const allFilters = reactive({
     query: '',
+    cpClient: '',
     numero: '',
-    dateMin: '',
-    dateMax: '',
+    dateMin: aujourdhui,
+    dateMax: aujourdhui,
     clientId: '',
     expediteurId: '',
     destinataireId: '',
@@ -104,6 +106,8 @@ function reinitialiserFiltres() {
     Object.keys(allFilters).forEach(key => {
         allFilters[key] = ''
     })
+    allFilters.dateMin = aujourdhui
+    allFilters.dateMax = aujourdhui
     if (datatableRef.value) {
         datatableRef.value.refresh()
     }
@@ -135,6 +139,10 @@ function reinitialiserFiltres() {
 
                             <template #filters="{ filters }">
                                 <div class="row g-2">
+                                    <div class="col-md-3">
+                                        <label class="form-label small fw-semibold text-secondary">CP Client</label>
+                                        <input type="text" v-model="filters.cpClient" class="form-control form-control-sm" placeholder="Code client">
+                                    </div>
                                     <div class="col-md-3">
                                         <label class="form-label small fw-semibold text-secondary">Numéro OT</label>
                                         <AutocompleteRecherche v-model="filters.numero" :fetch-results="suggestionsOt"

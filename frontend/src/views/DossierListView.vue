@@ -11,15 +11,16 @@ import PermissionService, { PORTEE_PROPRE_ECRITURE, ACTION_OT } from '../utils/p
 
 const route = useRoute()
 const datatableRef = ref(null)
+const aujourdhui = new Date().toLocaleDateString('en-CA')
 
 const filters = reactive({
     agenceId: '', numeroDossier: '', clientNom: '', cpClient: '', numeroOt: '',
     paysOrigineId: '', paysDestinationId: '', incontermeId: '', pourCompte: '',
     depart: '', adresseLivraison: '', lieuPaiementFret: '',
     estPrepaye: '', estProvisionne: '', provisionMin: '', provisionMax: '',
-    echeanceMin: '', echeanceMax: '', dateLivraisonMin: '', dateLivraisonMax: '',
+    echeanceMin: aujourdhui, echeanceMax: aujourdhui, dateLivraisonMin: aujourdhui, dateLivraisonMax: aujourdhui,
     query: '', phaseId: '', statutId: '', clientId: '',
-    typeProductionId: '', otId: '', estGroupage: '', dateMin: '', dateMax: '',
+    typeProductionId: '', otId: '', estGroupage: '', dateMin: aujourdhui, dateMax: aujourdhui,
     typeDossier: route.query.typeDossier || '',
 })
 

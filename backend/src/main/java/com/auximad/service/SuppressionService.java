@@ -136,7 +136,7 @@ public class SuppressionService {
             return !relation.child().equals("conteneur"); // Ancienne colonne : conteneur partagé, à détacher.
         }
         if (relation.parent().equals("ordre_transit")) {
-            return Set.of("contrat_transport", "instruction", "marchandise").contains(relation.child());
+            return Set.of("contrat_transport", "instruction", "marchandise", "expedition").contains(relation.child());
         }
         if (relation.parent().equals("utilisateur")) {
             return Set.of("autorisation", "suspension_connexion").contains(relation.child());

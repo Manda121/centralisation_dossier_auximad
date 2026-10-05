@@ -17,7 +17,7 @@ const filters = reactive({
   statutId: '',
   typeProductionId: '',
   dateMin: todayStr,
-  dateMax: ''
+  dateMax: todayStr
 })
 
 const phases = ref([])
@@ -139,11 +139,13 @@ function formatarDate(dt) {
 
 function reinitialiserFiltreDate() {
   filters.dateMin = ''
+  filters.dateMax = ''
   datatableRef.value?.refresh(true)
 }
 
 function filtrerAujourdhui() {
   filters.dateMin = todayStr
+  filters.dateMax = todayStr
   datatableRef.value?.refresh(true)
 }
 </script>

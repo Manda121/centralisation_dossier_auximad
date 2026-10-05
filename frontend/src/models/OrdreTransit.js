@@ -4,6 +4,7 @@
  */
 export class OrdreTransit {
     constructor(data = {}) {
+        this.expedition = data.expedition || null
         this.id = data.id || null
         this.numeroOrdreTransit = data.numeroOrdreTransit || null
         this.agence = data.agence || null
@@ -59,6 +60,7 @@ export class OrdreTransit {
      */
     toJSON() {
         return {
+            expedition: this.expedition,
             id: this.id,
             numeroOrdreTransit: this.numeroOrdreTransit,
             client: this.client ? { id: this.client.id } : null,

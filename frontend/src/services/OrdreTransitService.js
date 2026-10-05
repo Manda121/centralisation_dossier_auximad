@@ -8,6 +8,14 @@ function authHeader() {
     return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
+function normaliserBorneDate(date, finJournee = false) {
+    if (typeof date !== 'string') return date
+    if (date.length === 10) {
+        return `${date}T${finJournee ? '23:59:59.999' : '00:00:00'}`
+    }
+    return date
+}
+
 class OrdreTransitService {
     async searchOrdreTransits(page, size, sortBy, sortDir, filters = {}) {
         const params = new URLSearchParams()
@@ -18,7 +26,7 @@ class OrdreTransitService {
         Object.keys(filters).forEach(key => {
             if (filters[key] !== '' && filters[key] !== null && filters[key] !== undefined) {
                 if ((key === 'dateMin' || key === 'dateMax') && filters[key]) {
-                    params.append(key, new Date(filters[key]).toISOString())
+                    params.append(key, normaliserBorneDate(filters[key], key === 'dateMax'))
                 } else {
                     params.append(key, filters[key])
                 }

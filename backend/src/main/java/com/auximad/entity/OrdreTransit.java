@@ -1,6 +1,7 @@
 package com.auximad.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -74,6 +75,14 @@ public class OrdreTransit {
 
     @Column(name = "date_creation")
     private LocalDateTime dateCreation;
+
+    @OneToOne(mappedBy = "ordreTransit", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Expedition expedition;
+
+    // Recu uniquement lors de la creation pour une sauvegarde atomique.
+    @Transient
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private ContratTransport contratCreation;
 
     @PrePersist
     protected void onCreate() {

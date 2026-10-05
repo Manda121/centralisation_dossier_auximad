@@ -208,8 +208,15 @@ const otCharge = ref(null)
 const docsObligatoiresComplets = ref(true) // Par défaut true (pas de type de production sélectionné)
 const docsCreation = ref({ typeIdsCoches: [], fichiersParTypeId: {} })
 const docsSectionRef = ref(null)
+const maintenantLocal = () => {
+    const date = new Date()
+    date.setMinutes(date.getMinutes() - date.getTimezoneOffset())
+    return date.toISOString().slice(0, 16)
+}
 
 const dossier = ref(new Dossier())
+dossier.value.echeance = maintenantLocal()
+dossier.value.dateLivraison = maintenantLocal()
 const clients = ref([])
 const typeProductions = ref([])
 const phases = ref([])

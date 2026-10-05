@@ -7,6 +7,7 @@ import AdminService from '../services/AdminService'
 import DossierService from '../services/DossierService'
 
 const datatableRef = ref(null)
+const aujourdhui = new Date().toLocaleDateString('en-CA')
 
 // ── Référentiels ──────────────────────────────────────────────
 const agences = ref([])
@@ -36,8 +37,8 @@ const filters = reactive({
   query: '',
   cpClient: '',
   numeroDossier: '',
-  dateMin: '',
-  dateMax: '',
+  dateMin: aujourdhui,
+  dateMax: aujourdhui,
   agenceId: '',
   typeProductionId: '',
   phaseId: '',
@@ -71,6 +72,8 @@ function declencherRecherche() {
 
 function reinitialiserFiltres() {
   Object.keys(filters).forEach(k => { filters[k] = '' })
+  filters.dateMin = aujourdhui
+  filters.dateMax = aujourdhui
   datatableRef.value?.refresh(true)
 }
 

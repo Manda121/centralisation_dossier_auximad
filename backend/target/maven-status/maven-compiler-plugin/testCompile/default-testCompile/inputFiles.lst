@@ -3,4 +3,5 @@ D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\controller
 D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\repository\DossierFiltersPostgresTest.java
 D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\DossierCreationRulesTest.java
 D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\MouvementDocumentsRulesTest.java
+D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\OrdreTransitExpeditionTest.java
 D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\SuppressionServicePostgresTest.java
