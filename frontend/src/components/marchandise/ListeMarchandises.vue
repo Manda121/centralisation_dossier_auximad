@@ -5,6 +5,9 @@ import ModalMarchandise from './ModalMarchandise.vue'
 import Marchandise from '../../models/Marchandise'
 import MarchandiseService from '../../services/MarchandiseService'
 import PermissionService, { PORTEE_PROPRE_ECRITURE, ACTION_OT } from '../../utils/permission.service'
+import { useNotification } from '../../composables/useNotification'
+
+const { notifySuccess, notifyError } = useNotification()
 
 const props = defineProps({
   ordreTransit: { type: Object, default: null }
@@ -95,10 +98,10 @@ async function soumettre(form) {
     }
 
     fermerModal()
-    alert('Marchandise enregistrée.')
+    notifySuccess('Marchandise enregistrée.')
   } catch (e) {
     console.error(e)
-    alert('Erreur lors de l\'enregistrement de la marchandise.')
+    notifyError('Erreur lors de l\'enregistrement de la marchandise.')
   } finally {
     formLoading.value = false
   }
@@ -111,11 +114,11 @@ async function supprimer(m) {
   try {
     await MarchandiseService.deleteMarchandise(m.id)
     marchandises.value = marchandises.value.filter(item => item.id !== m.id)
-    alert('Marchandise retirée avec succès.')
+    notifySuccess('Marchandise retirée avec succès.')
   } catch (e) {
         if (e?.code === 'ERR_CANCELED') return
     console.error(e)
-    alert('Erreur technique lors de la suppression.')
+    notifyError('Erreur technique lors de la suppression.')
   } finally {
     loading.value = false
   }

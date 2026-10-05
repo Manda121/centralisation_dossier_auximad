@@ -61,6 +61,16 @@ public class DocumentController {
         return ResponseEntity.ok(Map.of("complet", complet));
     }
 
+    @GetMapping("/obligatoires-manquants/{dossierId}")
+    @Operation(summary = "Lister les types de documents obligatoires non encore remis pour un dossier")
+    public ResponseEntity<?> getDocsObligatoiresManquants(@PathVariable Integer dossierId) {
+        try {
+            return ResponseEntity.ok(documentService.getDocsObligatoiresManquants(dossierId));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
     // ─── Ajouter un document ──────────────────────────────────────────────────
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

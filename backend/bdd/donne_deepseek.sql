@@ -378,6 +378,18 @@ INSERT INTO type_document (nom, id_type_production, id_nature_marchandise, est_o
 
 SELECT setval(pg_get_serial_sequence('type_document', 'id'), coalesce(max(id), 1)) FROM type_document;
 
+-- ============================================================
+-- DOCUMENTS OBLIGATOIRES POUR UN MOUVEMENT DE DOSSIER
+-- (table document_obligatoire_mvt)
+-- Chaque type de document liste ici doit avoir un document actif
+-- remis sur le dossier avant de pouvoir enregistrer un mvt_dossier.
+-- On reprend tous les types marques obligatoires.
+-- ============================================================
+INSERT INTO document_obligatoire_mvt (id_type_document, description)
+SELECT td.id, 'Document obligatoire avant mouvement : ' || td.nom
+FROM type_document td
+WHERE td.est_obligatoire = TRUE;
+
 INSERT INTO type_container (nom, description, volume, poids_max, longueur, largeur, hauteur) VALUES
 ('20 pieds', 'Conteneur standard 20 pieds', 33.2, 28000, 6.06, 2.44, 2.59),
 ('40 pieds', 'Conteneur standard 40 pieds', 67.7, 30000, 12.19, 2.44, 2.59),

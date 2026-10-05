@@ -6,8 +6,10 @@ import PageSkeleton from '../components/inc/PageSkeleton.vue'
 import OrdreTransit from '../models/OrdreTransit'
 import OrdreTransitService from '../services/OrdreTransitService'
 import ClientService from '../services/ClientService'
+import { useNotification } from '../composables/useNotification'
 
 const router = useRouter()
+const { notifyWarning, notifySuccess, notifyError } = useNotification()
 const currentStep = ref(1)
 const sauvegardeEnCours = ref(false)
 const chargement = ref(true)
@@ -111,13 +113,13 @@ async function chargerCompagniesSelonMode() {
 function etapeSuivante() {
     if (currentStep.value === 1) {
         if (!otModel.value.client || !otModel.value.typeProduction || !otModel.value.typeRegime) {
-            alert('Veuillez renseigner tous les champs obligatoires (*) de l\'étape 1.')
+            notifyWarning('Veuillez renseigner tous les champs obligatoires (*) de l\'étape 1.')
             return
         }
         chargerCompagniesSelonMode()
     } else if (currentStep.value === 2) {
         if (!otModel.value.expediteur || !otModel.value.destinataire || !otModel.value.bureauDedouanement) {
-            alert('Veuillez renseigner tous les champs obligatoires (*) de l\'étape 2.')
+            notifyWarning('Veuillez renseigner tous les champs obligatoires (*) de l\'étape 2.')
             return
         }
     }
@@ -165,10 +167,10 @@ async function creerOrdreTransit() {
         }
         const savedOt = await OrdreTransitService.createOrdreTransit(otPayload)
 
-        alert('Ordre de transit créé avec succès.')
+        notifySuccess('Ordre de transit créé avec succès.')
         router.push(`/ordres-transit/${savedOt.id}`)
     } catch (e) {
-        alert('Erreur technique lors de la création de l\'ordre de transit.')
+        notifyError('Erreur technique lors de la création de l\'ordre de transit.')
     } finally {
         sauvegardeEnCours.value = false
     }

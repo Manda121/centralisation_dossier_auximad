@@ -25,6 +25,7 @@ public class DocumentService {
     private final TypeDocumentRepository typeDocumentRepository;
     private final DossierRepository dossierRepository;
     private final RemiseRepository remiseRepository;
+    private final DocumentObligatoireMvtRepository documentObligatoireMvtRepository;
 
     @Value("${app.upload.dir:uploads/documents}")
     private String uploadDir;
@@ -32,12 +33,15 @@ public class DocumentService {
     public DocumentService(DocumentRepository documentRepository,
                            TypeDocumentRepository typeDocumentRepository,
                            DossierRepository dossierRepository,
-                           RemiseRepository remiseRepository, SuppressionService suppressionService) {
+                           RemiseRepository remiseRepository,
+                           DocumentObligatoireMvtRepository documentObligatoireMvtRepository,
+                           SuppressionService suppressionService) {
         this.suppressionService = suppressionService;
         this.documentRepository = documentRepository;
         this.typeDocumentRepository = typeDocumentRepository;
         this.dossierRepository = dossierRepository;
         this.remiseRepository = remiseRepository;
+        this.documentObligatoireMvtRepository = documentObligatoireMvtRepository;
     }
 
     // ─── Remises (table remise) ─────────────────────────────────────────────
@@ -136,15 +140,27 @@ public class DocumentService {
         return documentRepository.findByDossierIdAndEstActifTrue(dossierId);
     }
 
-    /** Vérifie si tous les documents obligatoires sont remis pour un dossier */
+    /**
+     * Vérifie si tous les documents obligatoires (table document_obligatoire_mvt)
+     * sont remis pour un dossier. Sinon, aucun mouvement de dossier ne peut être créé.
+     */
     @Transactional(readOnly = true)
     public boolean tousDocsObligatoiresRemis(Integer dossierId) {
+        return getDocsObligatoiresManquants(dossierId).isEmpty();
+    }
+
+    /**
+     * Liste les types de documents obligatoires (table document_obligatoire_mvt)
+     * non encore remis pour un dossier.
+     */
+    @Transactional(readOnly = true)
+    public List<TypeDocument> getDocsObligatoiresManquants(Integer dossierId) {
         Dossier dossier = dossierRepository.findById(dossierId)
                 .orElseThrow(() -> new IllegalArgumentException("Dossier introuvable : " + dossierId));
-        if (dossier.getTypeProduction() == null) return true;
-        long manquants = documentRepository.countDocsObligatoiresManquants(
-                dossierId, dossier.getTypeProduction().getId());
-        return manquants == 0;
+        if (dossier.getTypeProduction() == null) {
+            return documentObligatoireMvtRepository.findManquants(dossierId, null);
+        }
+        return documentObligatoireMvtRepository.findManquants(dossierId, dossier.getTypeProduction().getId());
     }
 
     /**

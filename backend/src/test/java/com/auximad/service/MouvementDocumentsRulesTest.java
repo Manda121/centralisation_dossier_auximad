@@ -8,6 +8,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import java.util.List;
 import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -30,6 +31,7 @@ class MouvementDocumentsRulesTest {
         MvtDossierRequest req = new MvtDossierRequest(); req.setDossierId(1); req.setOperationId(2);
         when(dossierRepository.findById(1)).thenReturn(Optional.of(d));
         when(documentService.tousDocsObligatoiresRemis(1)).thenReturn(false);
+        when(documentService.getDocsObligatoiresManquants(1)).thenReturn(List.of());
         IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
                 () -> service.creerMouvement(req, null, null));
         assertTrue(error.getMessage().contains("documents obligatoires"));

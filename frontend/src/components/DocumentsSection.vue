@@ -194,6 +194,9 @@
 <script setup>
 import { ref, watch, computed, onMounted } from 'vue'
 import DocumentService from '@/services/DocumentService'
+import { useNotification } from '@/composables/useNotification'
+
+const { notifyError, notifyWarning } = useNotification()
 
 const props = defineProps({
     dossierId: { type: Number, default: null },
@@ -404,7 +407,7 @@ async function assignerUn(typeDocId) {
         emit('documents-valides', { succes: true })
     } catch (e) {
         console.error('Erreur assignation document', e)
-        alert(e?.response?.data || 'Erreur lors de l\'assignation du document.')
+        notifyError(e?.response?.data || 'Erreur lors de l\'assignation du document.')
     } finally {
         assignationEnCours.value = { ...assignationEnCours.value, [typeDocId]: false }
         delete datesRemiseSaisies.value[typeDocId]
@@ -419,7 +422,7 @@ async function changerDateRemise(typeDocId) {
         await chargerDonnees()
     } catch (e) {
         console.error('Erreur modification date de remise', e)
-        alert(e?.response?.data || 'Erreur lors de la modification de la date de remise.')
+        notifyError(e?.response?.data || 'Erreur lors de la modification de la date de remise.')
     }
 }
 
@@ -430,7 +433,7 @@ async function retirerDateRemise(typeDocId) {
         await chargerDonnees()
     } catch (e) {
         console.error('Erreur retrait date de remise', e)
-        alert(e?.response?.data || 'Erreur lors du retrait de la date de remise.')
+        notifyError(e?.response?.data || 'Erreur lors du retrait de la date de remise.')
     }
 }
 
@@ -443,7 +446,7 @@ async function retirer(typeDocId) {
         emit('documents-valides', { succes: true })
     } catch (e) {
         console.error('Erreur retrait document', e)
-        alert(e?.response?.data || 'Erreur lors du retrait du document.')
+        notifyError(e?.response?.data || 'Erreur lors du retrait du document.')
     }
 }
 
@@ -475,7 +478,7 @@ async function valider() {
         )
         if (obligatoiresManquants.length > 0) {
             valideeCreation.value = false
-            alert(
+            notifyWarning(
                 'Documents obligatoires manquants : ' +
                 obligatoiresManquants.map(t => t.nom).join(', ')
             )
@@ -514,7 +517,7 @@ async function valider() {
         emit('documents-valides', { succes: true })
     } catch (e) {
         console.error('Erreur validation documents', e)
-        alert(e?.response?.data || 'Erreur lors de la validation des documents.')
+        notifyError(e?.response?.data || 'Erreur lors de la validation des documents.')
     } finally {
         enCoursValidation.value = false
     }

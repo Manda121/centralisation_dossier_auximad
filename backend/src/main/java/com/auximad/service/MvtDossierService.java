@@ -164,8 +164,12 @@ public class MvtDossierService {
                 .orElseThrow(() -> new IllegalArgumentException("Dossier introuvable : " + req.getDossierId()));
 
         if (!documentService.tousDocsObligatoiresRemis(dossier.getId())) {
+            String manquants = documentService.getDocsObligatoiresManquants(dossier.getId()).stream()
+                    .map(TypeDocument::getNom)
+                    .collect(java.util.stream.Collectors.joining(", "));
             throw new IllegalArgumentException(
-                    "Impossible d'effectuer un mouvement : des documents obligatoires ne sont pas encore remis.");
+                    "Impossible d'effectuer un mouvement : des documents obligatoires ne sont pas encore remis"
+                            + (manquants.isBlank() ? "." : " : " + manquants + "."));
         }
 
         OperationDossier operation = operationDossierRepository.findById(req.getOperationId())
