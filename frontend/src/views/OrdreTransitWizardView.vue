@@ -11,6 +11,11 @@ const router = useRouter()
 const currentStep = ref(1)
 const sauvegardeEnCours = ref(false)
 const chargement = ref(true)
+const maintenantLocal = () => {
+    const date = new Date()
+    date.setMinutes(date.getMinutes() - date.getTimezoneOffset())
+    return date.toISOString().slice(0, 16)
+}
 
 const otModel = ref(new OrdreTransit())
 const contratModel = ref({
@@ -20,8 +25,8 @@ const contratModel = ref({
     numeroVol: '',
     lieuEmission: '',
     notify: '',
-    datePrevue: '',
-    dateArrivee: ''
+    datePrevue: maintenantLocal(),
+    dateArrivee: maintenantLocal()
 })
 
 const clients = ref([])
@@ -88,7 +93,7 @@ async function chargerCompagniesSelonMode() {
     modeCompagniesCharge.value = mode
     contratModel.value = {
         numero: '', compagnie: null, navire: null, numeroVol: '',
-        lieuEmission: '', notify: '', datePrevue: '', dateArrivee: ''
+        lieuEmission: '', notify: '', datePrevue: maintenantLocal(), dateArrivee: maintenantLocal()
     }
     navires.value = []
     if (!mode) {

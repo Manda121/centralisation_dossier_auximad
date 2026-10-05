@@ -28,7 +28,7 @@ public class SuspensionConnexion {
     @Column(name = "date_suspension")
     private LocalDateTime dateSuspension;
 
-    @Column(name = "duree_suspension")
+    @Column(name = "duree_suspension_minutes")
     private Integer dureeSuspension = 15;
 
     @Column(name = "date_creation")

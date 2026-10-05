@@ -216,8 +216,13 @@ const remises = ref({})           // { [typeDocumentId]: dateRemise } (table rem
 
 // Assignation par document
 const datesRemiseSaisies = ref({})   // dates saisies pour les docs non remis
-const dateRemiseBatch = ref('')
-const nouvelleDateRemise = ref('')
+const maintenantLocal = () => {
+    const date = new Date()
+    date.setMinutes(date.getMinutes() - date.getTimezoneOffset())
+    return date.toISOString().slice(0, 16)
+}
+const dateRemiseBatch = ref(maintenantLocal())
+const nouvelleDateRemise = ref(maintenantLocal())
 // Mode création : la sélection a été validée par l'utilisateur (feedback visuel)
 const valideeCreation = ref(false)
 
@@ -504,7 +509,7 @@ async function valider() {
 
         // Recharger
         fichiersTemp.value = {}
-        dateRemiseBatch.value = ''
+        dateRemiseBatch.value = maintenantLocal()
         await chargerDonnees()
         emit('documents-valides', { succes: true })
     } catch (e) {
