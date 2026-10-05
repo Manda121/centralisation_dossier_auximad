@@ -9,7 +9,7 @@ import { useNotification } from '../composables/useNotification'
 
 const route = useRoute()
 const router = useRouter()
-const { notifySuccess, notifyError } = useNotification()
+const { notifySuccess, notifyError, confirm } = useNotification()
 
 const loading = ref(true)
 const erreur = ref(null)
@@ -51,17 +51,17 @@ async function chargerTout(id) {
 }
 
 async function validerOT() {
-    if (confirm("Êtes-vous sûr de vouloir valider cet ordre de transit ? Cette action est irréversible.")) {
-        loading.value = true
-        try {
-            const up = await OrdreTransitService.validateOrdreTransit(otModel.value.id)
-            otModel.value = up
-            notifySuccess("Ordre de transit validé avec succès.")
-        } catch (e) {
-            notifyError("Erreur technique lors de la validation.")
-        } finally {
-            loading.value = false
-        }
+    const ok = await confirm("Êtes-vous sûr de vouloir valider cet ordre de transit ? Cette action est irréversible.")
+    if (!ok) return
+    loading.value = true
+    try {
+        const up = await OrdreTransitService.validateOrdreTransit(otModel.value.id)
+        otModel.value = up
+        notifySuccess("Ordre de transit validé avec succès.")
+    } catch (e) {
+        notifyError("Erreur technique lors de la validation.")
+    } finally {
+        loading.value = false
     }
 }
 

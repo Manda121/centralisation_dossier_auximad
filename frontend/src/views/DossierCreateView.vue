@@ -201,7 +201,7 @@ import UtilisateurService from '@/services/UtilisateurService.js'
 import { useNotification } from '../composables/useNotification'
 
 const router = useRouter()
-const { notifySuccess, notifyError, notifyWarning } = useNotification()
+const { notifySuccess, notifyError, notifyWarning, confirm } = useNotification()
 const enCours = ref(false)
 const chargement = ref(true)
 const chargementOt = ref(false)
@@ -349,7 +349,8 @@ async function creerDossier() {
         if (dossier.value.ordreTransit) {
             const ot = await OrdreTransitService.getOrdreTransitById(dossier.value.ordreTransit.id)
             if (ot.statutOt?.id !== 3) {
-                if (!window.confirm(`L'OT ${ot.numeroOrdreTransit} n'est pas validé. Confirmez-vous sa validation pour créer le dossier ?`)) return
+                const ok = await confirm(`L'OT ${ot.numeroOrdreTransit} n'est pas validé. Confirmez-vous sa validation pour créer le dossier ?`)
+                if (!ok) { enCours.value = false; return }
                 const valide = await OrdreTransitService.validateOrdreTransit(ot.id)
                 dossier.value.ordreTransit = valide
                 otCharge.value = valide

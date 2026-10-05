@@ -18,7 +18,7 @@ const filters = reactive({
     paysOrigineId: '', paysDestinationId: '', incontermeId: '', pourCompte: '',
     depart: '', adresseLivraison: '', lieuPaiementFret: '',
     estPrepaye: '', estProvisionne: '', provisionMin: '', provisionMax: '',
-    echeanceMin: aujourdhui, echeanceMax: aujourdhui, dateLivraisonMin: aujourdhui, dateLivraisonMax: aujourdhui,
+    echeanceMin: '', echeanceMax: '', dateLivraisonMin: '', dateLivraisonMax: '',
     query: '', phaseId: '', statutId: '', clientId: '',
     typeProductionId: '', otId: '', estGroupage: '', dateMin: aujourdhui, dateMax: aujourdhui,
     typeDossier: route.query.typeDossier || '',

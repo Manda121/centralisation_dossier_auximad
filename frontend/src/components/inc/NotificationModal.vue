@@ -2,7 +2,7 @@
 import { useNotification } from '../../composables/useNotification'
 
 // Fenetre de notification commune a toutes les pages :
-// remplace les popups d'alerte natifs (alert()).
+// remplace les popups d'alerte natifs (alert(), window.confirm()).
 const { state, fermer } = useNotification()
 
 const styleParType = {
@@ -16,20 +16,35 @@ const style = (type) => styleParType[type] || styleParType.info
 </script>
 
 <template>
-    <div v-if="state.current" class="notification-overlay" @click.self="fermer">
+    <div v-if="state.current" class="notification-overlay" @click.self="!state.current.isConfirm && fermer(false)">
         <div class="modal-dialog modal-dialog-centered" role="dialog" aria-modal="true">
             <div class="modal-content border-0 shadow">
                 <div class="modal-header py-3 text-white" :class="style(state.current.type).header">
                     <h5 class="modal-title fw-bold">
                         {{ style(state.current.type).icon }} {{ state.current.title }}
                     </h5>
-                    <button type="button" class="btn-close" :class="{ 'btn-close-white': state.current.type !== 'warning' }" aria-label="Fermer" @click="fermer"></button>
+                    <button
+                        v-if="!state.current.isConfirm"
+                        type="button"
+                        class="btn-close"
+                        :class="{ 'btn-close-white': state.current.type !== 'warning' }"
+                        aria-label="Fermer"
+                        @click="fermer(false)"
+                    ></button>
                 </div>
                 <div class="modal-body py-4">
                     <p class="mb-0 notification-message">{{ state.current.message }}</p>
                 </div>
                 <div class="modal-footer bg-light py-2">
-                    <button type="button" class="btn btn-primary px-4" @click="fermer">OK</button>
+                    <!-- Modale de confirmation : deux boutons -->
+                    <template v-if="state.current.isConfirm">
+                        <button type="button" class="btn btn-secondary px-4" @click="fermer(false)">Annuler</button>
+                        <button type="button" class="btn btn-warning px-4 fw-semibold" @click="fermer(true)">Confirmer</button>
+                    </template>
+                    <!-- Notification simple : bouton OK -->
+                    <template v-else>
+                        <button type="button" class="btn btn-primary px-4" @click="fermer(false)">OK</button>
+                    </template>
                 </div>
             </div>
         </div>
