@@ -236,8 +236,9 @@
           </div>
           <div class="modal-body p-4">
             <div class="alert alert-warning small">
-              Le mouvement ne peut pas être enregistré : des documents obligatoires ne sont pas encore remis pour le
-              dossier <strong>{{ selectedDossier?.numeroDossier }}</strong>.
+              L'opération <strong>{{ pendingMouvementOp?.operation.description }}</strong> ne peut pas être enregistrée :
+              des documents obligatoires ne sont pas encore remis pour le dossier
+              <strong>{{ selectedDossier?.numeroDossier }}</strong>.
               Assignez le document manquant pour pouvoir valider le mouvement.
             </div>
             <div v-if="loadingDocsManquants" class="text-center py-4">
@@ -427,7 +428,10 @@ const openDocModal = async (opDto) => {
   showDocModal.value = true
   loadingDocsManquants.value = true
   try {
-    docsManquants.value = await DocumentService.getDocsObligatoiresManquants(selectedDossier.value.id)
+    docsManquants.value = await DocumentService.getDocsObligatoiresManquants(
+      selectedDossier.value.id,
+      opDto.operation.id
+    )
     if (docsManquants.value.length > 0) {
       docForm.value.typeDocumentId = docsManquants.value[0].id
     }

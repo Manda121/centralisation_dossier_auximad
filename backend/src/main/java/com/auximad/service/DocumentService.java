@@ -141,26 +141,35 @@ public class DocumentService {
     }
 
     /**
-     * Vérifie si tous les documents obligatoires (table document_obligatoire_mvt)
-     * sont remis pour un dossier. Sinon, aucun mouvement de dossier ne peut être créé.
+     * Vue globale (tableau de bord / vérification) : tous les documents
+     * obligatoires de toutes les opérations du type de production du dossier
+     * sont-ils remis ?
      */
     @Transactional(readOnly = true)
     public boolean tousDocsObligatoiresRemis(Integer dossierId) {
-        return getDocsObligatoiresManquants(dossierId).isEmpty();
+        Dossier dossier = dossierRepository.findById(dossierId)
+                .orElseThrow(() -> new IllegalArgumentException("Dossier introuvable : " + dossierId));
+        return documentObligatoireMvtRepository.countManquantsDossier(
+                dossierId,
+                dossier.getTypeProduction() != null ? dossier.getTypeProduction().getId() : null) == 0;
+    }
+
+    /**
+     * Vérifie si tous les documents obligatoires d'une opération donnée sont
+     * remis pour un dossier. Une opération sans document requis reste réalisable.
+     */
+    @Transactional(readOnly = true)
+    public boolean operationDocsObligatoiresRemis(Integer dossierId, Integer operationId) {
+        return documentObligatoireMvtRepository.countManquants(dossierId, operationId) == 0;
     }
 
     /**
      * Liste les types de documents obligatoires (table document_obligatoire_mvt)
-     * non encore remis pour un dossier.
+     * non encore remis pour une opération donnée d'un dossier.
      */
     @Transactional(readOnly = true)
-    public List<TypeDocument> getDocsObligatoiresManquants(Integer dossierId) {
-        Dossier dossier = dossierRepository.findById(dossierId)
-                .orElseThrow(() -> new IllegalArgumentException("Dossier introuvable : " + dossierId));
-        if (dossier.getTypeProduction() == null) {
-            return documentObligatoireMvtRepository.findManquants(dossierId, null);
-        }
-        return documentObligatoireMvtRepository.findManquants(dossierId, dossier.getTypeProduction().getId());
+    public List<TypeDocument> getDocsManquantsPourOperation(Integer dossierId, Integer operationId) {
+        return documentObligatoireMvtRepository.findManquants(dossierId, operationId);
     }
 
     /**

@@ -61,11 +61,12 @@ public class DocumentController {
         return ResponseEntity.ok(Map.of("complet", complet));
     }
 
-    @GetMapping("/obligatoires-manquants/{dossierId}")
-    @Operation(summary = "Lister les types de documents obligatoires non encore remis pour un dossier")
-    public ResponseEntity<?> getDocsObligatoiresManquants(@PathVariable Integer dossierId) {
+    @GetMapping("/obligatoires-manquants/{dossierId}/{operationId}")
+    @Operation(summary = "Lister les types de documents obligatoires d'une opération non encore remis pour un dossier")
+    public ResponseEntity<?> getDocsManquantsPourOperation(@PathVariable Integer dossierId,
+                                                           @PathVariable Integer operationId) {
         try {
-            return ResponseEntity.ok(documentService.getDocsObligatoiresManquants(dossierId));
+            return ResponseEntity.ok(documentService.getDocsManquantsPourOperation(dossierId, operationId));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }

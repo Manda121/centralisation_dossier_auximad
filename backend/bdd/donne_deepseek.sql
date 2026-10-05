@@ -248,6 +248,22 @@ FROM (VALUES
 JOIN type_production tp ON tp.nom = t.sens;
 END $$;
 
+-- ============================================================
+-- DOCUMENTS OBLIGATOIRES PAR OPERATION POUR UN MOUVEMENT DE DOSSIER
+-- (table document_obligatoire_mvt)
+-- Chaque ligne lie un type de document a une operation : le document doit
+-- avoir un document actif remis sur le dossier avant de pouvoir enregistrer
+-- le mouvement de CETTE operation. Les operations non listees ici
+-- n'exigent aucun document et restent realizables normalement.
+-- ============================================================
+INSERT INTO document_obligatoire_mvt (id_operation, id_type_document, description)
+SELECT op.id, td.id, 'Document obligatoire pour l''operation ' || op.description || ' : ' || td.nom
+FROM operation_dossier op
+JOIN type_document td ON td.id_type_production = op.id_type_production
+WHERE (op.description = 'Reception BL/LTA' AND td.nom IN ('Connaissement maritime', 'Lettre de transport aerien'))
+   OR (op.description = 'Declaration' AND td.nom = 'Declaration en douane')
+   OR (op.description = 'Facturation' AND td.nom = 'Facture commerciale');
+
 INSERT INTO inconterme (nom, abreviation, description) VALUES
 ('Ex Works', 'EXW', 'Depart usine'),
 ('Free Carrier', 'FCA', 'Franco transporteur'),
@@ -377,18 +393,6 @@ INSERT INTO type_document (nom, id_type_production, id_nature_marchandise, est_o
 ('Certificat de conformite', (SELECT id FROM type_production WHERE nom = 'import' AND id_mode_transport = (SELECT id FROM mode_transport WHERE nom = 'Maritime')), (SELECT id FROM nature_marchandise WHERE nom = 'Electronique'), TRUE, 'Certificat de conformite');
 
 SELECT setval(pg_get_serial_sequence('type_document', 'id'), coalesce(max(id), 1)) FROM type_document;
-
--- ============================================================
--- DOCUMENTS OBLIGATOIRES POUR UN MOUVEMENT DE DOSSIER
--- (table document_obligatoire_mvt)
--- Chaque type de document liste ici doit avoir un document actif
--- remis sur le dossier avant de pouvoir enregistrer un mvt_dossier.
--- On reprend tous les types marques obligatoires.
--- ============================================================
-INSERT INTO document_obligatoire_mvt (id_type_document, description)
-SELECT td.id, 'Document obligatoire avant mouvement : ' || td.nom
-FROM type_document td
-WHERE td.est_obligatoire = TRUE;
 
 INSERT INTO type_container (nom, description, volume, poids_max, longueur, largeur, hauteur) VALUES
 ('20 pieds', 'Conteneur standard 20 pieds', 33.2, 28000, 6.06, 2.44, 2.59),

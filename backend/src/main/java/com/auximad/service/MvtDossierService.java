@@ -163,17 +163,20 @@ public class MvtDossierService {
         Dossier dossier = dossierRepository.findById(req.getDossierId())
                 .orElseThrow(() -> new IllegalArgumentException("Dossier introuvable : " + req.getDossierId()));
 
-        if (!documentService.tousDocsObligatoiresRemis(dossier.getId())) {
-            String manquants = documentService.getDocsObligatoiresManquants(dossier.getId()).stream()
+        OperationDossier operation = operationDossierRepository.findById(req.getOperationId())
+                .orElseThrow(() -> new IllegalArgumentException("Opération introuvable : " + req.getOperationId()));
+
+        // Contrainte : documents obligatoires de CETTE opération remis sur le dossier.
+        // Une opération sans document requis reste réalisable normalement.
+        if (!documentService.operationDocsObligatoiresRemis(dossier.getId(), operation.getId())) {
+            String manquants = documentService.getDocsManquantsPourOperation(dossier.getId(), operation.getId()).stream()
                     .map(TypeDocument::getNom)
                     .collect(java.util.stream.Collectors.joining(", "));
             throw new IllegalArgumentException(
-                    "Impossible d'effectuer un mouvement : des documents obligatoires ne sont pas encore remis"
+                    "Impossible d'effectuer le mouvement de l'opération '" + operation.getDescription()
+                            + "' : des documents obligatoires ne sont pas encore remis"
                             + (manquants.isBlank() ? "." : " : " + manquants + "."));
         }
-
-        OperationDossier operation = operationDossierRepository.findById(req.getOperationId())
-                .orElseThrow(() -> new IllegalArgumentException("Opération introuvable : " + req.getOperationId()));
 
         // Vérification de la contrainte : opération obligatoire précédente
         List<OperationDossierStatusDTO> statusList = getOperationsStatusForDossier(dossier.getId());

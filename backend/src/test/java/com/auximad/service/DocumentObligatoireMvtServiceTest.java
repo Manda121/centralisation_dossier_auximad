@@ -21,8 +21,9 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 /**
- * Règle métier : un mouvement de dossier n'est possible que si tous les
- * documents obligatoires (table document_obligatoire_mvt) sont remis.
+ * Règle métier : le mouvement d'une opération n'est possible que si les
+ * documents obligatoires de CETTE opération (table document_obligatoire_mvt)
+ * sont remis. Une opération sans document requis reste réalisable.
  */
 @ExtendWith(MockitoExtension.class)
 class DocumentObligatoireMvtServiceTest {
@@ -36,45 +37,39 @@ class DocumentObligatoireMvtServiceTest {
 
     @InjectMocks DocumentService service;
 
-    private Dossier dossier(int id, Integer typeProductionId) {
-        Dossier d = new Dossier();
-        d.setId(id);
-        if (typeProductionId != null) {
-            TypeProduction tp = new TypeProduction();
-            tp.setId(typeProductionId);
-            d.setTypeProduction(tp);
-        }
-        return d;
-    }
-
     @Test
-    void mouvementBloqueSiDocumentObligatoireManquant() {
-        when(dossierRepository.findById(1)).thenReturn(Optional.of(dossier(1, 5)));
+    void mouvementBloqueSiDocumentObligatoireDeLOperationManquant() {
         TypeDocument manquant = new TypeDocument();
         manquant.setId(10);
-        manquant.setNom("Facture commerciale");
-        when(documentObligatoireMvtRepository.findManquants(1, 5)).thenReturn(List.of(manquant));
+        manquant.setNom("Connaissement maritime");
+        when(documentObligatoireMvtRepository.countManquants(1, 20)).thenReturn(1L);
+        when(documentObligatoireMvtRepository.findManquants(1, 20)).thenReturn(List.of(manquant));
 
-        assertFalse(service.tousDocsObligatoiresRemis(1));
-        assertEquals(List.of(manquant), service.getDocsObligatoiresManquants(1));
-        verify(documentObligatoireMvtRepository).findManquants(1, 5);
+        assertFalse(service.operationDocsObligatoiresRemis(1, 20));
+        assertEquals(List.of(manquant), service.getDocsManquantsPourOperation(1, 20));
+        verify(documentObligatoireMvtRepository).findManquants(1, 20);
     }
 
     @Test
-    void mouvementAutoriseSiAucunDocumentObligatoireManquant() {
-        when(dossierRepository.findById(2)).thenReturn(Optional.of(dossier(2, 5)));
-        when(documentObligatoireMvtRepository.findManquants(2, 5)).thenReturn(List.of());
+    void operationSansDocumentRequisResteRealisable() {
+        when(documentObligatoireMvtRepository.countManquants(1, 21)).thenReturn(0L);
 
-        assertTrue(service.tousDocsObligatoiresRemis(2));
+        assertTrue(service.operationDocsObligatoiresRemis(1, 21));
+        verify(documentObligatoireMvtRepository).countManquants(1, 21);
     }
 
     @Test
-    void dossierSansTypeProductionUtiliseSeulementLesDocumentsGlobaux() {
-        when(dossierRepository.findById(3)).thenReturn(Optional.of(dossier(3, null)));
-        when(documentObligatoireMvtRepository.findManquants(3, null)).thenReturn(List.of());
+    void verifGlobaleDossierCompteToutesLesOperationsDuTypeProduction() {
+        Dossier d = new Dossier();
+        d.setId(2);
+        TypeProduction tp = new TypeProduction();
+        tp.setId(5);
+        d.setTypeProduction(tp);
+        when(dossierRepository.findById(2)).thenReturn(Optional.of(d));
+        when(documentObligatoireMvtRepository.countManquantsDossier(2, 5)).thenReturn(1L);
 
-        assertTrue(service.tousDocsObligatoiresRemis(3));
-        verify(documentObligatoireMvtRepository).findManquants(3, null);
+        assertFalse(service.tousDocsObligatoiresRemis(2));
+        verify(documentObligatoireMvtRepository).countManquantsDossier(2, 5);
     }
 
     @Test
