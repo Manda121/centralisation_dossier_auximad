@@ -13,8 +13,8 @@ public interface DossierInteragenceRepository extends JpaRepository<DossierInter
     /** Tous les sous-dossiers d'un dossier mère */
     List<DossierInteragence> findByDossierMereId(Integer dossierMereId);
 
-    /** Le lien interagence dont ce dossier est le sous-dossier (retrouve son dossier mère) */
-    Optional<DossierInteragence> findBySousDossierId(Integer sousDossierId);
+    /** Premier lien créé pour ce sous-dossier, même si des liens en double existent déjà. */
+    Optional<DossierInteragence> findFirstBySousDossierIdOrderByIdAsc(Integer sousDossierId);
 
     /** Vérifie si un dossier est déjà sous-dossier d'un autre */
     boolean existsBySousDossierId(Integer sousDossierId);

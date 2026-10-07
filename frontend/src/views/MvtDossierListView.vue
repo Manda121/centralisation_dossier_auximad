@@ -7,7 +7,8 @@ import AdminService from '../services/AdminService'
 import DossierService from '../services/DossierService'
 
 const datatableRef = ref(null)
-const aujourdhui = new Date().toLocaleDateString('en-CA')
+const dateLocale = new Date()
+const aujourdhui = `${dateLocale.getFullYear()}-${String(dateLocale.getMonth() + 1).padStart(2, '0')}-${String(dateLocale.getDate()).padStart(2, '0')}`
 
 // ── Référentiels ──────────────────────────────────────────────
 const agences = ref([])
@@ -62,19 +63,6 @@ const columns = [
 // ── Fetch ─────────────────────────────────────────────────────
 async function chargerMouvements(page, size, sortBy, sortDir, f) {
   return await MvtDossierService.searchMouvements(page, size, sortBy || 'dateMvt', sortDir || 'desc', f)
-}
-
-let searchTimeout = null
-function declencherRecherche() {
-  clearTimeout(searchTimeout)
-  searchTimeout = setTimeout(() => datatableRef.value?.refresh(true), 400)
-}
-
-function reinitialiserFiltres() {
-  Object.keys(filters).forEach(k => { filters[k] = '' })
-  filters.dateMin = aujourdhui
-  filters.dateMax = aujourdhui
-  datatableRef.value?.refresh(true)
 }
 
 // ── Formatage ─────────────────────────────────────────────────
@@ -149,7 +137,7 @@ function estPdf(nom) {
                   <div class="col-md-3">
                     <label class="form-label small fw-semibold text-secondary">Recherche libre</label>
                     <input type="text" v-model="sf.query" class="form-control form-control-sm"
-                           placeholder="N° dossier, client…" @input="declencherRecherche" />
+                           placeholder="N° dossier, client…" />
                   </div>
                   <div class="col-md-3">
                     <label class="form-label small fw-semibold text-secondary">Code / Nom Client</label>

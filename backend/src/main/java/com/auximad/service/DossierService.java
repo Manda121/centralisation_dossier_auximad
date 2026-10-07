@@ -87,7 +87,7 @@ public class DossierService {
     public void enrichirInteragence(Dossier d) {
         if (d == null) return;
         // 1. Est-ce un sous-dossier ?
-        Optional<DossierInteragence> sousDossierLien = interagenceRepository.findBySousDossierId(d.getId());
+        Optional<DossierInteragence> sousDossierLien = interagenceRepository.findFirstBySousDossierIdOrderByIdAsc(d.getId());
         if (sousDossierLien.isPresent()) {
             d.setEstSousDossier(true);
             d.setMotifInteragence(sousDossierLien.get().getMotif());

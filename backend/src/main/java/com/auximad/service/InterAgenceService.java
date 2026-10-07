@@ -114,6 +114,6 @@ public class InterAgenceService {
      */
     @Transactional(readOnly = true)
     public Optional<DossierInteragence> getDossierMere(Integer idSousDossier) {
-        return interagenceRepository.findBySousDossierId(idSousDossier);
+        return interagenceRepository.findFirstBySousDossierIdOrderByIdAsc(idSousDossier);
     }
 }

@@ -37,6 +37,7 @@ const emit = defineEmits(['row-click'])
 
 const data = ref([])
 const loading = ref(true)
+const loadError = ref('')
 const currentPage = ref(0)
 const totalElements = ref(0)
 const totalPages = ref(0)
@@ -75,6 +76,7 @@ const visiblePages = computed(() => {
 
 async function fetchData() {
     loading.value = true
+    loadError.value = ''
     try {
         const response = await props.fetchFunction(
             currentPage.value,
@@ -88,6 +90,9 @@ async function fetchData() {
         totalPages.value = response.totalPages || 0
     } catch (error) {
         console.error('DataTable — erreur de chargement:', error)
+        loadError.value = error?.response?.status === 403
+            ? 'Vous n’avez pas accès à ces données.'
+            : 'Impossible de charger les données. Vérifiez la connexion au serveur et réessayez.'
         data.value = []
         totalElements.value = 0
         totalPages.value = 0
@@ -269,6 +274,14 @@ defineExpose({ refresh })
                     </template>
 
                     <!-- Empty -->
+                    <tr v-else-if="loadError">
+                        <td :colspan="columns.length" class="datatable__empty" role="alert">
+                            <span>{{ loadError }}</span>
+                            <button type="button" class="datatable__btn datatable__btn--secondary" @click="fetchData">
+                                Réessayer
+                            </button>
+                        </td>
+                    </tr>
                     <tr v-else-if="data.length === 0">
                         <td :colspan="columns.length" class="datatable__empty">
                             <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="datatable__empty-icon">

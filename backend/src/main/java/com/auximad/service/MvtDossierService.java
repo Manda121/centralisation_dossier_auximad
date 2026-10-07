@@ -246,7 +246,7 @@ public class MvtDossierService {
 
     private LocalDateTime parseDateMin(String dateStr) {
         if (dateStr == null || dateStr.isBlank()) {
-            return LocalDate.now().atStartOfDay(); // Aujourd'hui 00:00:00
+            return null;
         }
         try {
             if (dateStr.length() == 10) {
@@ -254,13 +254,13 @@ public class MvtDossierService {
             }
             return LocalDateTime.parse(dateStr, DateTimeFormatter.ISO_DATE_TIME);
         } catch (Exception e) {
-            return LocalDate.now().atStartOfDay();
+            throw new IllegalArgumentException("Date minimale invalide : " + dateStr, e);
         }
     }
 
     private LocalDateTime parseDateMax(String dateStr) {
         if (dateStr == null || dateStr.isBlank()) {
-            return LocalDate.now().atTime(LocalTime.MAX); // Aujourd'hui 23:59:59
+            return null;
         }
         try {
             if (dateStr.length() == 10) {
@@ -268,7 +268,7 @@ public class MvtDossierService {
             }
             return LocalDateTime.parse(dateStr, DateTimeFormatter.ISO_DATE_TIME);
         } catch (Exception e) {
-            return LocalDate.now().atTime(LocalTime.MAX);
+            throw new IllegalArgumentException("Date maximale invalide : " + dateStr, e);
         }
     }
 }
