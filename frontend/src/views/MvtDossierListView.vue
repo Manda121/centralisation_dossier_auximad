@@ -270,16 +270,16 @@ function estPdf(nom) {
                 <span v-else class="text-muted small">—</span>
               </template>
               <template #cell-etat="{ row }">
-                <span v-if="row.estAnnule" class="badge bg-danger-subtle text-danger">Annulé</span>
+                <span v-if="row.annulation" class="badge bg-danger-subtle text-danger">Annulé</span>
                 <span v-else-if="row.origine === 'SAISIE' || !row.origine" class="badge bg-success-subtle text-success">Effectué</span>
                 <span v-else class="badge bg-info-subtle text-info-emphasis">Automatique</span>
               </template>
 
               <template #cell-actions="{ row }">
-                <button v-if="peutAnnuler && !row.estAnnule" type="button"
+                <button v-if="peutAnnuler && !row.annulation" type="button"
                   class="btn btn-outline-danger btn-sm" @click="annulerMouvement(row)">Annuler</button>
-                <span v-else-if="row.estAnnule" class="small text-muted" :title="row.motifAnnulation">
-                  {{ row.motifAnnulation || 'Annulé' }}
+                <span v-else-if="row.annulation" class="small text-muted" :title="row.annulation.motifAnnulation">
+                  {{ row.annulation.motifAnnulation || 'Annulé' }}
                 </span>
               </template>
             </DataTable>

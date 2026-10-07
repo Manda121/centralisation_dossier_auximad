@@ -508,9 +508,13 @@ CREATE TABLE mvt_dossier(
     commentaire TEXT,
     date_mvt TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP,
     origine VARCHAR(30) DEFAULT 'SAISIE',
-    groupe_ajustement VARCHAR(36),
-    est_annule BOOLEAN NOT NULL DEFAULT FALSE,
-    date_annulation TIMESTAMPTZ,
+    groupe_ajustement VARCHAR(36)
+);
+
+CREATE TABLE mvt_annulee(
+    id SERIAL PRIMARY KEY,
+    id_mvt_dossier INTEGER NOT NULL UNIQUE REFERENCES mvt_dossier(id) ON DELETE CASCADE,
+    date_annulation TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     motif_annulation TEXT,
     id_utilisateur_annulation INTEGER REFERENCES utilisateur(id)
 );

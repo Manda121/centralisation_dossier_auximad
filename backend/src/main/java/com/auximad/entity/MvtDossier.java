@@ -58,18 +58,8 @@ public class MvtDossier {
     @Column(name = "groupe_ajustement", length = 36)
     private String groupeAjustement;
 
-    @Column(name = "est_annule", nullable = false)
-    private Boolean estAnnule = false;
-
-    @Column(name = "date_annulation")
-    private LocalDateTime dateAnnulation;
-
-    @Column(name = "motif_annulation", columnDefinition = "TEXT")
-    private String motifAnnulation;
-
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "id_utilisateur_annulation")
-    private Utilisateur utilisateurAnnulation;
+    @OneToOne(mappedBy = "mouvement", fetch = FetchType.EAGER)
+    private MvtAnnulee annulation;
 
     @Transient
     private Document document;

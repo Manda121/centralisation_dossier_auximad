@@ -17,19 +17,22 @@ public class DossierWorkflowService {
     private final StatutDossierRepository statuts;
     private final OperationDossierRepository operations;
     private final MvtDossierRepository mouvements;
+    private final MvtAnnuleeRepository annulations;
     private final TypeDocumentRepository typesDocuments;
     private final DocumentRepository documents;
     private final UtilisateurRepository utilisateurs;
 
     public DossierWorkflowService(DossierRepository dossiers, PhaseDossierRepository phases,
                                   StatutDossierRepository statuts, OperationDossierRepository operations,
-                                  MvtDossierRepository mouvements, TypeDocumentRepository typesDocuments,
+                                  MvtDossierRepository mouvements, MvtAnnuleeRepository annulations,
+                                  TypeDocumentRepository typesDocuments,
                                   DocumentRepository documents, UtilisateurRepository utilisateurs) {
         this.dossiers = dossiers;
         this.phases = phases;
         this.statuts = statuts;
         this.operations = operations;
         this.mouvements = mouvements;
+        this.annulations = annulations;
         this.typesDocuments = typesDocuments;
         this.documents = documents;
         this.utilisateurs = utilisateurs;
@@ -93,7 +96,7 @@ public class DossierWorkflowService {
     }
 
     private List<MvtDossier> actifs(Integer dossierId) {
-        return mouvements.findByDossierIdAndEstAnnuleFalseOrderByIdAsc(dossierId);
+        return mouvements.findActifsByDossierIdOrderByIdAsc(dossierId);
     }
 
     private Set<Integer> operationsFaites(List<MvtDossier> actifs) {
@@ -142,11 +145,13 @@ public class DossierWorkflowService {
     private void annulerDepuis(List<MvtDossier> actifs, int index, String motif, Utilisateur utilisateur) {
         for (int i = index; i < actifs.size(); i++) {
             MvtDossier mvt = actifs.get(i);
-            mvt.setEstAnnule(true);
-            mvt.setDateAnnulation(LocalDateTime.now());
-            mvt.setMotifAnnulation(motif);
-            mvt.setUtilisateurAnnulation(utilisateur);
-            mouvements.save(mvt);
+            MvtAnnulee annulation = new MvtAnnulee();
+            annulation.setMouvement(mvt);
+            annulation.setDateAnnulation(LocalDateTime.now());
+            annulation.setMotifAnnulation(motif);
+            annulation.setUtilisateurAnnulation(utilisateur);
+            annulations.save(annulation);
+            mvt.setAnnulation(annulation);
         }
     }
 
@@ -217,7 +222,7 @@ public class DossierWorkflowService {
     public Dossier annulerMouvement(Integer mouvementId, String motif) {
         MvtDossier mouvement = mouvements.findById(mouvementId)
                 .orElseThrow(() -> new IllegalArgumentException("Mouvement introuvable : " + mouvementId));
-        if (Boolean.TRUE.equals(mouvement.getEstAnnule())) return mouvement.getDossier();
+        if (mouvement.getAnnulation() != null) return mouvement.getDossier();
         Dossier dossier = mouvement.getDossier();
         List<MvtDossier> actifs = actifs(dossier.getId());
         int index = -1;

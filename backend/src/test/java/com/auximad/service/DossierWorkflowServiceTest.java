@@ -22,6 +22,7 @@ class DossierWorkflowServiceTest {
     @Mock StatutDossierRepository statuts;
     @Mock OperationDossierRepository operations;
     @Mock MvtDossierRepository mouvements;
+    @Mock MvtAnnuleeRepository annulations;
     @Mock TypeDocumentRepository typesDocuments;
     @Mock DocumentRepository documents;
     @Mock UtilisateurRepository utilisateurs;
@@ -67,13 +68,15 @@ class DossierWorkflowServiceTest {
         troisieme.setNouvellePhase(traitement); troisieme.setNouveauStatut(cloture);
         List<MvtDossier> tous = List.of(premier, second, troisieme);
         when(mouvements.findById(21)).thenReturn(Optional.of(second));
-        when(mouvements.findByDossierIdAndEstAnnuleFalseOrderByIdAsc(4))
-                .thenAnswer(call -> tous.stream().filter(m -> !Boolean.TRUE.equals(m.getEstAnnule())).toList());
+        when(mouvements.findActifsByDossierIdOrderByIdAsc(4))
+                .thenAnswer(call -> tous.stream().filter(m -> m.getAnnulation() == null).toList());
         when(utilisateurs.findById(7)).thenReturn(Optional.of(auteur));
         workflow.annulerMouvement(21, "Erreur de saisie");
-        assertFalse(premier.getEstAnnule());
-        assertTrue(second.getEstAnnule());
-        assertTrue(troisieme.getEstAnnule());
+        assertNull(premier.getAnnulation());
+        assertNotNull(second.getAnnulation());
+        assertNotNull(troisieme.getAnnulation());
+        assertEquals("Erreur de saisie", second.getAnnulation().getMotifAnnulation());
+        verify(annulations, times(2)).save(any(MvtAnnulee.class));
         assertSame(preparation, dossier.getPhaseDossier());
         assertSame(ouvert, dossier.getStatutDossier());
         verify(dossiers).save(dossier);
@@ -98,8 +101,8 @@ class DossierWorkflowServiceTest {
         when(typesDocuments.findApplicables(3, null)).thenReturn(List.of(requis));
         when(documents.findByDossierIdAndEstActifTrue(4))
                 .thenReturn(List.of(remis), List.of());
-        when(mouvements.findByDossierIdAndEstAnnuleFalseOrderByIdAsc(4))
-                .thenAnswer(call -> enregistres.stream().filter(m -> !Boolean.TRUE.equals(m.getEstAnnule())).toList());
+        when(mouvements.findActifsByDossierIdOrderByIdAsc(4))
+                .thenAnswer(call -> enregistres.stream().filter(m -> m.getAnnulation() == null).toList());
         when(mouvements.save(any())).thenAnswer(call -> {
             MvtDossier mvt = call.getArgument(0);
             if (!enregistres.contains(mvt)) enregistres.add(mvt);
@@ -113,7 +116,7 @@ class DossierWorkflowServiceTest {
         assertEquals("DOCUMENTS", enregistres.get(0).getOrigine());
 
         workflow.synchroniserDocuments(4);
-        assertTrue(enregistres.get(0).getEstAnnule());
+        assertNotNull(enregistres.get(0).getAnnulation());
         assertSame(preparation, dossier.getPhaseDossier());
         assertSame(ouvert, dossier.getStatutDossier());
     }
@@ -134,8 +137,8 @@ class DossierWorkflowServiceTest {
         when(dossiers.findById(4)).thenReturn(Optional.of(dossier));
         when(operations.findByTypeProductionIdOrderByNiveauOperationAscIdAsc(3))
                 .thenReturn(List.of(opPreparation, opTraitement, opComptabilite));
-        when(mouvements.findByDossierIdAndEstAnnuleFalseOrderByIdAsc(4))
-                .thenAnswer(call -> historique.stream().filter(m -> !Boolean.TRUE.equals(m.getEstAnnule())).toList());
+        when(mouvements.findActifsByDossierIdOrderByIdAsc(4))
+                .thenAnswer(call -> historique.stream().filter(m -> m.getAnnulation() == null).toList());
         when(mouvements.save(any())).thenAnswer(call -> {
             MvtDossier mvt = call.getArgument(0);
             if (!historique.contains(mvt)) { mvt.setId(20 + historique.size()); historique.add(mvt); }
@@ -149,9 +152,9 @@ class DossierWorkflowServiceTest {
         assertEquals("AJUSTEMENT", historique.get(0).getOrigine());
 
         workflow.changerPhase(4, 2);
-        assertFalse(historique.get(0).getEstAnnule());
-        assertTrue(historique.get(1).getEstAnnule());
-        assertTrue(historique.get(2).getEstAnnule());
+        assertNull(historique.get(0).getAnnulation());
+        assertNotNull(historique.get(1).getAnnulation());
+        assertNotNull(historique.get(2).getAnnulation());
         assertSame(traitement, dossier.getPhaseDossier());
     }
 
@@ -173,8 +176,8 @@ class DossierWorkflowServiceTest {
         when(statuts.findAll()).thenReturn(List.of(ouvert, cloture));
         when(operations.findByTypeProductionIdOrderByNiveauOperationAscIdAsc(3))
                 .thenReturn(List.of(premiere, derniere));
-        when(mouvements.findByDossierIdAndEstAnnuleFalseOrderByIdAsc(4))
-                .thenAnswer(call -> historique.stream().filter(m -> !Boolean.TRUE.equals(m.getEstAnnule())).toList());
+        when(mouvements.findActifsByDossierIdOrderByIdAsc(4))
+                .thenAnswer(call -> historique.stream().filter(m -> m.getAnnulation() == null).toList());
         when(mouvements.save(any())).thenAnswer(call -> {
             MvtDossier mvt = call.getArgument(0);
             if (!historique.contains(mvt)) { mvt.setId(20 + historique.size()); historique.add(mvt); }
@@ -188,7 +191,7 @@ class DossierWorkflowServiceTest {
         assertEquals(historique.get(0).getGroupeAjustement(), historique.get(1).getGroupeAjustement());
 
         workflow.changerStatut(4, 1);
-        assertTrue(historique.stream().allMatch(m -> Boolean.TRUE.equals(m.getEstAnnule())));
+        assertTrue(historique.stream().allMatch(m -> m.getAnnulation() != null));
         assertSame(preparation, dossier.getPhaseDossier());
         assertSame(ouvert, dossier.getStatutDossier());
     }

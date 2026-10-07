@@ -101,7 +101,7 @@ public class MvtDossierService {
                 .findByTypeProductionIdOrderByNiveauOperationAscIdAsc(tpId).stream()
                 .filter(op -> Boolean.TRUE.equals(op.getEstActif())).toList();
 
-        List<MvtDossier> mouvements = mvtDossierRepository.findByDossierIdAndEstAnnuleFalseOrderByIdAsc(dossierId);
+        List<MvtDossier> mouvements = mvtDossierRepository.findActifsByDossierIdOrderByIdAsc(dossierId);
         Map<Integer, MvtDossier> mvtByOpId = new HashMap<>();
         for (MvtDossier mvt : mouvements) {
             if (mvt.getOperation() != null) {
@@ -218,7 +218,7 @@ public class MvtDossierService {
         mvt.setAnciennePhase(dossier.getPhaseDossier());
         mvt.setAncienStatut(dossier.getStatutDossier());
         mvt.setNouvellePhase(workflowService.phaseApresOperation(dossier, operation,
-                mvtDossierRepository.findByDossierIdAndEstAnnuleFalseOrderByIdAsc(dossier.getId())));
+                mvtDossierRepository.findActifsByDossierIdOrderByIdAsc(dossier.getId())));
         mvt.setNouveauStatut(operation.getStatutDossier() != null ? operation.getStatutDossier() : dossier.getStatutDossier());
         mvt.setDateMvt(req.getDateMvt() != null ? req.getDateMvt() : LocalDateTime.now());
         mvt.setCommentaire(req.getCommentaire());
