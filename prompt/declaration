@@ -1,0 +1,7 @@
+lorsqu'on creer un dossier, son phase sera au debut en preparation,
+avec le premier operation a faire pour cette operation.
+mais lorsqu on a completer les dossier obligatoire du dossier,
+sa phase sera automatiquement le suivant avec le premier operation de la phase,
+donc si on complete les dossier au moment du creation,
+sa phase sera le suivant du preparation. on poura voir la phase,
+la statut du dossier dans l'affichage des details du dossier

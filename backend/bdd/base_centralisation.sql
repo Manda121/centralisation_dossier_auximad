@@ -286,6 +286,7 @@ CREATE TABLE ordre_transit(
     id_client INTEGER  REFERENCES clients(id),
 
     id_type_production INTEGER REFERENCES type_production(id),
+    id_nature_marchandise INTEGER REFERENCES nature_marchandise(id),
 
     numero_commande VARCHAR(100) ,
 
@@ -433,7 +434,6 @@ CREATE TABLE marchandise(
     id_ordre_transit INTEGER  REFERENCES ordre_transit(id),
     id_unite_mesure INTEGER  REFERENCES unite_mesure(id),
 
-    id_nature_marchandise INTEGER REFERENCES nature_marchandise(id),
 
     marque VARCHAR(100),
     modele VARCHAR(100),
@@ -497,8 +497,7 @@ CREATE TABLE demande_interagence(
 CREATE TABLE mvt_dossier(
     id SERIAL PRIMARY KEY,
     id_dossier INTEGER  REFERENCES dossier(id),
-    id_utilisateur INTEGER  REFERENCES utilisateur(id),
-    ip_utilisateur INET,
+    id_utilisateur INTEGER NOT NULL REFERENCES utilisateur(id),
     id_operation INTEGER  REFERENCES operation_dossier(id),
 
     id_ancienne_phase INTEGER REFERENCES phase_dossier(id),
@@ -513,7 +512,7 @@ CREATE TABLE mvt_dossier(
 CREATE TABLE declaration(
     id SERIAL PRIMARY KEY,
     id_dossier INTEGER  REFERENCES dossier(id),
-    numero_declaration VARCHAR(100)  UNIQUE,
+    numero_declaration VARCHAR(100) UNIQUE,
     date_declaration TIMESTAMPTZ ,
     id_bureau INTEGER  REFERENCES bureau(id),
     description TEXT,
@@ -630,7 +629,7 @@ CREATE INDEX idx_expedition_mode_acheminement ON expedition(id_mode_acheminement
 
 CREATE INDEX idx_marchandise_ordre_transit ON marchandise(id_ordre_transit);
 CREATE INDEX idx_marchandise_unite_mesure ON marchandise(id_unite_mesure);
-CREATE INDEX idx_marchandise_nature_marchandise ON marchandise(id_nature_marchandise);
+CREATE INDEX idx_ordre_transit_nature_marchandise ON ordre_transit(id_nature_marchandise);
 
 CREATE INDEX idx_conteneur_dossier ON conteneur(id_dossier);
 CREATE INDEX idx_conteneur_type_container ON conteneur(id_type_container);

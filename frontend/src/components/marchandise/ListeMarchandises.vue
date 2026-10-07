@@ -19,7 +19,6 @@ const showModal = ref(false)
 const editionMode = ref(false)
 const formModel = ref(new Marchandise())
 const unites = ref([])
-const natures = ref([])
 const formLoading = ref(false)
 
 const peutEditer = computed(() =>
@@ -29,12 +28,7 @@ const peutEditer = computed(() =>
 // Charge les référentiels une seule fois
 async function chargerReferentiels() {
   try {
-    const [uList, nList] = await Promise.all([
-      MarchandiseService.getUniteMesures(),
-      MarchandiseService.getNatureMarchandises()
-    ])
-    unites.value = uList
-    natures.value = nList
+    unites.value = await MarchandiseService.getUniteMesures()
   } catch (e) {
     console.error('Erreur chargement référentiels', e)
   }
@@ -69,8 +63,7 @@ function ouvrirAjout() {
   editionMode.value = false
   formModel.value = new Marchandise({
     ordreTransit: props.ordreTransit,
-    uniteMesure: unites.value[0] || null,
-    natureMarchandise: natures.value[0] || null
+    uniteMesure: unites.value[0] || null
   })
   showModal.value = true
 }
@@ -172,7 +165,7 @@ async function supprimer(m) {
           <tbody>
             <tr v-for="m in marchandises" :key="m.id">
               <td class="fw-semibold">{{ m.description }}</td>
-              <td>{{ m.natureMarchandise?.nom }}</td>
+              <td>{{ ordreTransit?.natureMarchandise?.nom || '—' }}</td>
               <td>{{ m.marque }} / {{ m.modele || '—' }}</td>
               <td class="text-center">{{ m.quantite }}</td>
               <td class="text-center">{{ m.poids || '—' }}</td>
@@ -195,5 +188,5 @@ async function supprimer(m) {
 
   <!-- Modal géré en interne -->
   <ModalMarchandise :show="showModal" :edition-mode="editionMode" :form-model="formModel" :unites="unites"
-    :natures="natures" :loading="formLoading" @fermer="fermerModal" @soumettre="soumettre" />
+    :loading="formLoading" @fermer="fermerModal" @soumettre="soumettre" />
 </template>

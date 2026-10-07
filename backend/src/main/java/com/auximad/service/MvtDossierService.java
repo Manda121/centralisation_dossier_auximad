@@ -159,7 +159,7 @@ public class MvtDossierService {
     }
 
     @Transactional
-    public MvtDossier creerMouvement(MvtDossierRequest req, MultipartFile file, String clientIp) throws IOException {
+    public MvtDossier creerMouvement(MvtDossierRequest req, MultipartFile file) throws IOException {
         Dossier dossier = dossierRepository.findById(req.getDossierId())
                 .orElseThrow(() -> new IllegalArgumentException("Dossier introuvable : " + req.getDossierId()));
 
@@ -193,14 +193,12 @@ public class MvtDossierService {
             }
         }
 
-        Utilisateur u = null;
         Integer userId = JwtSecurityContext.getIdUtilisateur();
-        if (userId != null) {
-            u = utilisateurRepository.findById(userId).orElse(null);
+        if (userId == null) {
+            throw new IllegalArgumentException("Utilisateur connecté introuvable.");
         }
-        if (u == null) {
-            u = dossier.getUtilisateur();
-        }
+        Utilisateur u = utilisateurRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Utilisateur connecté introuvable : " + userId));
 
         MvtDossier mvt = new MvtDossier();
         mvt.setDossier(dossier);
@@ -212,7 +210,6 @@ public class MvtDossierService {
         mvt.setDateMvt(req.getDateMvt() != null ? req.getDateMvt() : LocalDateTime.now());
         mvt.setCommentaire(req.getCommentaire());
         mvt.setUtilisateur(u);
-        mvt.setIpUtilisateur(clientIp != null ? clientIp : "127.0.0.1");
 
         MvtDossier savedMvt = mvtDossierRepository.save(mvt);
 
@@ -246,7 +243,7 @@ public class MvtDossierService {
 
     private LocalDateTime parseDateMin(String dateStr) {
         if (dateStr == null || dateStr.isBlank()) {
-            return LocalDate.now().atStartOfDay(); // Aujourd'hui 00:00:00
+            return null;
         }
         try {
             if (dateStr.length() == 10) {
@@ -254,13 +251,13 @@ public class MvtDossierService {
             }
             return LocalDateTime.parse(dateStr, DateTimeFormatter.ISO_DATE_TIME);
         } catch (Exception e) {
-            return LocalDate.now().atStartOfDay();
+            throw new IllegalArgumentException("Date minimale invalide : " + dateStr, e);
         }
     }
 
     private LocalDateTime parseDateMax(String dateStr) {
         if (dateStr == null || dateStr.isBlank()) {
-            return LocalDate.now().atTime(LocalTime.MAX); // Aujourd'hui 23:59:59
+            return null;
         }
         try {
             if (dateStr.length() == 10) {
@@ -268,7 +265,7 @@ public class MvtDossierService {
             }
             return LocalDateTime.parse(dateStr, DateTimeFormatter.ISO_DATE_TIME);
         } catch (Exception e) {
-            return LocalDate.now().atTime(LocalTime.MAX);
+            throw new IllegalArgumentException("Date maximale invalide : " + dateStr, e);
         }
     }
 }

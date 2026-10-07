@@ -64,6 +64,13 @@
                                     <option v-for="p in typeProductions" :key="p.id" :value="p">{{ p.nom }}</option>
                                 </select>
                             </div>
+                            <div v-if="!otCharge" class="col-md-4">
+                                <label class="form-label fw-semibold">Nature de la marchandise <span class="text-danger">*</span></label>
+                                <select v-model="dossier.natureMarchandiseCreation" class="form-select form-select-sm" required>
+                                    <option :value="null">Sélectionnez</option>
+                                    <option v-for="nature in naturesMarchandise" :key="nature.id" :value="nature">{{ nature.nom }}</option>
+                                </select>
+                            </div>
                             <div class="col-md-4">
                                 <label class="form-label fw-semibold">Phase dossier <span
                                         class="text-danger">*</span></label>
@@ -155,7 +162,8 @@
                         </div>
 
                         <!-- Section Documents (lors de la création) -->
-                        <div v-if="dossier.typeProduction" class="mt-4 pt-3 border-top">
+                        <div v-if="dossier.typeProduction && (dossier.ordreTransit?.natureMarchandise?.id || dossier.natureMarchandiseCreation?.id)"
+                            class="mt-4 pt-3 border-top">
                             <h6 class="fw-semibold mb-3">Documents nécessaires</h6>
                             <div class="alert alert-info py-2 text-xs mb-3">
                                 Cochez les documents déjà disponibles. Les documents obligatoires <span
@@ -163,6 +171,7 @@
                                 sont requis pour effectuer des mouvements. Vous pouvez créer le dossier sans eux.
                             </div>
                             <DocumentsSection :dossier-id="null" :type-production-id="dossier.typeProduction?.id"
+                                :nature-marchandise-id="dossier.ordreTransit?.natureMarchandise?.id || dossier.natureMarchandiseCreation?.id"
                                 :read-only="false" @docs-obligatoires-complets="docsObligatoiresComplets = $event"
                                 @documents-valides="docsCreation = $event" ref="docsSectionRef" />
                             <div v-if="!docsObligatoiresComplets" class="alert alert-warning py-2 text-xs mt-2">
@@ -187,7 +196,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import Header from '../components/inc/Header.vue'
 import PageSkeleton from '../components/inc/PageSkeleton.vue'
 import DocumentsSection from '../components/DocumentsSection.vue'
@@ -197,10 +206,12 @@ import Dossier from '../models/Dossier'
 import DossierService from '../services/DossierService'
 import ClientService from '../services/ClientService'
 import OrdreTransitService from '../services/OrdreTransitService'
+import MarchandiseService from '../services/MarchandiseService'
 import UtilisateurService from '@/services/UtilisateurService.js'
 import { useNotification } from '../composables/useNotification'
 
 const router = useRouter()
+const route = useRoute()
 const { notifySuccess, notifyError, notifyWarning, confirm } = useNotification()
 const enCours = ref(false)
 const chargement = ref(true)
@@ -221,6 +232,7 @@ dossier.value.echeance = maintenantLocal()
 dossier.value.dateLivraison = maintenantLocal()
 const clients = ref([])
 const typeProductions = ref([])
+const naturesMarchandise = ref([])
 const phases = ref([])
 const statuts = ref([])
 const pays = ref([])
@@ -231,13 +243,14 @@ onMounted(async () => {
     try {
         utilisateur.value = UtilisateurService.obtenirUtilisateurConnecte()
         // console.log('user: ', utilisateur.value)
-        const [cls, prods, ph, st, inc, ps] = await Promise.all([
+        const [cls, prods, ph, st, inc, ps, natures] = await Promise.all([
             ClientService.searchClients(0, 1000, 'nom', 'asc', {}),
             OrdreTransitService.getAllTypeProductions(),
             DossierService.getAllPhases(),
             DossierService.getAllStatuts(),
             DossierService.getAllIncontermes(),
-            ClientService.getAllPays()
+            ClientService.getAllPays(),
+            MarchandiseService.getNatureMarchandises()
         ])
         clients.value = cls.content || []
         typeProductions.value = prods
@@ -245,6 +258,17 @@ onMounted(async () => {
         statuts.value = st
         incontermes.value = inc
         pays.value = ps || []
+        naturesMarchandise.value = natures
+        const otId = Number(route.query.otId)
+        if (Number.isSafeInteger(otId) && otId > 0) {
+            try {
+                const ot = await OrdreTransitService.getOrdreTransitById(otId)
+                rechercheOt.value = String(ot.numeroOrdreTransit)
+                await utiliserOt(ot)
+            } catch (e) {
+                notifyError("Impossible de charger l'ordre de transit sélectionné.")
+            }
+        }
     } catch (e) {
         console.error('Erreur chargement formulaire dossier', e)
     } finally {
@@ -286,6 +310,7 @@ async function utiliserOt(ot) {
         otCharge.value = ot
         dossier.value.client = ot.client
         dossier.value.typeProduction = ot.typeProduction
+        dossier.value.natureMarchandiseCreation = null
         dossier.value.ordreTransit = ot
     } catch (e) {
         notifyError("Erreur technique lors du chargement de l'OT.")

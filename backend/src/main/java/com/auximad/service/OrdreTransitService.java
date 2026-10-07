@@ -121,6 +121,9 @@ public class OrdreTransitService {
 
     @Transactional
     public OrdreTransit createOrdreTransit(OrdreTransit ot, Utilisateur connectedUser) {
+        if (ot.getNatureMarchandise() == null || ot.getNatureMarchandise().getId() == null) {
+            throw new IllegalArgumentException("La nature de la marchandise est requise pour l'ordre de transit.");
+        }
         // Associer l'utilisateur connecté
         ot.setUtilisateur(connectedUser);
         ot.setAgence(connectedUser.getAgence());

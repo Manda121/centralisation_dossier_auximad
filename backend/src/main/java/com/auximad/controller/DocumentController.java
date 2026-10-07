@@ -40,10 +40,11 @@ public class DocumentController {
     // ─── Types de documents ───────────────────────────────────────────────────
 
     @GetMapping("/types")
-    @Operation(summary = "Lister les types de documents (filtrable par type de production)")
+    @Operation(summary = "Lister les types de documents applicables au type de production et à la nature de marchandise")
     public ResponseEntity<List<TypeDocument>> getTypeDocuments(
-            @RequestParam(required = false) Integer typeProductionId) {
-        return ResponseEntity.ok(documentService.getTypeDocumentsByTypeProduction(typeProductionId));
+            @RequestParam(required = false) Integer typeProductionId,
+            @RequestParam(required = false) Integer natureMarchandiseId) {
+        return ResponseEntity.ok(documentService.getTypeDocumentsByTypeProduction(typeProductionId, natureMarchandiseId));
     }
 
     // ─── Documents d'un dossier ───────────────────────────────────────────────

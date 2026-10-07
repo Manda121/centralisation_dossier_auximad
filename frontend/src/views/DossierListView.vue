@@ -11,7 +11,8 @@ import PermissionService, { PORTEE_PROPRE_ECRITURE, ACTION_OT } from '../utils/p
 
 const route = useRoute()
 const datatableRef = ref(null)
-const aujourdhui = new Date().toLocaleDateString('en-CA')
+const dateLocale = new Date()
+const aujourdhui = `${dateLocale.getFullYear()}-${String(dateLocale.getMonth() + 1).padStart(2, '0')}-${String(dateLocale.getDate()).padStart(2, '0')}`
 
 const filters = reactive({
     agenceId: '', numeroDossier: '', clientNom: '', cpClient: '', numeroOt: '',

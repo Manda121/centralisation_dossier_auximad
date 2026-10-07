@@ -51,10 +51,12 @@ class DossierCreationRulesTest {
 
     @Test void manualCreationCreatesAndLinksValidatedOt() {
         Dossier d = dossier();
+        NatureMarchandise nature = new NatureMarchandise(); nature.setId(3); d.setNatureMarchandiseCreation(nature);
         OrdreTransit created = new OrdreTransit(); created.setId(7);
         when(ordreTransitService.createOrdreTransit(any(), any())).thenAnswer(invocation -> {
             OrdreTransit ot = invocation.getArgument(0);
             assertSame(d.getClient(), ot.getClient());
+            assertSame(nature, ot.getNatureMarchandise());
             assertSame(d.getTypeProduction(), ot.getTypeProduction());
             Utilisateur author = invocation.getArgument(1);
             assertEquals(d.getUtilisateur().getId(), author.getId());

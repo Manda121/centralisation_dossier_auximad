@@ -660,7 +660,7 @@ BEGIN
         v_rand_statut_ot_id := v_statut_ot_ids[1 + floor(random() * array_length(v_statut_ot_ids, 1))::int];
 
         INSERT INTO ordre_transit (
-            numero_ordre_transit, id_agence, id_client, id_type_production,
+            numero_ordre_transit, id_agence, id_client, id_type_production, id_nature_marchandise,
             numero_commande, id_utilisateur, id_type_regime, destination_finale,
             id_expediteur, id_destinataire, id_bureau_dedou, est_assure, id_destination_facture,
             id_statut_ot
@@ -669,6 +669,7 @@ BEGIN
             v_agence_id,
             v_client_id,
             v_type_production_id,
+            v_nature_marchandise_ids[1 + floor(random() * array_length(v_nature_marchandise_ids, 1))::int],
             'CMD-' || lpad(i::text, 6, '0'),
             v_utilisateur_ids[1 + floor(random() * array_length(v_utilisateur_ids, 1))::int],
             v_type_regime_id,
@@ -847,15 +848,14 @@ BEGIN
         v_expedition_ids := array_append(v_expedition_ids, v_expedition_id);
     END LOOP;
 
-    -- MARCHANDISES (600) - adapté : lie désormais à l'ordre de transit (id_ordre_transit) et utilise nature_marchandise
+    -- MARCHANDISES (600) - la nature est portée par l'ordre de transit
     FOR i IN 1..600 LOOP
         INSERT INTO marchandise (
-            id_ordre_transit, id_unite_mesure, id_nature_marchandise,
+            id_ordre_transit, id_unite_mesure,
             marque, modele, description, poids, volume, quantite
         ) VALUES (
             v_ot_ids[1 + floor(random() * array_length(v_ot_ids, 1))::int],
             v_unite_mesure_ids[1 + floor(random() * array_length(v_unite_mesure_ids, 1))::int],
-            v_nature_marchandise_ids[1 + floor(random() * array_length(v_nature_marchandise_ids, 1))::int],
             'Marque' || (i % 20),
             'Modele' || (i % 30),
             'Description marchandise ' || i,
@@ -908,12 +908,11 @@ BEGIN
     -- MOUVEMENTS DE DOSSIER (1000)
     FOR i IN 1..1000 LOOP
         INSERT INTO mvt_dossier (
-            id_dossier, id_utilisateur, ip_utilisateur, id_operation,
+            id_dossier, id_utilisateur, id_operation,
             commentaire
         ) VALUES (
             v_dossier_ids[1 + floor(random() * array_length(v_dossier_ids, 1))::int],
             v_utilisateur_ids[1 + floor(random() * array_length(v_utilisateur_ids, 1))::int],
-            ('192.168.' || (i % 255) || '.' || (i % 255))::inet,
             v_operation_ids[1 + floor(random() * array_length(v_operation_ids, 1))::int],
             'Mouvement ' || i
         ) RETURNING id INTO v_mvt_id;

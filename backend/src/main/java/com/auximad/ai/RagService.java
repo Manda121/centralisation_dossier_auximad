@@ -541,7 +541,8 @@ public class RagService {
         sb.append(toutes.size()).append(" marchandise(s) enregistrée(s). Dernières entrées :\n");
         toutes.stream().limit(TAILLE_PAGE).forEach(m -> sb.append("- OT n° ")
                 .append(m.getOrdreTransit() != null ? m.getOrdreTransit().getNumeroOrdreTransit() : "?")
-                .append(" | ").append(m.getNatureMarchandise() != null ? m.getNatureMarchandise().getNom() : "-")
+                .append(" | ").append(m.getOrdreTransit() != null && m.getOrdreTransit().getNatureMarchandise() != null
+                        ? m.getOrdreTransit().getNatureMarchandise().getNom() : "-")
                 .append(" | marque : ").append(valeur(m.getMarque()))
                 .append(" | modèle : ").append(valeur(m.getModele()))
                 .append(" | quantité : ").append(valeur(m.getQuantite()))

@@ -10,6 +10,7 @@ export class Dossier {
         this.client = data.client || null
         this.typeProduction = data.typeProduction || null
         this.ordreTransit = data.ordreTransit || null
+        this.natureMarchandiseCreation = data.natureMarchandiseCreation || null
         this.estGroupage = data.estGroupage !== undefined ? data.estGroupage : false
         this.phaseDossier = data.phaseDossier || null
         this.statutDossier = data.statutDossier || null
@@ -33,6 +34,7 @@ export class Dossier {
         // if (!this.agence) erreurs.push('L\'agence est requise.')
         if (!this.client) erreurs.push('Le client est requis.')
         if (!this.typeProduction) erreurs.push('Le type de production est requis.')
+        if (!this.ordreTransit && !this.natureMarchandiseCreation) erreurs.push('La nature de la marchandise est requise pour créer l’OT.')
         if (!this.phaseDossier) erreurs.push('La phase du dossier est requise.')
         return { valide: erreurs.length === 0, erreurs }
     }
@@ -45,6 +47,8 @@ export class Dossier {
             utilisateur: this.utilisateur ? { id: this.utilisateur.id } : null,
             typeProduction: this.typeProduction ? { id: this.typeProduction.id } : null,
             ordreTransit: this.ordreTransit ? { id: this.ordreTransit.id } : null,
+            natureMarchandiseCreation: !this.ordreTransit && this.natureMarchandiseCreation
+                ? { id: this.natureMarchandiseCreation.id } : null,
             estGroupage: this.estGroupage,
             phaseDossier: this.phaseDossier ? { id: this.phaseDossier.id } : null,
             statutDossier: this.statutDossier ? { id: this.statutDossier.id } : null,

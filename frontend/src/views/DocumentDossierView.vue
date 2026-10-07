@@ -42,44 +42,80 @@
                                 <h6 class="fw-semibold mb-0">Sélectionner un dossier</h6>
                             </div>
                             <div class="card-body p-3">
-                                <!-- Filtres multicritères -->
-                                <div class="row g-2 mb-3">
+                                <p class="small text-secondary mb-2">{{ modeListe === 'incomplets' ? 'Dossiers avec au moins un document manquant' : 'Recherche dans tous les dossiers' }}</p>
+                                <form class="row g-2 mb-3" @submit.prevent="appliquerFiltres">
                                     <div class="col-12">
-                                        <input type="text" v-model="filtres.query" class="form-control form-control-sm"
-                                            placeholder="🔍 N° dossier, nom client…" @input="rechercherDossiers" />
+                                        <label class="form-label small mb-1" for="doc-query">Recherche libre</label>
+                                        <input id="doc-query" type="text" v-model="filtres.query" class="form-control form-control-sm" placeholder="N° dossier, client, lieu…" />
+                                    </div>
+                                    <div v-for="champ in filtresTextePrincipaux" :key="champ.key" class="col-6">
+                                        <label class="form-label small mb-1" :for="`doc-${champ.key}`">{{ champ.label }}</label>
+                                        <input :id="`doc-${champ.key}`" v-model="filtres[champ.key]" type="text" class="form-control form-control-sm" />
                                     </div>
                                     <div class="col-6">
-                                        <AutocompleteRecherche v-model="filtres.cpClient"
-                                            :fetch-results="suggestionsClients" :label-fn="c => c.cpClient || c.id"
-                                            :sublabel-fn="c => libelleClient(c)" :value-fn="c => c.cpClient || ''"
-                                            placeholder="CP Client" message-vide="Aucun client ne correspond"
-                                            @selection="rechercherDossiers" />
-                                    </div>
-                                    <div class="col-6">
-                                        <select v-model="filtres.typeProductionId" class="form-select form-select-sm"
-                                            @change="rechercherDossiers">
-                                            <option :value="null">Tous types</option>
-                                            <option v-for="tp in typeProductions" :key="tp.id" :value="tp.id">{{ tp.nom
-                                                }}</option>
+                                        <label class="form-label small mb-1" for="doc-agence">Agence</label>
+                                        <select id="doc-agence" v-model="filtres.agenceId" class="form-select form-select-sm">
+                                            <option value="">Toutes</option>
+                                            <option v-for="a in agences" :key="a.id" :value="a.id">{{ a.nom }}</option>
                                         </select>
                                     </div>
-                                    <div class="col-12">
-                                        <div class="form-check form-check-inline">
-                                            <input class="form-check-input" type="checkbox" id="filtreSansDocs"
-                                                v-model="filtres.sansDocsComplets" @change="rechercherDossiers" />
-                                            <label class="form-check-label small" for="filtreSansDocs">
-                                                Documents incomplets
-                                            </label>
-                                        </div>
+                                    <div class="col-6">
+                                        <label class="form-label small mb-1" for="doc-production">Type de production</label>
+                                        <select id="doc-production" v-model="filtres.typeProductionId" class="form-select form-select-sm">
+                                            <option value="">Tous</option>
+                                            <option v-for="tp in typeProductions" :key="tp.id" :value="tp.id">{{ tp.nom }}</option>
+                                        </select>
                                     </div>
-                                </div>
+                                    <details class="col-12 mt-2">
+                                        <summary class="small fw-semibold text-primary">Filtres avancés</summary>
+                                        <div class="row g-2 mt-1">
+                                            <div v-for="champ in filtresTexteAvances" :key="champ.key" class="col-6">
+                                                <label class="form-label small mb-1" :for="`doc-${champ.key}`">{{ champ.label }}</label>
+                                                <input :id="`doc-${champ.key}`" v-model="filtres[champ.key]" type="text" class="form-control form-control-sm" />
+                                            </div>
+                                            <div v-for="champ in filtresNumeriques" :key="champ.key" class="col-6">
+                                                <label class="form-label small mb-1" :for="`doc-${champ.key}`">{{ champ.label }}</label>
+                                                <input :id="`doc-${champ.key}`" v-model="filtres[champ.key]" type="number" :min="champ.min ?? 0" :step="champ.step || 1" class="form-control form-control-sm" />
+                                            </div>
+                                            <div v-for="champ in filtresDates" :key="champ.key" class="col-6">
+                                                <label class="form-label small mb-1" :for="`doc-${champ.key}`">{{ champ.label }}</label>
+                                                <input :id="`doc-${champ.key}`" v-model="filtres[champ.key]" type="date" class="form-control form-control-sm" />
+                                            </div>
+                                            <div v-for="champ in filtresSelects" :key="champ.key" class="col-6">
+                                                <label class="form-label small mb-1" :for="`doc-${champ.key}`">{{ champ.label }}</label>
+                                                <select :id="`doc-${champ.key}`" v-model="filtres[champ.key]" class="form-select form-select-sm">
+                                                    <option value="">Tous</option>
+                                                    <option v-for="option in champ.options.value" :key="option.id" :value="option.id">{{ option.nom }}</option>
+                                                </select>
+                                            </div>
+                                            <div v-for="champ in filtresBooleens" :key="champ.key" class="col-6">
+                                                <label class="form-label small mb-1" :for="`doc-${champ.key}`">{{ champ.label }}</label>
+                                                <select :id="`doc-${champ.key}`" v-model="filtres[champ.key]" class="form-select form-select-sm">
+                                                    <option value="">Tous</option><option value="true">Oui</option><option value="false">Non</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="form-label small mb-1" for="doc-type-dossier">Type de dossier</label>
+                                                <select id="doc-type-dossier" v-model="filtres.typeDossier" class="form-select form-select-sm">
+                                                    <option value="">Tous</option><option value="INTERAGENCE">Inter-agences</option><option value="MERE">Mères</option><option value="SOUS_DOSSIER">Sous-dossiers</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </details>
+                                    <div class="col-12 d-flex flex-wrap gap-2 mt-3">
+                                        <button type="submit" class="btn btn-primary btn-sm">Rechercher</button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" @click="reinitialiserFiltres">Réinitialiser</button>
+                                        <button v-if="modeListe !== 'tous'" type="button" class="btn btn-outline-primary btn-sm" @click="afficherTous">Afficher tous</button>
+                                    </div>
+                                </form>
 
                                 <!-- Liste des dossiers -->
                                 <div v-if="chargementDossiers" class="text-center py-3">
                                     <span class="spinner-border spinner-border-sm text-primary"></span>
                                 </div>
                                 <div v-else class="dossier-list">
-                                    <div v-if="dossiers.length === 0"
+                                    <p v-if="erreurDossiers" class="alert alert-danger small" role="alert">{{ erreurDossiers }}</p>
+                                    <div v-if="dossiers.length === 0 && !erreurDossiers"
                                         class="text-secondary small text-center py-3 fst-italic">
                                         Aucun dossier trouvé
                                     </div>
@@ -98,9 +134,8 @@
                                                 </div>
                                             </div>
                                             <div class="d-flex flex-column align-items-end gap-1">
-                                                <span class="badge"
-                                                    :class="docsComplets(d) ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning'">
-                                                    {{ docsComplets(d) ? '✓ OK' : '! Docs' }}
+                                                <span class="badge" :class="classeEtatDocuments(d)" :title="libelleEtatDocuments(d)">
+                                                    {{ libelleEtatDocuments(d) }}
                                                 </span>
                                                 <span v-if="remisesParDossier[d.id]"
                                                     class="badge bg-danger-subtle text-danger"
@@ -186,8 +221,8 @@
                                 <h6 class="fw-semibold mb-3">Documents nécessaires</h6>
                                 <DocumentsSection :dossierId="dossierSelectionne.id"
                                     :typeProductionId="dossierSelectionne.typeProduction?.id"
-                                    @documents-valides="onDocumentsValides"
-                                    @docs-obligatoires-complets="onObligatoiresComplets" />
+                                    :natureMarchandiseId="dossierSelectionne.ordreTransit?.natureMarchandise?.id"
+                                    @documents-valides="onDocumentsValides" />
                             </div>
                         </div>
                     </div>
@@ -202,11 +237,11 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Header from '@/components/inc/Header.vue'
 import DocumentsSection from '@/components/DocumentsSection.vue'
-import AutocompleteRecherche from '@/components/inc/AutocompleteRecherche.vue'
 import DossierService from '@/services/DossierService'
 import ClientService from '@/services/ClientService'
 import DocumentService from '@/services/DocumentService'
 import OrdreTransitService from '@/services/OrdreTransitService'
+import AgenceService from '@/services/AgenceService'
 
 const route = useRoute()
 const router = useRouter()
@@ -216,14 +251,57 @@ const dossierSelectionne = ref(null)
 const alertesRemise = ref([])
 const remisesParDossier = ref({})
 const chargementDossiers = ref(false)
+const erreurDossiers = ref('')
 const typeProductions = ref([])
+const agences = ref([])
+const phases = ref([])
+const statuts = ref([])
+const pays = ref([])
+const incontermes = ref([])
 
-const filtres = ref({
-    query: '',
-    cpClient: '',
-    typeProductionId: null,
-    sansDocsComplets: false
-})
+const filtresInitiaux = {
+    query: '', numeroDossier: '', clientNom: '', cpClient: '', agenceId: '', typeProductionId: '',
+    numeroOt: '', paysOrigineId: '', paysDestinationId: '', incontermeId: '', pourCompte: '',
+    depart: '', adresseLivraison: '', lieuPaiementFret: '', estPrepaye: '', estProvisionne: '',
+    provisionMin: '', provisionMax: '', echeanceMin: '', echeanceMax: '',
+    dateLivraisonMin: '', dateLivraisonMax: '', phaseId: '', statutId: '', typeDossier: '',
+    estGroupage: '', dateMin: '', dateMax: ''
+}
+const filtres = ref({ ...filtresInitiaux })
+const filtresAppliques = ref({})
+const afficherTousSansFiltre = ref(false)
+const modeListe = computed(() => Object.keys(filtresAppliques.value).length > 0 || afficherTousSansFiltre.value ? 'tous' : 'incomplets')
+const filtresTextePrincipaux = [
+    { key: 'numeroDossier', label: 'N° dossier' }, { key: 'clientNom', label: 'Nom client' },
+    { key: 'cpClient', label: 'CP client' }
+]
+const filtresTexteAvances = [
+    { key: 'pourCompte', label: 'Pour compte' }, { key: 'depart', label: 'Lieu de départ' },
+    { key: 'adresseLivraison', label: 'Adresse de livraison' },
+    { key: 'lieuPaiementFret', label: 'Paiement du fret' }
+]
+const filtresNumeriques = [
+    { key: 'numeroOt', label: 'N° ordre de transit' },
+    { key: 'provisionMin', label: 'Provision min.', step: '0.01' },
+    { key: 'provisionMax', label: 'Provision max.', step: '0.01' }
+]
+const filtresDates = [
+    { key: 'echeanceMin', label: 'Échéance du' }, { key: 'echeanceMax', label: 'Échéance au' },
+    { key: 'dateLivraisonMin', label: 'Livraison du' }, { key: 'dateLivraisonMax', label: 'Livraison au' },
+    { key: 'dateMin', label: 'Création du' }, { key: 'dateMax', label: 'Création au' }
+]
+const filtresSelects = [
+    { key: 'phaseId', label: 'Phase', options: phases },
+    { key: 'statutId', label: 'Statut', options: statuts },
+    { key: 'paysOrigineId', label: 'Pays d’origine', options: pays },
+    { key: 'paysDestinationId', label: 'Pays de destination', options: pays },
+    { key: 'incontermeId', label: 'Incoterm', options: incontermes }
+]
+const filtresBooleens = [
+    { key: 'estPrepaye', label: 'Prépayé' },
+    { key: 'estProvisionne', label: 'Provisionné' },
+    { key: 'estGroupage', label: 'Groupage' }
+]
 
 const pagination = ref({
     page: 0,
@@ -231,15 +309,13 @@ const pagination = ref({
     totalPages: 0
 })
 
-const dossiersAvecDocs = ref(new Set()) // IDs dossiers avec docs complets
-
 onMounted(async () => {
     // Pré-sélection du dossier transmis par le détail dossier (?dossierId=...)
     await preselecterDossierDepuisUrl()
     await Promise.all([
-        rechercherDossiers(),
+        chargerDossiers(),
         chargerAlertes(),
-        chargerTypeProductions()
+        chargerReferentiels()
     ])
 })
 
@@ -263,28 +339,19 @@ watch(() => route.query.dossierId, async (nouvelId) => {
     await preselecterDossierDepuisUrl()
 })
 
-async function chargerTypeProductions() {
-    try {
-        typeProductions.value = await OrdreTransitService.getAllTypeProductions()
-    } catch (e) {
-        console.error('Erreur chargement types de production', e)
-    }
-}
-
-/** Suggestions de clients pour le filtre CP Client */
-async function suggestionsClients(q) {
-    try {
-        return await ClientService.suggestions(q)
-    } catch (e) {
-        console.error('Erreur recherche suggestions clients', e)
-        return []
-    }
-}
-
-function libelleClient(client) {
-    if (!client) return ''
-    const nom = `${client.nom || ''} ${client.prenom || ''}`.trim()
-    return nom || client.cpClient || ''
+async function chargerReferentiels() {
+    const chargements = [
+        [OrdreTransitService.getAllTypeProductions(), typeProductions],
+        [AgenceService.getAllAgences(), agences],
+        [DossierService.getAllPhases(), phases],
+        [DossierService.getAllStatuts(), statuts],
+        [ClientService.getAllPays(), pays],
+        [DossierService.getAllIncontermes(), incontermes]
+    ]
+    const resultats = await Promise.allSettled(chargements.map(([promesse]) => promesse))
+    resultats.forEach((resultat, index) => {
+        if (resultat.status === 'fulfilled') chargements[index][1].value = resultat.value
+    })
 }
 
 async function chargerAlertes() {
@@ -306,42 +373,53 @@ async function chargerAlertes() {
     }
 }
 
-let rechercheTimeout = null
-async function rechercherDossiers() {
-    clearTimeout(rechercheTimeout)
-    rechercheTimeout = setTimeout(async () => {
-        chargementDossiers.value = true
-        try {
-            if (filtres.value.sansDocsComplets) {
-                const res = await DocumentService.getDossiersSansDocuments()
-                dossiers.value = res
-                pagination.value = { page: 0, totalPages: 1, size: 50 }
-            } else {
-                const filters = {}
-                if (filtres.value.query) filters.query = filtres.value.query
-                if (filtres.value.typeProductionId) filters.typeProductionId = filtres.value.typeProductionId
-                if (filtres.value.cpClient) filters.cpClient = filtres.value.cpClient
+function appliquerFiltres() {
+    filtresAppliques.value = Object.fromEntries(Object.entries(filtres.value)
+        .filter(([, valeur]) => valeur !== '' && valeur !== null && valeur !== undefined))
+    afficherTousSansFiltre.value = false
+    pagination.value.page = 0
+    chargerDossiers()
+}
 
-                const res = await DossierService.searchDossiers(
-                    pagination.value.page, pagination.value.size,
-                    'date_creation', 'desc', filters
-                )
-                dossiers.value = res.content || []
-                pagination.value.totalPages = res.totalPages || 0
-            }
+function reinitialiserFiltres() {
+    filtres.value = { ...filtresInitiaux }
+    filtresAppliques.value = {}
+    afficherTousSansFiltre.value = false
+    pagination.value.page = 0
+    chargerDossiers()
+}
 
-            // Le dossier sélectionné reste visible en tête de liste même s'il
-            // n'appartient pas à la page courante (pré-sélection depuis le détail dossier)
-            const sel = dossierSelectionne.value
-            if (sel?.id != null && !dossiers.value.some(x => x.id === sel.id)) {
-                dossiers.value = [sel, ...dossiers.value]
-            }
-        } catch (e) {
-            console.error('Erreur recherche dossiers', e)
-        } finally {
-            chargementDossiers.value = false
-        }
-    }, 300)
+function afficherTous() {
+    filtres.value = { ...filtresInitiaux }
+    filtresAppliques.value = {}
+    afficherTousSansFiltre.value = true
+    pagination.value.page = 0
+    chargerDossiers()
+}
+
+let numeroRequete = 0
+async function chargerDossiers() {
+    const requete = ++numeroRequete
+    chargementDossiers.value = true
+    erreurDossiers.value = ''
+    const params = { ...filtresAppliques.value }
+    if (modeListe.value === 'incomplets') params.documentsIncomplets = true
+    try {
+        const res = await DossierService.searchDossiers(
+            pagination.value.page, pagination.value.size, 'date_creation', 'desc', params
+        )
+        if (requete !== numeroRequete) return
+        dossiers.value = res.content || []
+        pagination.value.totalPages = res.totalPages || 0
+    } catch (e) {
+        if (requete !== numeroRequete) return
+        console.error('Erreur recherche dossiers', e)
+        dossiers.value = []
+        pagination.value.totalPages = 0
+        erreurDossiers.value = 'Impossible de charger les dossiers. Réessayez.'
+    } finally {
+        if (requete === numeroRequete) chargementDossiers.value = false
+    }
 }
 
 async function selectionnerDossier(d) {
@@ -354,12 +432,21 @@ async function selectionnerDossier(d) {
 
 function changerPage(delta) {
     pagination.value.page = Math.max(0, pagination.value.page + delta)
-    rechercherDossiers()
+    chargerDossiers()
 }
 
-function docsComplets(dossier) {
-    // Approximation côté frontend : incomplet si le dossier a des remises urgentes en attente
-    return !alertesRemise.value.some(r => r.dossier?.id === dossier.id)
+function libelleEtatDocuments(dossier) {
+    if (dossier.etatDocuments === 'OBLIGATOIRES_MANQUANTS') return 'Obligatoires manquants'
+    if (dossier.etatDocuments === 'FACULTATIFS_MANQUANTS') return 'Facultatifs manquants'
+    if (dossier.etatDocuments === 'COMPLET') return 'Complet'
+    return 'État indisponible'
+}
+
+function classeEtatDocuments(dossier) {
+    if (dossier.etatDocuments === 'OBLIGATOIRES_MANQUANTS') return 'bg-danger-subtle text-danger'
+    if (dossier.etatDocuments === 'FACULTATIFS_MANQUANTS') return 'bg-warning-subtle text-warning-emphasis'
+    if (dossier.etatDocuments === 'COMPLET') return 'bg-success-subtle text-success'
+    return 'bg-secondary-subtle text-secondary'
 }
 
 const remiseUrgenteSelection = computed(() => {
@@ -367,14 +454,15 @@ const remiseUrgenteSelection = computed(() => {
     return id ? (remisesParDossier.value[id] || null) : null
 })
 
-function onDocumentsValides({ succes }) {
+async function onDocumentsValides({ succes }) {
     if (succes) {
-        rechercherDossiers()
+        const id = dossierSelectionne.value?.id
+        await chargerDossiers()
+        if (id) {
+            try { dossierSelectionne.value = await DossierService.getDossierById(id) }
+            catch (e) { console.error('Erreur actualisation dossier', e) }
+        }
     }
-}
-
-function onObligatoiresComplets(complet) {
-    // Mise à jour UI si besoin
 }
 
 function formatarDate(dt) {

@@ -10,6 +10,7 @@ export class OrdreTransit {
         this.agence = data.agence || null
         this.client = data.client || null
         this.typeProduction = data.typeProduction || null
+        this.natureMarchandise = data.natureMarchandise || null
         this.numeroCommande = data.numeroCommande || ''
         this.utilisateur = data.utilisateur || null
         this.typeRegime = data.typeRegime || null
@@ -35,6 +36,9 @@ export class OrdreTransit {
         }
         if (!this.typeProduction) {
             erreurs.push("Le type de production (import/export) est requis.")
+        }
+        if (!this.natureMarchandise) {
+            erreurs.push("La nature de la marchandise est requise.")
         }
         if (!this.typeRegime) {
             erreurs.push("Le régime douanier est requis.")
@@ -65,6 +69,7 @@ export class OrdreTransit {
             numeroOrdreTransit: this.numeroOrdreTransit,
             client: this.client ? { id: this.client.id } : null,
             typeProduction: this.typeProduction ? { id: this.typeProduction.id } : null,
+            natureMarchandise: this.natureMarchandise ? { id: this.natureMarchandise.id } : null,
             numeroCommande: this.numeroCommande,
             typeRegime: this.typeRegime ? { id: this.typeRegime.id } : null,
             destinationFinale: this.destinationFinale,

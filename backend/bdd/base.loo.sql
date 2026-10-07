@@ -500,7 +500,6 @@ CREATE TABLE document_dossier(
 
 CREATE TABLE mvt_dossier(
    id COUNTER,
-   ip_utilisateur INET,
    commentaire TEXT,
    date_mvt DATETIME DEFAULT CURRENT_TIMESTAMP,
    id_operation INT NOT NULL,

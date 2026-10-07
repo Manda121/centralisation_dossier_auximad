@@ -10,9 +10,11 @@ function authHeader() {
 
 class DocumentService {
     /** Récupérer les types de documents (filtrables par type de production) */
-    async getTypeDocuments(typeProductionId = null) {
-        const params = typeProductionId ? `?typeProductionId=${typeProductionId}` : ''
-        const res = await axios.get(`${API_URL}/types${params}`, { headers: authHeader() })
+    async getTypeDocuments(typeProductionId = null, natureMarchandiseId = null) {
+        const params = new URLSearchParams()
+        if (typeProductionId) params.set('typeProductionId', typeProductionId)
+        if (natureMarchandiseId) params.set('natureMarchandiseId', natureMarchandiseId)
+        const res = await axios.get(`${API_URL}/types?${params}`, { headers: authHeader() })
         return res.data
     }
 

@@ -1,5 +1,6 @@
 package com.auximad.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -41,6 +42,10 @@ public class Dossier {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "id_ordre_transit")
     private OrdreTransit ordreTransit;
+
+    @Transient
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private NatureMarchandise natureMarchandiseCreation;
 
     @Column(name = "est_groupage", nullable = false)
     private Boolean estGroupage = false;
@@ -107,4 +112,7 @@ public class Dossier {
 
     @Transient
     private String numeroDossierMere;
+
+    @Transient
+    private String etatDocuments;
 }

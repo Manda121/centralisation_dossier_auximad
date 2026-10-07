@@ -7,7 +7,6 @@ export class Marchandise {
         this.id = data.id || null
         this.ordreTransit = data.ordreTransit || null
         this.uniteMesure = data.uniteMesure || null
-        this.natureMarchandise = data.natureMarchandise || null
         this.marque = data.marque || ''
         this.modele = data.modele || ''
         this.description = data.description || ''
@@ -38,9 +37,6 @@ export class Marchandise {
         if (!this.uniteMesure) {
             erreurs.push('L\'unité de mesure est requise.')
         }
-        if (!this.natureMarchandise) {
-            erreurs.push('La nature de la marchandise est requise.')
-        }
 
         return {
             valide: erreurs.length === 0,
@@ -56,7 +52,6 @@ export class Marchandise {
             id: this.id,
             ordreTransit: this.ordreTransit ? { id: this.ordreTransit.id } : null,
             uniteMesure: this.uniteMesure ? { id: this.uniteMesure.id } : null,
-            natureMarchandise: this.natureMarchandise ? { id: this.natureMarchandise.id } : null,
             marque: this.marque,
             modele: this.modele,
             description: this.description,

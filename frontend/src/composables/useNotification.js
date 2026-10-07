@@ -1,77 +1,77 @@
 import { reactive } from 'vue'
 
-/**
- * Etat global partage par toutes les pages : une fenetre de notification
- * a la fois, avec file d'attente. Le composant <NotificationModal /> est
- * monte une seule fois dans App.vue et affiche cet etat.
- */
-const state = reactive({
-    current: null, // { id, type, title, message, isConfirm?, resolve? }
-    queue: []
-})
-
+const state = reactive({ toasts: [], currentConfirm: null, confirmQueue: [] })
+const timers = new Map()
 let compteur = 0
 
-const titresParDefaut = {
-    success: 'Succès',
-    error: 'Erreur',
-    warning: 'Attention',
-    info: 'Information',
-    confirm: 'Confirmation'
+const titres = {
+    success: 'Opération réussie', error: 'Une erreur est survenue',
+    warning: 'Attention', info: 'Information'
+}
+const messages = {
+    success: 'L’opération a été effectuée.',
+    error: 'L’opération n’a pas pu être effectuée. Réessayez.',
+    warning: 'Vérifiez les informations saisies.',
+    info: 'Une nouvelle information est disponible.'
 }
 
-function push(message, type = 'info', title = null, extra = {}) {
-    const notif = {
-        id: ++compteur,
-        type,
-        title: title || titresParDefaut[type] || titresParDefaut.info,
-        message: String(message ?? ''),
-        ...extra
-    }
-    if (!state.current) {
-        state.current = notif
-    } else {
-        state.queue.push(notif)
-    }
-    return notif.id
+function texteNotification(value, profondeur = 0) {
+    if (value == null || profondeur > 4) return ''
+    if (typeof value === 'string' || typeof value === 'number') return String(value).trim()
+    if (Array.isArray(value)) return value.map(item => texteNotification(item, profondeur + 1)).filter(Boolean).join('\n')
+    if (typeof value !== 'object') return ''
+
+    if (value.response?.data) return texteNotification(value.response.data, profondeur + 1)
+    const principal = texteNotification(value.message ?? value.erreur ?? value.error, profondeur + 1)
+    const details = texteNotification(value.details, profondeur + 1)
+    if (principal || details) return [principal, details].filter((part, index) => part && (index === 0 || part !== principal)).join('\n')
+    if (value.errors) return texteNotification(Object.values(value.errors), profondeur + 1)
+    return ''
 }
 
-/** Ferme la notification courante et affiche la suivante de la file. */
+function retirer(id) {
+    clearTimeout(timers.get(id))
+    timers.delete(id)
+    const index = state.toasts.findIndex(item => item.id === id)
+    if (index !== -1) state.toasts.splice(index, 1)
+}
+
+function push(message, type = 'info', title = null) {
+    const categorie = titres[type] ? type : 'info'
+    const id = ++compteur
+    state.toasts.push({
+        id, type: categorie,
+        title: texteNotification(title) || titres[categorie],
+        message: texteNotification(message) || messages[categorie]
+    })
+    if (state.toasts.length > 4) retirer(state.toasts[0].id)
+    timers.set(id, setTimeout(() => retirer(id), categorie === 'error' || categorie === 'warning' ? 8000 : 5500))
+    return id
+}
+
 function fermer(resultat = false) {
-    // Si c'est une confirmation, résoudre la promesse avant de fermer
-    if (state.current?.isConfirm && typeof state.current.resolve === 'function') {
-        state.current.resolve(resultat)
-    }
-    state.current = state.queue.shift() || null
+    const notification = state.currentConfirm
+    if (!notification) return
+    state.currentConfirm = state.confirmQueue.shift() || null
+    notification.resolve(Boolean(resultat))
 }
 
-/**
- * Affiche une boîte de dialogue de confirmation (remplace window.confirm).
- * Retourne une Promise<boolean> : true si confirmé, false si annulé.
- */
 function confirm(message, title = null) {
-    return new Promise((resolve) => {
-        const notif = {
+    return new Promise(resolve => {
+        const notification = {
             id: ++compteur,
-            type: 'warning',
-            title: title || 'Confirmation requise',
-            message: String(message ?? ''),
-            isConfirm: true,
+            title: texteNotification(title) || 'Confirmer l’action',
+            message: texteNotification(message) || 'Voulez-vous continuer ?',
             resolve
         }
-        if (!state.current) {
-            state.current = notif
-        } else {
-            state.queue.push(notif)
-        }
+        if (state.currentConfirm) state.confirmQueue.push(notification)
+        else state.currentConfirm = notification
     })
 }
 
 export function useNotification() {
     return {
-        state,
-        fermer,
-        confirm,
+        state, fermer, retirer, confirm,
         notify: (message, type, title) => push(message, type, title),
         notifySuccess: (message, title) => push(message, 'success', title),
         notifyError: (message, title) => push(message, 'error', title),
