@@ -84,6 +84,7 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
           AND (:documentsIncomplets IS NULL OR EXISTS (
             SELECT 1 FROM type_document td
             WHERE td.id_type_production = d.id_type_production
+              AND (td.id_nature_marchandise IS NULL OR td.id_nature_marchandise = ot.id_nature_marchandise)
               AND NOT EXISTS (
                 SELECT 1 FROM document doc
                 WHERE doc.id_dossier = d.id AND doc.id_type_document = td.id AND doc.est_actif = true
@@ -138,6 +139,7 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
           AND (:documentsIncomplets IS NULL OR EXISTS (
             SELECT 1 FROM type_document td
             WHERE td.id_type_production = d.id_type_production
+              AND (td.id_nature_marchandise IS NULL OR td.id_nature_marchandise = ot.id_nature_marchandise)
               AND NOT EXISTS (
                 SELECT 1 FROM document doc
                 WHERE doc.id_dossier = d.id AND doc.id_type_document = td.id AND doc.est_actif = true
@@ -200,15 +202,19 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
         SELECT d.id,
           EXISTS (
             SELECT 1 FROM type_document td
-            WHERE td.id_type_production = d.id_type_production AND td.est_obligatoire = true
+            WHERE td.id_type_production = d.id_type_production
+              AND (td.id_nature_marchandise IS NULL OR td.id_nature_marchandise = ot.id_nature_marchandise)
+              AND td.est_obligatoire = true
               AND NOT EXISTS (SELECT 1 FROM document doc WHERE doc.id_dossier = d.id AND doc.id_type_document = td.id AND doc.est_actif = true)
           ) AS obligatoires_manquants,
           EXISTS (
             SELECT 1 FROM type_document td
-            WHERE td.id_type_production = d.id_type_production AND COALESCE(td.est_obligatoire, false) = false
+            WHERE td.id_type_production = d.id_type_production
+              AND (td.id_nature_marchandise IS NULL OR td.id_nature_marchandise = ot.id_nature_marchandise)
+              AND COALESCE(td.est_obligatoire, false) = false
               AND NOT EXISTS (SELECT 1 FROM document doc WHERE doc.id_dossier = d.id AND doc.id_type_document = td.id AND doc.est_actif = true)
           ) AS facultatifs_manquants
-        FROM dossier d WHERE d.id IN (:ids)
+        FROM dossier d LEFT JOIN ordre_transit ot ON ot.id = d.id_ordre_transit WHERE d.id IN (:ids)
         """, nativeQuery = true)
     List<Object[]> findEtatsDocuments(@Param("ids") List<Integer> ids);
 
@@ -217,8 +223,10 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
      */
     @Query(value = """
         SELECT DISTINCT d.* FROM dossier d
-        JOIN type_production tp ON d.id_type_production = tp.id
-        JOIN type_document td ON td.id_type_production = tp.id AND td.est_obligatoire = true
+        LEFT JOIN ordre_transit ot ON ot.id = d.id_ordre_transit
+        JOIN type_document td ON td.id_type_production = d.id_type_production
+          AND (td.id_nature_marchandise IS NULL OR td.id_nature_marchandise = ot.id_nature_marchandise)
+          AND td.est_obligatoire = true
         WHERE NOT EXISTS (
             SELECT 1 FROM document doc
             WHERE doc.id_dossier = d.id
@@ -280,8 +288,10 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
     @Query(value = """
         SELECT COUNT(*) FROM (
             SELECT DISTINCT d.id FROM dossier d
-            JOIN type_production tp ON d.id_type_production = tp.id
-            JOIN type_document td ON td.id_type_production = tp.id AND td.est_obligatoire = true
+            LEFT JOIN ordre_transit ot ON ot.id = d.id_ordre_transit
+            JOIN type_document td ON td.id_type_production = d.id_type_production
+              AND (td.id_nature_marchandise IS NULL OR td.id_nature_marchandise = ot.id_nature_marchandise)
+              AND td.est_obligatoire = true
             WHERE (:agenceId IS NULL OR d.id_agence = :agenceId)
               AND NOT EXISTS (
                 SELECT 1 FROM document doc

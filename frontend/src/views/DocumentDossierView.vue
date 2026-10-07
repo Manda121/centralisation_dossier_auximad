@@ -221,6 +221,7 @@
                                 <h6 class="fw-semibold mb-3">Documents nécessaires</h6>
                                 <DocumentsSection :dossierId="dossierSelectionne.id"
                                     :typeProductionId="dossierSelectionne.typeProduction?.id"
+                                    :natureMarchandiseId="dossierSelectionne.ordreTransit?.natureMarchandise?.id"
                                     @documents-valides="onDocumentsValides" />
                             </div>
                         </div>

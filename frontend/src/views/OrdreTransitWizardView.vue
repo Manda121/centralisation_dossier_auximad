@@ -6,6 +6,7 @@ import PageSkeleton from '../components/inc/PageSkeleton.vue'
 import OrdreTransit from '../models/OrdreTransit'
 import OrdreTransitService from '../services/OrdreTransitService'
 import ClientService from '../services/ClientService'
+import MarchandiseService from '../services/MarchandiseService'
 import { useNotification } from '../composables/useNotification'
 
 const router = useRouter()
@@ -33,6 +34,7 @@ const contratModel = ref({
 
 const clients = ref([])
 const typeProductions = ref([])
+const naturesMarchandise = ref([])
 const typeRegimes = ref([])
 const bureaux = ref([])
 const compagnies = ref([])
@@ -55,18 +57,20 @@ const isAerien = computed(() => {
 
 onMounted(async () => {
     try {
-        const [cls, productions, regimes, bur, comps] = await Promise.all([
+        const [cls, productions, regimes, bur, comps, natures] = await Promise.all([
             ClientService.searchClients(0, 1000, 'nom', 'asc', {}),
             OrdreTransitService.getAllTypeProductions(),
             OrdreTransitService.getAllTypeRegimes(),
             OrdreTransitService.getAllBureaux(),
-            OrdreTransitService.getCompagnies(1)
+            OrdreTransitService.getCompagnies(1),
+            MarchandiseService.getNatureMarchandises()
         ])
         clients.value = cls.content || []
         typeProductions.value = productions
         typeRegimes.value = regimes
         bureaux.value = bur
         compagnies.value = comps
+        naturesMarchandise.value = natures
     } catch (e) {
         console.error('Erreur chargement wizard', e)
     } finally {
@@ -112,7 +116,7 @@ async function chargerCompagniesSelonMode() {
 
 function etapeSuivante() {
     if (currentStep.value === 1) {
-        if (!otModel.value.client || !otModel.value.typeProduction || !otModel.value.typeRegime) {
+        if (!otModel.value.client || !otModel.value.typeProduction || !otModel.value.typeRegime || !otModel.value.natureMarchandise) {
             notifyWarning('Veuillez renseigner tous les champs obligatoires (*) de l\'étape 1.')
             return
         }
@@ -240,6 +244,13 @@ async function creerOrdreTransit() {
                                     <select v-model="otModel.typeRegime" class="form-select form-select-sm" required>
                                         <option :value="null">Sélectionnez le régime</option>
                                         <option v-for="r in typeRegimes" :key="r.id" :value="r">{{ r.code }} - {{ r.nom }}</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold text-secondary">Nature de la marchandise <span class="text-danger">*</span></label>
+                                    <select v-model="otModel.natureMarchandise" class="form-select form-select-sm" required>
+                                        <option :value="null">Sélectionnez la nature</option>
+                                        <option v-for="nature in naturesMarchandise" :key="nature.id" :value="nature">{{ nature.nom }}</option>
                                     </select>
                                 </div>
                                 <div class="col-md-6">
@@ -398,6 +409,7 @@ async function creerOrdreTransit() {
                                             <ul class="list-unstyled small mb-0">
                                                 <li class="mb-1"><strong>Donneur d'ordre :</strong> {{ otModel.client?.nom }} {{ otModel.client?.prenom }}</li>
                                                 <li class="mb-1"><strong>Type de production :</strong> {{ otModel.typeProduction?.nom }}</li>
+                                                <li class="mb-1"><strong>Nature de la marchandise :</strong> {{ otModel.natureMarchandise?.nom }}</li>
                                                 <li class="mb-1"><strong>Régime douanier :</strong> {{ otModel.typeRegime?.code }} - {{ otModel.typeRegime?.nom }}</li>
                                                 <li class="mb-1"><strong>Numéro de commande :</strong> {{ otModel.numeroCommande || 'Non fourni' }}</li>
                                             </ul>

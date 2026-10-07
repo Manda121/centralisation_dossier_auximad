@@ -42,9 +42,9 @@ class DossierFiltersPostgresTest {
             CREATE TABLE clients(id int, nom text, prenom text, cp_client text);
             CREATE TABLE phase_dossier(id int, nom text);
             CREATE TABLE statut_dossier(id int, nom text);
-            CREATE TABLE ordre_transit(id int, numero_ordre_transit int);
+            CREATE TABLE ordre_transit(id int, numero_ordre_transit int, id_nature_marchandise int);
             CREATE TABLE dossier_interagence(id_dossier_mere int, id_sous_dossier int);
-            CREATE TABLE type_document(id int, id_type_production int, est_obligatoire boolean);
+            CREATE TABLE type_document(id int, nom text, id_type_production int, id_nature_marchandise int, est_obligatoire boolean);
             CREATE TABLE document(id int, id_dossier int, id_type_document int, est_actif boolean);
             CREATE TABLE dossier(id int, numero_dossier text, id_client int, id_agence int,
                 id_phase int, id_statut int, id_type_production int, id_ordre_transit int,
@@ -54,7 +54,7 @@ class DossierFiltersPostgresTest {
                 est_provisionne boolean, provision_demandee numeric, echeance timestamp,
                 date_livraison timestamp);
             INSERT INTO clients VALUES(1, 'Martin', 'Anne', '001'), (2, 'Durand', 'Paul', '002');
-            INSERT INTO ordre_transit VALUES(1, 18), (2, 19);
+            INSERT INTO ordre_transit VALUES(1, 18, 1), (2, 19, 2);
             INSERT INTO dossier VALUES
                 (1, 'DOS-001', 1, 1, 1, 1, 1, 1, false, '2026-10-02 14:00', 1, 2, 1,
                  'Acme', 'Toamasina', 'Antananarivo', 'Paris', false, true, 150,
@@ -65,7 +65,8 @@ class DossierFiltersPostgresTest {
                 (3, 'DOS-003', 2, 1, 2, 2, 2, 2, false, '2026-10-02 10:00', 2, 1, 2,
                  NULL, NULL, NULL, NULL, false, false, 0, NULL, NULL);
             INSERT INTO dossier_interagence VALUES(1, 2);
-            INSERT INTO type_document VALUES(1, 1, true), (2, 1, false), (3, 2, true);
+            INSERT INTO type_document VALUES(1, 'Facture', 1, NULL, true), (2, 'Liste', 1, NULL, false),
+                (3, 'Certificat', 2, NULL, true);
             INSERT INTO document VALUES(1, 1, 1, true), (2, 3, 3, true), (3, 1, 2, false);
             """);
         new DossierFullTextConfig(raw.getDataSource()).run(new DefaultApplicationArguments());
@@ -109,6 +110,23 @@ class DossierFiltersPostgresTest {
                 (rs, row) -> List.of(rs.getInt(1), rs.getBoolean(2), rs.getBoolean(3)));
         assertTrue(statuses.contains(List.of(1, false, true)));
         assertTrue(statuses.contains(List.of(2, true, true)));
+        assertTrue(statuses.contains(List.of(3, false, false)));
+    }
+
+    @Test void missingDocumentMustMatchTheOtNature() throws Exception {
+        raw.update("INSERT INTO type_document VALUES(4, 'Nature 2', 1, 2, true)");
+        expect(List.of(1, 2), Map.of("documentsIncomplets", true));
+
+        raw.update("INSERT INTO type_document VALUES(5, 'Nature 1', 1, 1, true)");
+        var typesSql = TypeDocumentRepository.class.getMethod("findApplicables", Integer.class, Integer.class)
+                .getAnnotation(Query.class).value();
+        var params = new MapSqlParameterSource("typeProductionId", 1).addValue("natureMarchandiseId", 1);
+        assertEquals(List.of(1, 2, 5), jdbc.query(typesSql, params, (rs, row) -> rs.getInt("id")));
+        var sql = DossierRepository.class.getMethod("findEtatsDocuments", List.class)
+                .getAnnotation(Query.class).value();
+        var statuses = jdbc.query(sql, new MapSqlParameterSource("ids", List.of(1, 3)),
+                (rs, row) -> List.of(rs.getInt(1), rs.getBoolean(2), rs.getBoolean(3)));
+        assertTrue(statuses.contains(List.of(1, true, true)));
         assertTrue(statuses.contains(List.of(3, false, false)));
     }
 

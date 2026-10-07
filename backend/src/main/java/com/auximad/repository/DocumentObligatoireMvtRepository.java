@@ -17,16 +17,16 @@ public interface DocumentObligatoireMvtRepository extends JpaRepository<Document
      * document_obligatoire_mvt) non encore remis pour un dossier : aucun
      * document actif ne correspond. Une operation sans ligne ici a 0 requis.
      */
-    @Query("""
-        SELECT COUNT(dov) FROM DocumentObligatoireMvt dov
-        WHERE dov.operation.id = :operationId
-          AND NOT EXISTS (
-            SELECT 1 FROM Document d
-            WHERE d.dossier.id = :dossierId
-              AND d.typeDocument.id = dov.typeDocument.id
-              AND d.estActif = true
-          )
-    """)
+    @Query(value = """
+        SELECT COUNT(*) FROM document_obligatoire_mvt dov
+        JOIN type_document td ON td.id = dov.id_type_document
+        JOIN dossier dos ON dos.id = :dossierId
+        LEFT JOIN ordre_transit ot ON ot.id = dos.id_ordre_transit
+        WHERE dov.id_operation = :operationId
+          AND (td.id_nature_marchandise IS NULL OR td.id_nature_marchandise = ot.id_nature_marchandise)
+          AND NOT EXISTS (SELECT 1 FROM document doc
+            WHERE doc.id_dossier = dos.id AND doc.id_type_document = td.id AND doc.est_actif = true)
+    """, nativeQuery = true)
     long countManquants(@Param("dossierId") Integer dossierId,
                         @Param("operationId") Integer operationId);
 
@@ -34,17 +34,17 @@ public interface DocumentObligatoireMvtRepository extends JpaRepository<Document
      * Liste des types de documents obligatoires manquants pour une operation
      * donnee (utilisee par la fenetre d'assignation de document).
      */
-    @Query("""
-        SELECT dov.typeDocument FROM DocumentObligatoireMvt dov
-        WHERE dov.operation.id = :operationId
-          AND NOT EXISTS (
-            SELECT 1 FROM Document d
-            WHERE d.dossier.id = :dossierId
-              AND d.typeDocument.id = dov.typeDocument.id
-              AND d.estActif = true
-          )
-        ORDER BY dov.typeDocument.nom
-    """)
+    @Query(value = """
+        SELECT td.* FROM document_obligatoire_mvt dov
+        JOIN type_document td ON td.id = dov.id_type_document
+        JOIN dossier dos ON dos.id = :dossierId
+        LEFT JOIN ordre_transit ot ON ot.id = dos.id_ordre_transit
+        WHERE dov.id_operation = :operationId
+          AND (td.id_nature_marchandise IS NULL OR td.id_nature_marchandise = ot.id_nature_marchandise)
+          AND NOT EXISTS (SELECT 1 FROM document doc
+            WHERE doc.id_dossier = dos.id AND doc.id_type_document = td.id AND doc.est_actif = true)
+        ORDER BY td.nom
+    """, nativeQuery = true)
     List<TypeDocument> findManquants(@Param("dossierId") Integer dossierId,
                                      @Param("operationId") Integer operationId);
 
@@ -53,17 +53,17 @@ public interface DocumentObligatoireMvtRepository extends JpaRepository<Document
      * obligatoires non remis pour un dossier, toutes operations confondues
      * du type de production du dossier.
      */
-    @Query("""
-        SELECT COUNT(dov) FROM DocumentObligatoireMvt dov
-        JOIN dov.operation op
-        WHERE op.typeProduction.id = :typeProductionId
-          AND NOT EXISTS (
-            SELECT 1 FROM Document d
-            WHERE d.dossier.id = :dossierId
-              AND d.typeDocument.id = dov.typeDocument.id
-              AND d.estActif = true
-          )
-    """)
+    @Query(value = """
+        SELECT COUNT(*) FROM document_obligatoire_mvt dov
+        JOIN operation_dossier op ON op.id = dov.id_operation
+        JOIN type_document td ON td.id = dov.id_type_document
+        JOIN dossier dos ON dos.id = :dossierId
+        LEFT JOIN ordre_transit ot ON ot.id = dos.id_ordre_transit
+        WHERE op.id_type_production = :typeProductionId
+          AND (td.id_nature_marchandise IS NULL OR td.id_nature_marchandise = ot.id_nature_marchandise)
+          AND NOT EXISTS (SELECT 1 FROM document doc
+            WHERE doc.id_dossier = dos.id AND doc.id_type_document = td.id AND doc.est_actif = true)
+    """, nativeQuery = true)
     long countManquantsDossier(@Param("dossierId") Integer dossierId,
                                @Param("typeProductionId") Integer typeProductionId);
 }

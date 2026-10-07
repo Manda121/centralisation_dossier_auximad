@@ -282,6 +282,7 @@ public class DossierService {
             OrdreTransit ot = new OrdreTransit();
             ot.setClient(dossier.getClient());
             ot.setTypeProduction(dossier.getTypeProduction());
+            ot.setNatureMarchandise(dossier.getNatureMarchandiseCreation());
             Utilisateur auteur = new Utilisateur();
             auteur.setId(dossier.getUtilisateur().getId());
             auteur.setAgence(dossier.getAgence());

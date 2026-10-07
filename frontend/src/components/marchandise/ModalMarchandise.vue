@@ -9,7 +9,6 @@ const props = defineProps({
   editionMode: { type: Boolean, default: false },
   formModel: { type: Object, required: true },
   unites: { type: Array, default: () => [] },
-  natures: { type: Array, default: () => [] },
   loading: { type: Boolean, default: false }
 })
 
@@ -58,22 +57,6 @@ function onSubmit() {
                   rows="3"
                   required
                 ></textarea>
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label small fw-semibold text-secondary">
-                  Nature Marchandise <span class="text-danger">*</span>
-                </label>
-                <select
-                  v-model="formModel.natureMarchandise"
-                  class="form-select form-select-sm"
-                  required
-                >
-                  <option :value="null">Sélectionnez la nature</option>
-                  <option v-for="n in natures" :key="n.id" :value="n">
-                    {{ n.nom }}
-                  </option>
-                </select>
               </div>
 
               <div class="col-md-6">

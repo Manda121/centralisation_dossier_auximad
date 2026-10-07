@@ -155,7 +155,7 @@ public final class OutilsTransit {
                 sb.append("    aucune\n");
             } else {
                 for (Marchandise m : marchandises) {
-                    sb.append("    · ").append(m.getNatureMarchandise() != null ? m.getNatureMarchandise().getNom() : "-")
+                    sb.append("    · ").append(ot.getNatureMarchandise() != null ? ot.getNatureMarchandise().getNom() : "-")
                             .append(" | marque : ").append(m.getMarque() == null ? "-" : m.getMarque())
                             .append(" | modèle : ").append(m.getModele() == null ? "-" : m.getModele())
                             .append(" | quantité : ").append(m.getQuantite() == null ? "-" : m.getQuantite())

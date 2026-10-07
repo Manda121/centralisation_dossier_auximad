@@ -201,6 +201,7 @@ const { notifyError, notifyWarning } = useNotification()
 const props = defineProps({
     dossierId: { type: Number, default: null },
     typeProductionId: { type: Number, default: null },
+    natureMarchandiseId: { type: Number, default: null },
     readOnly: { type: Boolean, default: false },
     /** Pour le mode création : on passe les docs initiaux via le parent */
     documentsInitiaux: { type: Array, default: () => [] }
@@ -241,11 +242,7 @@ onMounted(async () => {
     await chargerDonnees()
 })
 
-watch(() => props.dossierId, async () => {
-    await chargerDonnees()
-})
-
-watch(() => props.typeProductionId, async () => {
+watch(() => [props.dossierId, props.typeProductionId, props.natureMarchandiseId], async () => {
     await chargerDonnees()
 })
 
@@ -254,18 +251,24 @@ watch([coches, fichiersTemp, dateRemiseBatch, datesRemiseSaisies], () => {
     if (!props.dossierId) valideeCreation.value = false
 }, { deep: true })
 
+let numeroChargement = 0
 async function chargerDonnees() {
+    const numero = ++numeroChargement
     chargement.value = true
     try {
         // Charger les types de documents
-        typeDocuments.value = await DocumentService.getTypeDocuments(props.typeProductionId)
+        const types = await DocumentService.getTypeDocuments(props.typeProductionId, props.natureMarchandiseId)
+        if (numero !== numeroChargement) return
+        typeDocuments.value = types
 
         // Charger les documents déjà remis (si dossier existant)
         if (props.dossierId) {
             documentsActifs.value = await DocumentService.getDocumentsByDossier(props.dossierId)
+            if (numero !== numeroChargement) return
             // Charger les remises (table remise)
             try {
                 const remisesList = await DocumentService.getRemises(props.dossierId)
+                if (numero !== numeroChargement) return
                 const map = {}
                 remisesList.forEach(r => {
                     if (r.typeDocument?.id != null) map[r.typeDocument.id] = r.dateRemise
@@ -289,9 +292,11 @@ async function chargerDonnees() {
 
         emitObligatoiresComplets()
     } catch (e) {
+        if (numero !== numeroChargement) return
         console.error('Erreur chargement documents', e)
+        typeDocuments.value = []
     } finally {
-        chargement.value = false
+        if (numero === numeroChargement) chargement.value = false
     }
 }
 

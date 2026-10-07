@@ -36,6 +36,10 @@ public class OrdreTransit {
     @JoinColumn(name = "id_type_production")
     private TypeProduction typeProduction;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "id_nature_marchandise")
+    private NatureMarchandise natureMarchandise;
+
     @Column(name = "numero_commande", length = 100)
     private String numeroCommande;
 

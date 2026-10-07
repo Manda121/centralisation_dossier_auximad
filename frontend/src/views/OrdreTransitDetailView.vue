@@ -169,6 +169,10 @@ function formatarDate(dt) {
                                             <div class="fw-semibold">{{ otModel.typeRegime?.code }} - {{ otModel.typeRegime?.nom }}</div>
                                         </div>
                                         <div class="col-md-4">
+                                            <div class="text-secondary">NATURE DE LA MARCHANDISE</div>
+                                            <div class="fw-semibold">{{ otModel.natureMarchandise?.nom || '—' }}</div>
+                                        </div>
+                                        <div class="col-md-4">
                                             <div class="text-secondary">N° DE COMMANDE</div>
                                             <div class="fw-semibold">{{ otModel.numeroCommande || '—' }}</div>
                                         </div>

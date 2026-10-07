@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.auximad.service.MvtDossierSearchDatesTest
 -------------------------------------------------------------------------------
-Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 10.69 s -- in com.auximad.service.MvtDossierSearchDatesTest
+Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.015 s -- in com.auximad.service.MvtDossierSearchDatesTest

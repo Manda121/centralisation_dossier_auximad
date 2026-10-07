@@ -26,10 +26,6 @@ public class Marchandise {
     @JoinColumn(name = "id_unite_mesure")
     private UniteMesure uniteMesure;
 
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "id_nature_marchandise")
-    private NatureMarchandise natureMarchandise;
-
     @Column(length = 100)
     private String marque;
 

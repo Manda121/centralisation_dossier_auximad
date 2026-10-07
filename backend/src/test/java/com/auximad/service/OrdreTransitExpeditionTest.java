@@ -29,6 +29,9 @@ class OrdreTransitExpeditionTest {
     @InjectMocks OrdreTransitService service;
 
     private OrdreTransit create(OrdreTransit ot) {
+        NatureMarchandise nature = new NatureMarchandise();
+        nature.setId(1);
+        ot.setNatureMarchandise(nature);
         when(statutOtRepository.findById(2)).thenReturn(Optional.of(new StatutOt()));
         when(ordreTransitRepository.save(any())).thenAnswer(call -> {
             OrdreTransit saved = call.getArgument(0);

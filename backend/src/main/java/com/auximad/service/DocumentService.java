@@ -121,11 +121,11 @@ public class DocumentService {
 
     /** Liste les types de documents pour un type de production donné */
     @Transactional(readOnly = true)
-    public List<TypeDocument> getTypeDocumentsByTypeProduction(Integer typeProductionId) {
-        if (typeProductionId == null) {
+    public List<TypeDocument> getTypeDocumentsByTypeProduction(Integer typeProductionId, Integer natureMarchandiseId) {
+        if (typeProductionId == null && natureMarchandiseId == null) {
             return typeDocumentRepository.findAll();
         }
-        return typeDocumentRepository.findByTypeProductionId(typeProductionId);
+        return typeDocumentRepository.findApplicables(typeProductionId, natureMarchandiseId);
     }
 
     /** Liste tous les types de documents */
