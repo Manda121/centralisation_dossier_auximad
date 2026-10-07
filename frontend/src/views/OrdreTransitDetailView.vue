@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import Header from '../components/inc/Header.vue'
 import PageSkeleton from '../components/inc/PageSkeleton.vue'
 import OrdreTransitService from '../services/OrdreTransitService'
+import DossierService from '../services/DossierService'
 import PermissionService, { PORTEE_PROPRE_VALIDATION, PORTEE_PROPRE_SUPPRESSION, ACTION_OT } from '../utils/permission.service'
 import { useNotification } from '../composables/useNotification'
 
@@ -15,6 +16,7 @@ const loading = ref(true)
 const erreur = ref(null)
 
 const otModel = ref(null)
+const dossierLie = ref(null)
 const contrat = ref(null)
 const instructions = ref([])
 const nouvelleInstruction = ref('')
@@ -35,12 +37,14 @@ onMounted(() => {
 async function chargerTout(id) {
     loading.value = true
     try {
-        const [otData, contratData, instList] = await Promise.all([
+        const [otData, contratData, instList, dossiersOt] = await Promise.all([
             OrdreTransitService.getOrdreTransitById(id),
             OrdreTransitService.getContratByOtId(id).catch(e => null),
-            OrdreTransitService.getInstructionsByOtId(id)
+            OrdreTransitService.getInstructionsByOtId(id),
+            DossierService.searchDossiers(0, 1, 'date_creation', 'desc', { otId: id })
         ])
         otModel.value = otData
+        dossierLie.value = dossiersOt.content?.[0] || null
         contrat.value = contratData
         instructions.value = instList
         loading.value = false
@@ -132,6 +136,10 @@ function formatarDate(dt) {
                             </p>
                         </div>
                         <div class="d-flex gap-2">
+                            <router-link v-if="dossierLie" :to="{ name: 'dossier-detail', params: { id: dossierLie.id } }"
+                                class="btn btn-primary btn-sm">Voir le dossier</router-link>
+                            <router-link v-else :to="{ name: 'dossier-creer', query: { otId: otModel.id } }"
+                                class="btn btn-primary btn-sm">Créer le dossier</router-link>
                             <button v-if="peutValider && otModel.statutOt?.id !== 3" type="button"
                                 class="btn btn-success btn-sm" @click="validerOT">
                                 Valider l'OT

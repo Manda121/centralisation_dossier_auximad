@@ -187,7 +187,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import Header from '../components/inc/Header.vue'
 import PageSkeleton from '../components/inc/PageSkeleton.vue'
 import DocumentsSection from '../components/DocumentsSection.vue'
@@ -201,6 +201,7 @@ import UtilisateurService from '@/services/UtilisateurService.js'
 import { useNotification } from '../composables/useNotification'
 
 const router = useRouter()
+const route = useRoute()
 const { notifySuccess, notifyError, notifyWarning, confirm } = useNotification()
 const enCours = ref(false)
 const chargement = ref(true)
@@ -245,6 +246,16 @@ onMounted(async () => {
         statuts.value = st
         incontermes.value = inc
         pays.value = ps || []
+        const otId = Number(route.query.otId)
+        if (Number.isSafeInteger(otId) && otId > 0) {
+            try {
+                const ot = await OrdreTransitService.getOrdreTransitById(otId)
+                rechercheOt.value = String(ot.numeroOrdreTransit)
+                await utiliserOt(ot)
+            } catch (e) {
+                notifyError("Impossible de charger l'ordre de transit sélectionné.")
+            }
+        }
     } catch (e) {
         console.error('Erreur chargement formulaire dossier', e)
     } finally {
