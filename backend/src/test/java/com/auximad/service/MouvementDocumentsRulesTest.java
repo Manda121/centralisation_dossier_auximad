@@ -28,6 +28,7 @@ class MouvementDocumentsRulesTest {
     @Mock DocumentRepository documentRepository;
     @Mock DocumentMvtRepository documentMvtRepository;
     @Mock DocumentService documentService;
+    @Mock DossierWorkflowService workflowService;
     @InjectMocks MvtDossierService service;
 
     @AfterEach void cleanup() { SecurityContextHolder.clearContext(); }
@@ -35,6 +36,8 @@ class MouvementDocumentsRulesTest {
     @Test void missingDocumentsPreventAllMovementWrites() {
         Dossier d = new Dossier(); d.setId(1);
         OperationDossier op = new OperationDossier(); op.setId(2); op.setDescription("Declaration");
+        TypeProduction production = new TypeProduction(); production.setId(3);
+        d.setTypeProduction(production); op.setTypeProduction(production);
         MvtDossierRequest req = new MvtDossierRequest(); req.setDossierId(1); req.setOperationId(2);
         when(dossierRepository.findById(1)).thenReturn(Optional.of(d));
         when(operationDossierRepository.findById(2)).thenReturn(Optional.of(op));
@@ -50,6 +53,8 @@ class MouvementDocumentsRulesTest {
     @Test void completeDocumentsAllowMovement() throws Exception {
         Dossier d = new Dossier(); d.setId(1);
         OperationDossier op = new OperationDossier(); op.setId(2);
+        TypeProduction production = new TypeProduction(); production.setId(3);
+        d.setTypeProduction(production); op.setTypeProduction(production);
         Utilisateur utilisateur = new Utilisateur(); utilisateur.setId(42);
         var authentication = new UsernamePasswordAuthenticationToken("user", null);
         authentication.setDetails(Jwts.claims().add("userId", 42).build());

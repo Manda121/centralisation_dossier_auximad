@@ -40,6 +40,11 @@ class MvtDossierService {
         })
         return response.data
     }
+
+    async annulerMouvement(id, motif = '') {
+        const response = await axios.post(`${API_URL}/${id}/annuler`, { motif }, { headers: authHeader() })
+        return response.data
+    }
 }
 
 export default new MvtDossierService()

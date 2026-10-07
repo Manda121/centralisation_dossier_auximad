@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.auximad.controller.DossierControllerFiltersTest
 -------------------------------------------------------------------------------
-Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.115 s -- in com.auximad.controller.DossierControllerFiltersTest
+Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.494 s -- in com.auximad.controller.DossierControllerFiltersTest

@@ -9,6 +9,7 @@ import org.springframework.dao.PessimisticLockingFailureException;
 import com.auximad.security.AutorisationHelper;
 import com.auximad.security.JwtSecurityContext;
 import com.auximad.service.DossierService;
+import com.auximad.service.DossierWorkflowService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
@@ -22,9 +23,11 @@ import java.util.List;import java.util.Map;
 public class DossierController {
 
     private final DossierService dossierService;
+    private final DossierWorkflowService workflowService;
 
-    public DossierController(DossierService dossierService) {
+    public DossierController(DossierService dossierService, DossierWorkflowService workflowService) {
         this.dossierService = dossierService;
+        this.workflowService = workflowService;
     }
 
     @GetMapping
@@ -87,6 +90,26 @@ public class DossierController {
             return ResponseEntity.ok(dossierService.saveDossier(dossier));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}/phase")
+    @Operation(summary = "Changer la phase d'un dossier en ajustant ses mouvements")
+    public ResponseEntity<?> changerPhase(@PathVariable Integer id, @RequestBody Map<String, Integer> body) {
+        try {
+            return ResponseEntity.ok(workflowService.changerPhase(id, body.get("phaseId")));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("erreur", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/{id}/statut")
+    @Operation(summary = "Changer le statut d'un dossier en ajustant ses mouvements")
+    public ResponseEntity<?> changerStatut(@PathVariable Integer id, @RequestBody Map<String, Integer> body) {
+        try {
+            return ResponseEntity.ok(workflowService.changerStatut(id, body.get("statutId")));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("erreur", e.getMessage()));
         }
     }
 

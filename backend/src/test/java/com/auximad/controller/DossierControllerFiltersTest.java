@@ -25,7 +25,7 @@ class DossierControllerFiltersTest {
 
     @BeforeEach void setup() {
         service = mock(DossierService.class);
-        mvc = MockMvcBuilders.standaloneSetup(new DossierController(service)).build();
+        mvc = MockMvcBuilders.standaloneSetup(new DossierController(service, mock(com.auximad.service.DossierWorkflowService.class))).build();
         when(service.searchDossiers(anyInt(), anyInt(), any(), any(), any(), any(), any(),
                 any(), any(), any(), any(), any(), any(), any(), any(), any(DossierFiltres.class)))
                 .thenReturn(new PageResponse<Dossier>());

@@ -57,6 +57,7 @@ public class DossierService {
     private final DocumentRepository documentRepository;
     private final RemiseRepository remiseRepository;
     private final DemandeInteragenceRepository demandeInteragenceRepository;
+    private final DossierWorkflowService workflowService;
 
     public DossierService(DossierRepository dossierRepository,
                           PhaseDossierRepository phaseDossierRepository,
@@ -67,7 +68,8 @@ public class DossierService {
                           DossierInteragenceRepository interagenceRepository,
                           DocumentRepository documentRepository,
                           RemiseRepository remiseRepository,
-                          DemandeInteragenceRepository demandeInteragenceRepository, OrdreTransitService ordreTransitService, SuppressionService suppressionService) {
+                          DemandeInteragenceRepository demandeInteragenceRepository, OrdreTransitService ordreTransitService,
+                          SuppressionService suppressionService, DossierWorkflowService workflowService) {
         this.suppressionService = suppressionService;
         this.ordreTransitService = ordreTransitService;
         this.dossierRepository = dossierRepository;
@@ -80,6 +82,7 @@ public class DossierService {
         this.documentRepository = documentRepository;
         this.remiseRepository = remiseRepository;
         this.demandeInteragenceRepository = demandeInteragenceRepository;
+        this.workflowService = workflowService;
     }
 
     /**
@@ -259,7 +262,8 @@ public class DossierService {
 
     @Transactional
     public Dossier saveDossier(Dossier dossier) {
-        if (dossier.getId() == null) {
+        boolean creation = dossier.getId() == null;
+        if (creation) {
             // Le verrou est conservé jusqu'au commit de la transaction, pas seulement au calcul.
             dossierRepository.verrouillerNumerotation();
         }
@@ -292,8 +296,16 @@ public class DossierService {
         if (dossier.getId() == null) {
             dossier.setNumeroDossier(genererNumeroDossier(dossier));
             dossier.setDateCreation(LocalDateTime.now());
+            workflowService.initialiser(dossier);
+        } else {
+            Dossier courant = dossierRepository.findById(dossier.getId())
+                    .orElseThrow(() -> new IllegalArgumentException("Dossier introuvable : " + dossier.getId()));
+            dossier.setPhaseDossier(courant.getPhaseDossier());
+            dossier.setStatutDossier(courant.getStatutDossier());
         }
-        return dossierRepository.save(dossier);
+        Dossier saved = dossierRepository.save(dossier);
+        if (creation && saved.getId() != null) workflowService.synchroniserDocuments(saved.getId());
+        return saved;
     }
 
     @Transactional

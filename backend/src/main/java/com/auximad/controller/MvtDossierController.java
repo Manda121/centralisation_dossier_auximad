@@ -5,6 +5,7 @@ import com.auximad.dto.OperationDossierStatusDTO;
 import com.auximad.dto.PageResponse;
 import com.auximad.entity.MvtDossier;
 import com.auximad.service.MvtDossierService;
+import com.auximad.service.DossierWorkflowService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
@@ -22,9 +23,11 @@ import java.util.Map;
 public class MvtDossierController {
 
     private final MvtDossierService mvtDossierService;
+    private final DossierWorkflowService workflowService;
 
-    public MvtDossierController(MvtDossierService mvtDossierService) {
+    public MvtDossierController(MvtDossierService mvtDossierService, DossierWorkflowService workflowService) {
         this.mvtDossierService = mvtDossierService;
+        this.workflowService = workflowService;
     }
 
     @GetMapping
@@ -87,6 +90,17 @@ public class MvtDossierController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("erreur", "Erreur lors de la création du mouvement", "details", e.getMessage() != null ? e.getMessage() : ""));
+        }
+    }
+
+    @PostMapping("/{id}/annuler")
+    @Operation(summary = "Annuler un mouvement et les mouvements suivants du dossier")
+    public ResponseEntity<?> annulerMouvement(@PathVariable Integer id,
+                                               @RequestBody(required = false) Map<String, String> body) {
+        try {
+            return ResponseEntity.ok(workflowService.annulerMouvement(id, body == null ? null : body.get("motif")));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("erreur", e.getMessage()));
         }
     }
 }

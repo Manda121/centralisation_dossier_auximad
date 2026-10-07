@@ -52,6 +52,25 @@ public class MvtDossier {
     @Column(name = "date_mvt", nullable = false)
     private LocalDateTime dateMvt = LocalDateTime.now();
 
+    @Column(name = "origine", length = 30)
+    private String origine = "SAISIE";
+
+    @Column(name = "groupe_ajustement", length = 36)
+    private String groupeAjustement;
+
+    @Column(name = "est_annule", nullable = false)
+    private Boolean estAnnule = false;
+
+    @Column(name = "date_annulation")
+    private LocalDateTime dateAnnulation;
+
+    @Column(name = "motif_annulation", columnDefinition = "TEXT")
+    private String motifAnnulation;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "id_utilisateur_annulation")
+    private Utilisateur utilisateurAnnulation;
+
     @Transient
     private Document document;
 }

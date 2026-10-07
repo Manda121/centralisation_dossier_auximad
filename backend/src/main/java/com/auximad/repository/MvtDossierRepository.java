@@ -17,6 +17,8 @@ public interface MvtDossierRepository extends JpaRepository<MvtDossier, Integer>
 
     List<MvtDossier> findByDossierIdOrderByDateMvtAscIdAsc(Integer dossierId);
 
+    List<MvtDossier> findByDossierIdAndEstAnnuleFalseOrderByIdAsc(Integer dossierId);
+
     Optional<MvtDossier> findFirstByDossierIdAndOperationIdOrderByDateMvtDescIdDesc(Integer dossierId, Integer operationId);
 
     @Query(value = """

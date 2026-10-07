@@ -1,1 +1,0 @@
-import{J as a}from"./index-uZpgRLC1.js";const n="http://localhost:8080/api/agences";function s(){const e=localStorage.getItem("auximad_token");return e?{Authorization:`Bearer ${e}`}:{}}class o{async getAllAgences(){return(await a.get(n,{headers:s()})).data}async getAgenceById(t){return(await a.get(`${n}/${t}`,{headers:s()})).data}}const g=new o;export{g as A};

@@ -506,7 +506,13 @@ CREATE TABLE mvt_dossier(
     id_nouveau_statut INTEGER REFERENCES statut_dossier(id),
 
     commentaire TEXT,
-    date_mvt TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP
+    date_mvt TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP,
+    origine VARCHAR(30) DEFAULT 'SAISIE',
+    groupe_ajustement VARCHAR(36),
+    est_annule BOOLEAN NOT NULL DEFAULT FALSE,
+    date_annulation TIMESTAMPTZ,
+    motif_annulation TEXT,
+    id_utilisateur_annulation INTEGER REFERENCES utilisateur(id)
 );
 
 CREATE TABLE declaration(

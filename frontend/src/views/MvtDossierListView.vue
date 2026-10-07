@@ -5,6 +5,11 @@ import DataTable from '../components/inc/DataTable.vue'
 import MvtDossierService from '../services/MvtDossierService'
 import AdminService from '../services/AdminService'
 import DossierService from '../services/DossierService'
+import { useNotification } from '../composables/useNotification'
+import PermissionService, { PORTEE_PROPRE_ECRITURE, ACTION_OT } from '../utils/permission.service'
+
+const { notifySuccess, notifyError, confirm } = useNotification()
+const peutAnnuler = PermissionService.verifierPermission(PORTEE_PROPRE_ECRITURE, ACTION_OT)
 
 const datatableRef = ref(null)
 const dateLocale = new Date()
@@ -57,8 +62,22 @@ const columns = [
   { key: 'phases',                 label: 'Phase',            sortable: false },
   { key: 'statuts',                label: 'Statut',           sortable: false },
   { key: 'utilisateur',            label: 'Utilisateur',      sortable: false },
-  { key: 'document',               label: 'Document',         sortable: false }
+  { key: 'document',               label: 'Document',         sortable: false },
+  { key: 'etat',                   label: 'État',             sortable: false },
+  { key: 'actions',                label: 'Actions',          sortable: false }
 ]
+
+async function annulerMouvement(row) {
+  const ok = await confirm('Annuler ce mouvement ? Tous les mouvements suivants du dossier seront aussi annulés.')
+  if (!ok) return
+  try {
+    await MvtDossierService.annulerMouvement(row.id)
+    datatableRef.value?.refresh()
+    notifySuccess('Mouvement annulé.')
+  } catch (e) {
+    notifyError(e.response?.data?.erreur || 'Impossible d’annuler le mouvement.')
+  }
+}
 
 // ── Fetch ─────────────────────────────────────────────────────
 async function chargerMouvements(page, size, sortBy, sortDir, f) {
@@ -249,6 +268,19 @@ function estPdf(nom) {
                   </span>
                 </button>
                 <span v-else class="text-muted small">—</span>
+              </template>
+              <template #cell-etat="{ row }">
+                <span v-if="row.estAnnule" class="badge bg-danger-subtle text-danger">Annulé</span>
+                <span v-else-if="row.origine === 'SAISIE' || !row.origine" class="badge bg-success-subtle text-success">Effectué</span>
+                <span v-else class="badge bg-info-subtle text-info-emphasis">Automatique</span>
+              </template>
+
+              <template #cell-actions="{ row }">
+                <button v-if="peutAnnuler && !row.estAnnule" type="button"
+                  class="btn btn-outline-danger btn-sm" @click="annulerMouvement(row)">Annuler</button>
+                <span v-else-if="row.estAnnule" class="small text-muted" :title="row.motifAnnulation">
+                  {{ row.motifAnnulation || 'Annulé' }}
+                </span>
               </template>
             </DataTable>
           </div>

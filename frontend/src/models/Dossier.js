@@ -35,7 +35,6 @@ export class Dossier {
         if (!this.client) erreurs.push('Le client est requis.')
         if (!this.typeProduction) erreurs.push('Le type de production est requis.')
         if (!this.ordreTransit && !this.natureMarchandiseCreation) erreurs.push('La nature de la marchandise est requise pour créer l’OT.')
-        if (!this.phaseDossier) erreurs.push('La phase du dossier est requise.')
         return { valide: erreurs.length === 0, erreurs }
     }
 

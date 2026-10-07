@@ -48,3 +48,8 @@
 15:54:15 [vite] (client) hmr update /src/components/inc/NotificationModal.vue, /src/components/inc/NotificationModal.vue?vue&type=style&index=0&scoped=03f27244&lang.css
 15:55:25 [vite] (client) hmr update /src/App.vue
 16:59:39 [vite] (client) hmr update /src/components/inc/Header.vue, /src/views/MvtDossierCreateView.vue
+17:33:22 [vite] (client) hmr update /src/views/DossierListView.vue, /src/views/MvtDossierCreateView.vue
+17:33:23 [vite] (client) hmr update /src/views/MvtDossierCreateView.vue
+17:34:10 [vite] (client) hmr update /src/views/MvtDossierCreateView.vue
+17:47:07 [vite] (client) hmr update /src/views/MvtDossierCreateView.vue
+17:47:54 [vite] (client) hmr update /src/views/MvtDossierCreateView.vue
