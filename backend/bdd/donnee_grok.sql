@@ -768,28 +768,28 @@ INSERT INTO declaration (id_dossier, numero_declaration, date_declaration, id_bu
 (15, 'DEC-2025-TNR-0005', '2025-03-11 00:00:00', 2, 'Déclaration médicaments Ministère Santé'),
 (17, 'DEC-2025-TMM-0011', '2025-03-20 00:00:00', 1, 'Déclaration export vanille');
 
-INSERT INTO mvt_dossier (id_dossier, id_utilisateur, ip_utilisateur, id_operation, id_document_dossier, commentaire) VALUES
-(1, 6, '10.0.1.15', 1, NULL, 'Création du dossier DOS-2025-TMM-0001'),
-(1, 6, '10.0.1.15', 2, NULL, 'Saisie informations générales et lien ordre de transit'),
-(1, 11, '10.0.1.22', 3, 1, 'Réception BL et documents originaux'),
-(1, 11, '10.0.1.22', 4, 1, 'Contrôle documentaire OK'),
-(1, 9, '10.0.1.30', 5, 5, 'Saisie déclaration en douane'),
-(1, 9, '10.0.1.30', 6, 5, 'Validation déclaration'),
-(1, 12, '10.0.1.40', 11, NULL, 'Enregistrement provision client'),
-(2, 6, '10.0.1.15', 1, NULL, 'Création dossier Leaders Price'),
-(2, 6, '10.0.1.15', 2, NULL, 'Saisie complète'),
-(2, 11, '10.0.1.22', 3, 6, 'Réception documents'),
-(2, 10, '10.0.1.31', 5, 10, 'Saisie déclaration'),
-(4, 6, '10.0.1.15', 1, NULL, 'Création dossier Holcim matériaux'),
-(4, 12, '10.0.1.40', 11, NULL, 'Paiement enregistré - provision OK'),
-(4, 9, '10.0.1.30', 13, NULL, 'Autorisation d''enlèvement émise'),
-(5, 7, '10.0.1.16', 1, NULL, 'Création dossier Shoprite'),
-(5, 10, '10.0.1.31', 13, 21, 'Bon à enlever émis'),
-(11, 8, '10.0.2.10', 1, NULL, 'Création dossier aérien Telma'),
-(11, 8, '10.0.2.10', 5, 26, 'Déclaration aérienne saisie'),
-(12, 8, '10.0.2.10', 1, NULL, 'Création dossier humanitaire MSF'),
-(12, 8, '10.0.2.10', 16, 30, 'Livraison confirmée au client'),
-(12, 4, '10.0.1.12', 17, NULL, 'Clôture du dossier MSF');
+INSERT INTO mvt_dossier (id_dossier, id_utilisateur, id_operation, commentaire) VALUES
+(1, 6, 1, 'Création du dossier DOS-2025-TMM-0001'),
+(1, 6, 2, 'Saisie informations générales et lien ordre de transit'),
+(1, 11, 3, 'Réception BL et documents originaux'),
+(1, 11, 4, 'Contrôle documentaire OK'),
+(1, 9, 5, 'Saisie déclaration en douane'),
+(1, 9, 6, 'Validation déclaration'),
+(1, 12, 11, 'Enregistrement provision client'),
+(2, 6, 1, 'Création dossier Leaders Price'),
+(2, 6, 2, 'Saisie complète'),
+(2, 11, 3, 'Réception documents'),
+(2, 10, 5, 'Saisie déclaration'),
+(4, 6, 1, 'Création dossier Holcim matériaux'),
+(4, 12, 11, 'Paiement enregistré - provision OK'),
+(4, 9, 13, 'Autorisation d''enlèvement émise'),
+(5, 7, 1, 'Création dossier Shoprite'),
+(5, 10, 13, 'Bon à enlever émis'),
+(11, 8, 1, 'Création dossier aérien Telma'),
+(11, 8, 5, 'Déclaration aérienne saisie'),
+(12, 8, 1, 'Création dossier humanitaire MSF'),
+(12, 8, 16, 'Livraison confirmée au client'),
+(12, 4, 17, 'Clôture du dossier MSF');
 
 -- ============================================================
 -- 9. DOSSIERS INTER-AGENCES + SUSPENSIONS

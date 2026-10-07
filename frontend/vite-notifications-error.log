@@ -3,3 +3,7 @@
 10:48:46 [vite] (client) Pre-transform error: Failed to load url /src/services/SuppressionService.js (resolved id: D:/Stage Auximad/centralisation_app/frontend/src/services/SuppressionService.js) in D:/Stage Auximad/centralisation_app/frontend/src/services/DossierService.js. Does the file exist?
 10:48:46 [vite] (client) Pre-transform error: Failed to load url /src/services/SuppressionService.js (resolved id: D:/Stage Auximad/centralisation_app/frontend/src/services/SuppressionService.js) in D:/Stage Auximad/centralisation_app/frontend/src/services/DossierService.js. Does the file exist?
 10:48:46 [vite] (client) Pre-transform error: Failed to load url /src/services/SuppressionService.js (resolved id: D:/Stage Auximad/centralisation_app/frontend/src/services/SuppressionService.js) in D:/Stage Auximad/centralisation_app/frontend/src/services/DossierService.js. Does the file exist?
+Files in the public directory are served at the root path.
+Instead of /public/images/still-life-documents-stack.jpg, use /images/still-life-documents-stack.jpg.
+Files in the public directory are served at the root path.
+Instead of /public/images/still-life-documents-stack.jpg, use /images/still-life-documents-stack.jpg.

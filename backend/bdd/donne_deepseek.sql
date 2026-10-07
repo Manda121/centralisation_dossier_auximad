@@ -908,12 +908,11 @@ BEGIN
     -- MOUVEMENTS DE DOSSIER (1000)
     FOR i IN 1..1000 LOOP
         INSERT INTO mvt_dossier (
-            id_dossier, id_utilisateur, ip_utilisateur, id_operation,
+            id_dossier, id_utilisateur, id_operation,
             commentaire
         ) VALUES (
             v_dossier_ids[1 + floor(random() * array_length(v_dossier_ids, 1))::int],
             v_utilisateur_ids[1 + floor(random() * array_length(v_utilisateur_ids, 1))::int],
-            ('192.168.' || (i % 255) || '.' || (i % 255))::inet,
             v_operation_ids[1 + floor(random() * array_length(v_operation_ids, 1))::int],
             'Mouvement ' || i
         ) RETURNING id INTO v_mvt_id;

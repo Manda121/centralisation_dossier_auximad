@@ -41,6 +41,6 @@ router.onError(() => {
         <component :is="Component" v-show="!isNavigating" />
     </router-view>
 
-    <!-- Fenetre de notification commune (remplace les popups alert()) -->
+    <!-- Notifications et confirmations communes à toutes les pages -->
     <NotificationModal />
 </template>

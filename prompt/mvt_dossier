@@ -52,7 +52,7 @@ dossier
 Dossier
 ), utilisateur (
 Utilisateur
-), ipUtilisateur, 
+), 
 operation
  (OperationDossier), anciennePhase, nouvellePhase, ancienStatut, nouveauStatut, commentaire, dateMvt.
 OperationDossierRepository.java, DeclarationRepository.java, MvtDossierRepository.java (in com.auximad.repository).

@@ -196,13 +196,6 @@
             </div>
         </div>
 
-        <!-- Toast notification -->
-        <transition name="toast">
-            <div v-if="toast"
-                :class="['toast-notif', toast.type === 'error' ? 'toast-notif--error' : 'toast-notif--success']">
-                {{ toast.message }}
-            </div>
-        </transition>
     </div>
 </template>
 
@@ -212,6 +205,7 @@ import Header from '../components/inc/Header.vue'
 import OperationDossierAdminView from './OperationDossierAdminView.vue'
 import AdminService from '../services/AdminService'
 import authService from '../utils/auth.service'
+import { useNotification } from '../composables/useNotification'
 
 // ── Vérification admin ─────────────────────────────────────────────────────
 const userInfo = authService.getUserInfo()
@@ -224,7 +218,7 @@ const rows = ref([])
 const loading = ref(false)
 const error = ref(null)
 const saving = ref(false)
-const toast = ref(null)
+const { notifySuccess, notifyError } = useNotification()
 
 // Modals
 const showModal = ref(false)
@@ -860,7 +854,7 @@ const supprimerConfirme = async () => {
         afficherToast('Suppression effectuée ✓')
     } catch (e) {
         if (e?.code === 'ERR_CANCELED') return
-        afficherToast(e.response?.data?.erreur || 'Erreur lors de la suppression', 'error')
+        afficherToast(e.response?.data || 'Erreur lors de la suppression.', 'error')
     } finally {
         saving.value = false
     }
@@ -898,16 +892,14 @@ const debloquer = async (row) => {
         await chargerDonnees()
         afficherToast('Compte débloqué ✓')
     } catch (e) {
-        afficherToast(e.response?.data?.erreur || 'Erreur', 'error')
+        afficherToast(e.response?.data || 'Impossible de débloquer ce compte.', 'error')
     }
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────
-let toastTimer = null
 const afficherToast = (message, type = 'success') => {
-    toast.value = { message, type }
-    if (toastTimer) clearTimeout(toastTimer)
-    toastTimer = setTimeout(() => { toast.value = null }, 3000)
+    if (type === 'error') notifyError(message)
+    else notifySuccess(message)
 }
 </script>
 
@@ -1432,39 +1424,6 @@ const afficherToast = (message, type = 'success') => {
 }
 
 /* ── Toast ──────────────────────────────────────────────────────────────── */
-.toast-notif {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    padding: 12px 20px;
-    border-radius: 10px;
-    font-size: 0.88rem;
-    font-weight: 600;
-    z-index: 9999;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-}
-
-.toast-notif--success {
-    background: #27ae60;
-    color: white;
-}
-
-.toast-notif--error {
-    background: #e74c3c;
-    color: white;
-}
-
-.toast-enter-active,
-.toast-leave-active {
-    transition: all 0.3s ease;
-}
-
-.toast-enter-from,
-.toast-leave-to {
-    opacity: 0;
-    transform: translateY(10px);
-}
-
 .text-muted {
     color: #8a9aa8;
     font-size: 0.85rem;

@@ -23,11 +23,8 @@ public class MvtDossier {
     private Dossier dossier;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "id_utilisateur")
+    @JoinColumn(name = "id_utilisateur", nullable = false)
     private Utilisateur utilisateur;
-
-    @Column(name = "ip_utilisateur", length = 45)
-    private String ipUtilisateur;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "id_operation")

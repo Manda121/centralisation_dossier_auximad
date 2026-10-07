@@ -7,7 +7,6 @@ import com.auximad.entity.MvtDossier;
 import com.auximad.service.MvtDossierService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -68,8 +67,7 @@ public class MvtDossierController {
             @RequestParam("operationId") Integer operationId,
             @RequestParam(value = "dateMvt", required = false) String dateMvtStr,
             @RequestParam(value = "commentaire", required = false) String commentaire,
-            @RequestPart(value = "fichier", required = false) MultipartFile file,
-            HttpServletRequest request
+            @RequestPart(value = "fichier", required = false) MultipartFile file
     ) {
         try {
             MvtDossierRequest req = new MvtDossierRequest();
@@ -82,8 +80,7 @@ public class MvtDossierController {
                 req.setDateMvt(LocalDateTime.now());
             }
 
-            String clientIp = request.getRemoteAddr();
-            MvtDossier saved = mvtDossierService.creerMouvement(req, file, clientIp);
+            MvtDossier saved = mvtDossierService.creerMouvement(req, file);
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("erreur", e.getMessage()));

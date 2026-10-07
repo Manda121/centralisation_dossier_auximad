@@ -42,3 +42,8 @@
 14:14:39 [vite] (client) hmr update /src/views/DossierListView.vue
 14:14:41 [vite] (client) hmr update /src/components/inc/DataTable.vue
 14:24:24 [vite] (client) hmr update /src/views/DossierListView.vue
+15:53:00 [vite] (client) hmr update /src/components/inc/NotificationModal.vue, /src/views/DossierListView.vue
+15:53:01 [vite] (client) hmr update /src/components/inc/NotificationModal.vue, /src/components/inc/NotificationModal.vue?vue&type=style&index=0&scoped=03f27244&lang.css
+15:53:22 [vite] (client) hmr update /src/views/DossierListView.vue
+15:54:15 [vite] (client) hmr update /src/components/inc/NotificationModal.vue, /src/components/inc/NotificationModal.vue?vue&type=style&index=0&scoped=03f27244&lang.css
+15:55:25 [vite] (client) hmr update /src/App.vue

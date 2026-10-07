@@ -497,8 +497,7 @@ CREATE TABLE demande_interagence(
 CREATE TABLE mvt_dossier(
     id SERIAL PRIMARY KEY,
     id_dossier INTEGER  REFERENCES dossier(id),
-    id_utilisateur INTEGER  REFERENCES utilisateur(id),
-    ip_utilisateur INET,
+    id_utilisateur INTEGER NOT NULL REFERENCES utilisateur(id),
     id_operation INTEGER  REFERENCES operation_dossier(id),
 
     id_ancienne_phase INTEGER REFERENCES phase_dossier(id),
