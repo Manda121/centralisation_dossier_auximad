@@ -73,6 +73,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Inc
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Instruction.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Marchandise.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\ModeTransport.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\MvtAnnulee.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\MvtDossier.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\NatureMarchandise.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Navire.java
@@ -113,6 +114,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\InstructionRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\MarchandiseRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\ModeTransportRepository.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\MvtAnnuleeRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\MvtDossierRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\NatureMarchandiseRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\NavireRepository.java
@@ -145,6 +147,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\De
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\DemandeInteragenceService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\DocumentService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\DossierService.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\DossierWorkflowService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\HistoriqueService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\HistorisationService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\InterAgenceService.java

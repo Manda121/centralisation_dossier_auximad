@@ -153,9 +153,12 @@
                 </td>
 
                 <td class="pe-4 text-end">
-                  <span v-if="opDto.estFait" class="badge bg-success px-3 py-2">
-                    Complété
-                  </span>
+                  <template v-if="opDto.estFait">
+                    <span class="badge bg-success px-3 py-2 me-1">Complété</span>
+                    <button v-if="peutAnnuler" type="button" class="btn btn-outline-danger btn-sm"
+                      :disabled="savingOpId === opDto.operation.id"
+                      @click="annulerOperation(opDto)">Annuler</button>
+                  </template>
                   <button
                     v-else
                     class="btn btn-primary btn-sm px-3"
@@ -291,9 +294,11 @@ import DeclarationService from '../services/DeclarationService'
 import AdminService from '../services/AdminService'
 import DocumentService from '../services/DocumentService'
 import { useNotification } from '../composables/useNotification'
+import PermissionService, { PORTEE_PROPRE_ECRITURE, ACTION_OT } from '../utils/permission.service'
 
 const router = useRouter()
-const { notifyError, notifySuccess, notifyWarning } = useNotification()
+const { notifyError, notifySuccess, notifyWarning, confirm } = useNotification()
+const peutAnnuler = PermissionService.verifierPermission(PORTEE_PROPRE_ECRITURE, ACTION_OT)
 
 const dossierSearchQuery = ref('')
 const suggestions = ref([])
@@ -417,6 +422,22 @@ const executeMouvement = async (opDto) => {
   }
 }
 
+const annulerOperation = async (opDto) => {
+  const ok = await confirm(`Annuler « ${opDto.operation.description} » ? Les mouvements suivants seront aussi annulés.`)
+  if (!ok) return
+  savingOpId.value = opDto.operation.id
+  try {
+    await MvtDossierService.annulerMouvement(opDto.mvtId)
+    selectedDossier.value = await DossierService.getDossierById(selectedDossier.value.id)
+    await loadOperationsStatus()
+    notifySuccess('Mouvement annulé.')
+  } catch (e) {
+    notifyError(e.response?.data?.erreur || 'Impossible d’annuler le mouvement.')
+  } finally {
+    savingOpId.value = null
+  }
+}
+
 // ─── Fenetre d'assignation d'un document obligatoire manquant ───
 
 const estErreurDocumentsObligatoires = (msg) =>
@@ -465,7 +486,10 @@ const assignerEtValiderMouvement = async () => {
     showDocModal.value = false
     pendingMouvementOp.value = null
     if (opDto) {
-      await executeMouvement(opDto)
+      selectedDossier.value = await DossierService.getDossierById(selectedDossier.value.id)
+      await loadOperationsStatus()
+      const actualise = operationsStatus.value.find(item => item.operation.id === opDto.operation.id)
+      if (actualise && !actualise.estFait) await executeMouvement(actualise)
     }
   } catch (err) {
     const data = err.response?.data

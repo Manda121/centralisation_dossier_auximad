@@ -44,6 +44,16 @@ class DossierService {
         return response.data
     }
 
+    async changerPhase(id, phaseId) {
+        const response = await axios.put(`${API_URL}/${id}/phase`, { phaseId }, { headers: authHeader() })
+        return response.data
+    }
+
+    async changerStatut(id, statutId) {
+        const response = await axios.put(`${API_URL}/${id}/statut`, { statutId }, { headers: authHeader() })
+        return response.data
+    }
+
     async deleteDossier(id) {
         const response = await requeteSuppression(axios, { method: 'delete', url: `${API_URL}/${id}`, headers: authHeader() })
         return response.data

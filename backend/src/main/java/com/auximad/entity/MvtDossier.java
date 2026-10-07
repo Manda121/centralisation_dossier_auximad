@@ -52,6 +52,15 @@ public class MvtDossier {
     @Column(name = "date_mvt", nullable = false)
     private LocalDateTime dateMvt = LocalDateTime.now();
 
+    @Column(name = "origine", length = 30)
+    private String origine = "SAISIE";
+
+    @Column(name = "groupe_ajustement", length = 36)
+    private String groupeAjustement;
+
+    @OneToOne(mappedBy = "mouvement", fetch = FetchType.EAGER)
+    private MvtAnnulee annulation;
+
     @Transient
     private Document document;
 }

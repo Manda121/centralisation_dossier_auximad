@@ -72,21 +72,6 @@
                                 </select>
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label fw-semibold">Phase dossier <span
-                                        class="text-danger">*</span></label>
-                                <select v-model="dossier.phaseDossier" class="form-select form-select-sm" required>
-                                    <option :value="null">Sélectionnez</option>
-                                    <option v-for="ph in phases" :key="ph.id" :value="ph">{{ ph.nom }}</option>
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold">Statut initial</label>
-                                <select v-model="dossier.statutDossier" class="form-select form-select-sm">
-                                    <option :value="null">Sélectionnez</option>
-                                    <option v-for="s in statuts" :key="s.id" :value="s">{{ s.nom }}</option>
-                                </select>
-                            </div>
-                            <div class="col-md-4">
                                 <label class="form-label fw-semibold">Pays d'origine</label>
                                 <select v-model="dossier.paysOrigine" class="form-select form-select-sm">
                                     <option :value="null">Sélectionnez</option>
@@ -233,8 +218,6 @@ dossier.value.dateLivraison = maintenantLocal()
 const clients = ref([])
 const typeProductions = ref([])
 const naturesMarchandise = ref([])
-const phases = ref([])
-const statuts = ref([])
 const pays = ref([])
 const incontermes = ref([])
 const utilisateur = ref();
@@ -243,19 +226,15 @@ onMounted(async () => {
     try {
         utilisateur.value = UtilisateurService.obtenirUtilisateurConnecte()
         // console.log('user: ', utilisateur.value)
-        const [cls, prods, ph, st, inc, ps, natures] = await Promise.all([
+        const [cls, prods, inc, ps, natures] = await Promise.all([
             ClientService.searchClients(0, 1000, 'nom', 'asc', {}),
             OrdreTransitService.getAllTypeProductions(),
-            DossierService.getAllPhases(),
-            DossierService.getAllStatuts(),
             DossierService.getAllIncontermes(),
             ClientService.getAllPays(),
             MarchandiseService.getNatureMarchandises()
         ])
         clients.value = cls.content || []
         typeProductions.value = prods
-        phases.value = ph
-        statuts.value = st
         incontermes.value = inc
         pays.value = ps || []
         naturesMarchandise.value = natures

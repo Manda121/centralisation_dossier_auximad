@@ -32,6 +32,7 @@ public class MvtDossierService {
     private final DocumentRepository documentRepository;
     private final DocumentMvtRepository documentMvtRepository;
     private final DocumentService documentService;
+    private final DossierWorkflowService workflowService;
 
     public MvtDossierService(MvtDossierRepository mvtDossierRepository,
                              DossierRepository dossierRepository,
@@ -40,7 +41,8 @@ public class MvtDossierService {
                              DeclarationRepository declarationRepository,
                              DocumentRepository documentRepository,
                              DocumentMvtRepository documentMvtRepository,
-                             DocumentService documentService) {
+                             DocumentService documentService,
+                             DossierWorkflowService workflowService) {
         this.mvtDossierRepository = mvtDossierRepository;
         this.dossierRepository = dossierRepository;
         this.operationDossierRepository = operationDossierRepository;
@@ -49,6 +51,7 @@ public class MvtDossierService {
         this.documentRepository = documentRepository;
         this.documentMvtRepository = documentMvtRepository;
         this.documentService = documentService;
+        this.workflowService = workflowService;
     }
 
     @Transactional(readOnly = true)
@@ -95,9 +98,10 @@ public class MvtDossierService {
 
         Integer tpId = dossier.getTypeProduction().getId();
         List<OperationDossier> operations = operationDossierRepository
-                .findByTypeProductionIdOrderByNiveauOperationAscIdAsc(tpId);
+                .findByTypeProductionIdOrderByNiveauOperationAscIdAsc(tpId).stream()
+                .filter(op -> Boolean.TRUE.equals(op.getEstActif())).toList();
 
-        List<MvtDossier> mouvements = mvtDossierRepository.findByDossierIdOrderByDateMvtAscIdAsc(dossierId);
+        List<MvtDossier> mouvements = mvtDossierRepository.findActifsByDossierIdOrderByIdAsc(dossierId);
         Map<Integer, MvtDossier> mvtByOpId = new HashMap<>();
         for (MvtDossier mvt : mouvements) {
             if (mvt.getOperation() != null) {
@@ -165,6 +169,11 @@ public class MvtDossierService {
 
         OperationDossier operation = operationDossierRepository.findById(req.getOperationId())
                 .orElseThrow(() -> new IllegalArgumentException("Opération introuvable : " + req.getOperationId()));
+        if (operation.getTypeProduction() == null || dossier.getTypeProduction() == null
+                || !Objects.equals(operation.getTypeProduction().getId(), dossier.getTypeProduction().getId())
+                || !Boolean.TRUE.equals(operation.getEstActif())) {
+            throw new IllegalArgumentException("Cette opération ne fait pas partie du flux de ce dossier.");
+        }
 
         // Contrainte : documents obligatoires de CETTE opération remis sur le dossier.
         // Une opération sans document requis reste réalisable normalement.
@@ -182,6 +191,9 @@ public class MvtDossierService {
         List<OperationDossierStatusDTO> statusList = getOperationsStatusForDossier(dossier.getId());
         for (OperationDossierStatusDTO status : statusList) {
             if (status.getOperation().getId().equals(operation.getId())) {
+                if (Boolean.TRUE.equals(status.getEstFait())) {
+                    throw new IllegalArgumentException("Cette opération est déjà effectuée.");
+                }
                 if (Boolean.TRUE.equals(status.getEstBloque())) {
                     String opObligNom = status.getOperationPrecedenteObligatoire() != null
                             ? status.getOperationPrecedenteObligatoire().getDescription() : "précédente";
@@ -205,7 +217,8 @@ public class MvtDossierService {
         mvt.setOperation(operation);
         mvt.setAnciennePhase(dossier.getPhaseDossier());
         mvt.setAncienStatut(dossier.getStatutDossier());
-        mvt.setNouvellePhase(operation.getPhaseDossier() != null ? operation.getPhaseDossier() : dossier.getPhaseDossier());
+        mvt.setNouvellePhase(workflowService.phaseApresOperation(dossier, operation,
+                mvtDossierRepository.findActifsByDossierIdOrderByIdAsc(dossier.getId())));
         mvt.setNouveauStatut(operation.getStatutDossier() != null ? operation.getStatutDossier() : dossier.getStatutDossier());
         mvt.setDateMvt(req.getDateMvt() != null ? req.getDateMvt() : LocalDateTime.now());
         mvt.setCommentaire(req.getCommentaire());
@@ -224,12 +237,8 @@ public class MvtDossierService {
         }
 
         // Mise à jour de la phase et du statut du dossier
-        if (operation.getPhaseDossier() != null) {
-            dossier.setPhaseDossier(operation.getPhaseDossier());
-        }
-        if (operation.getStatutDossier() != null) {
-            dossier.setStatutDossier(operation.getStatutDossier());
-        }
+        dossier.setPhaseDossier(mvt.getNouvellePhase());
+        dossier.setStatutDossier(mvt.getNouveauStatut());
         dossierRepository.save(dossier);
 
         return savedMvt;

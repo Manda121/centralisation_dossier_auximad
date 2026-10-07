@@ -7,6 +7,7 @@ import com.auximad.security.AutorisationHelper;
 import com.auximad.security.JwtSecurityContext;
 import com.auximad.service.DocumentService;
 import com.auximad.service.DossierService;
+import com.auximad.service.DossierWorkflowService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.core.io.Resource;
@@ -17,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -31,10 +33,13 @@ public class DocumentController {
 
     private final DocumentService documentService;
     private final DossierService dossierService;
+    private final DossierWorkflowService workflowService;
 
-    public DocumentController(DocumentService documentService, DossierService dossierService) {
+    public DocumentController(DocumentService documentService, DossierService dossierService,
+                              DossierWorkflowService workflowService) {
         this.documentService = documentService;
         this.dossierService = dossierService;
+        this.workflowService = workflowService;
     }
 
     // ─── Types de documents ───────────────────────────────────────────────────
@@ -76,6 +81,7 @@ public class DocumentController {
     // ─── Ajouter un document ──────────────────────────────────────────────────
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Transactional
     @Operation(summary = "Ajouter/mettre à jour un document pour un dossier (avec fichier optionnel)")
     public ResponseEntity<?> addDocument(
             @RequestParam Integer dossierId,
@@ -83,6 +89,7 @@ public class DocumentController {
             @RequestParam(required = false) MultipartFile fichier) {
         try {
             Document doc = documentService.saveDocument(dossierId, typeDocumentId, fichier);
+            workflowService.synchroniserDocuments(dossierId);
             return ResponseEntity.ok(doc);
         } catch (IOException e) {
             return ResponseEntity.internalServerError().body("Erreur lors de l'upload : " + e.getMessage());
@@ -119,6 +126,7 @@ public class DocumentController {
      * Assigne un document à un dossier avec sa date de remise (stockée dans la table remise).
      */
     @PostMapping("/assigner")
+    @Transactional
     @Operation(summary = "Assigner un document à un dossier avec date de remise (table remise)")
     public ResponseEntity<?> assignerDocument(
             @RequestParam Integer dossierId,
@@ -126,7 +134,9 @@ public class DocumentController {
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime dateRemise) {
         try {
-            return ResponseEntity.ok(documentService.assignerDocument(dossierId, typeDocumentId, dateRemise));
+            Remise remise = documentService.assignerDocument(dossierId, typeDocumentId, dateRemise);
+            workflowService.synchroniserDocuments(dossierId);
+            return ResponseEntity.ok(remise);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -136,6 +146,7 @@ public class DocumentController {
      * Assigne plusieurs documents d'un coup avec une date de remise commune.
      */
     @PostMapping("/assigner-batch")
+    @Transactional
     @Operation(summary = "Assigner plusieurs documents avec une date de remise commune (table remise)")
     public ResponseEntity<?> assignerBatch(
             @RequestParam Integer dossierId,
@@ -143,7 +154,9 @@ public class DocumentController {
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime dateRemise) {
         try {
-            return ResponseEntity.ok(documentService.assignerDocuments(dossierId, typeDocumentIds, dateRemise));
+            List<Remise> remises = documentService.assignerDocuments(dossierId, typeDocumentIds, dateRemise);
+            workflowService.synchroniserDocuments(dossierId);
+            return ResponseEntity.ok(remises);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
@@ -171,6 +184,7 @@ public class DocumentController {
     // ─── Traitement batch ─────────────────────────────────────────────────────
 
     @PostMapping(value = "/batch", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Transactional
     @Operation(summary = "Traitement batch : cocher/décocher des documents pour un dossier")
     public ResponseEntity<?> processerBatch(
             @RequestParam Integer dossierId,
@@ -185,6 +199,7 @@ public class DocumentController {
             if (dateRemise != null && typeIdsAjoutes != null && !typeIdsAjoutes.isEmpty()) {
                 documentService.assignerDocuments(dossierId, typeIdsAjoutes, dateRemise);
             }
+            workflowService.synchroniserDocuments(dossierId);
             return ResponseEntity.ok(Map.of("message", "Documents mis à jour avec succès"));
         } catch (IOException e) {
             return ResponseEntity.internalServerError().body("Erreur lors de l'upload : " + e.getMessage());
@@ -196,18 +211,23 @@ public class DocumentController {
     // ─── Retirer un document ──────────────────────────────────────────────────
 
     @DeleteMapping("/retirer")
+    @Transactional
     @Operation(summary = "Retirer (désactiver) un document d'un dossier")
     public ResponseEntity<?> retirerDocument(
             @RequestParam Integer dossierId,
             @RequestParam Integer typeDocumentId) {
         documentService.retirerDocument(dossierId, typeDocumentId);
+        workflowService.synchroniserDocuments(dossierId);
         return ResponseEntity.ok(Map.of("message", "Document retiré"));
     }
 
     @DeleteMapping("/{id}")
+    @Transactional
     @Operation(summary = "Supprimer définitivement un document")
     public ResponseEntity<Void> deleteDocument(@PathVariable Integer id) {
+        Integer dossierId = documentService.getById(id).map(d -> d.getDossier().getId()).orElse(null);
         documentService.deleteDocument(id);
+        if (dossierId != null) workflowService.synchroniserDocuments(dossierId);
         return ResponseEntity.ok().build();
     }
 

@@ -25,6 +25,7 @@ class DossierCreationRulesTest {
     @Mock DocumentRepository documentRepository;
     @Mock RemiseRepository remiseRepository;
     @Mock DemandeInteragenceRepository demandeInteragenceRepository;
+    @Mock DossierWorkflowService workflowService;
     @InjectMocks DossierService service;
 
     private Dossier dossier() {
@@ -107,6 +108,7 @@ class DossierCreationRulesTest {
 
     @Test void updatePreservesNumberWithoutAllocatingAnotherCounter() {
         Dossier d = dossier(); d.setId(8); d.setNumeroDossier("1211060001");
+        when(dossierRepository.findById(8)).thenReturn(Optional.of(d));
         when(dossierRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         assertEquals("1211060001", service.saveDossier(d).getNumeroDossier());
         verify(dossierRepository, never()).verrouillerNumerotation();

@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import Header from '../components/inc/Header.vue'
 import PageSkeleton from '../components/inc/PageSkeleton.vue'
 import DossierService from '../services/DossierService'
+import MvtDossierService from '../services/MvtDossierService'
 import InterAgenceService from '../services/InterAgenceService'
 import DemandeInteragenceService from '../services/DemandeInteragenceService'
 import { useNotification } from '../composables/useNotification'
@@ -18,12 +19,29 @@ import PermissionService, {
 import axios from 'axios'
 
 const route = useRoute()
-const { notifySuccess, notifyError } = useNotification()
+const { notifySuccess, notifyError, confirm } = useNotification()
 const router = useRouter()
 
 const loading = ref(true)
 const erreur = ref(null)
 const dossier = ref({})
+const operationsStatus = ref([])
+const statutsDisponibles = ref([])
+const modifierWorkflow = ref(false)
+const phaseCible = ref(null)
+const statutCible = ref(null)
+const enregistrementWorkflow = ref(false)
+const phasesDisponibles = computed(() => {
+    const uniques = new Map()
+    operationsStatus.value.forEach(item => {
+        const phase = item.operation?.phaseDossier
+        if (phase) uniques.set(phase.id, phase)
+    })
+    return [...uniques.values()]
+})
+const prochaineOperation = computed(() => operationsStatus.value.find(item =>
+    !item.estFait && item.operation?.phaseDossier?.id === dossier.value.phaseDossier?.id
+))
 const dossierMereLien = ref(null)   // lien interagence si ce dossier est un sous-dossier
 const sousDossiers = ref([])         // sous-dossiers de ce dossier
 const demandesInteragence = ref([]) // demandes d'interagence pour ce dossier
@@ -46,6 +64,7 @@ const formDemande = reactive({
 })
 
 const peutSupprimer = computed(() => PermissionService.verifierPermission(PORTEE_PROPRE_SUPPRESSION, ACTION_OT))
+const peutModifierWorkflow = computed(() => PermissionService.verifierPermission(PORTEE_PROPRE_ECRITURE, ACTION_OT))
 const peutCreerSousDossier = computed(() => PermissionService.verifierPermission(PORTEE_PROPRE_ECRITURE, ACTION_SOUS_DOSSIER))
 
 function authHeader() {
@@ -60,18 +79,23 @@ async function fetchDossier(id) {
     loading.value = true
     erreur.value = null
     dossier.value = {}
+    operationsStatus.value = []
     dossierMereLien.value = null
     sousDossiers.value = []
     demandesInteragence.value = []
     try {
         dossier.value = await DossierService.getDossierById(route.params.id)
+        phaseCible.value = dossier.value.phaseDossier?.id || null
+        statutCible.value = dossier.value.statutDossier?.id || null
 
         // Charger les données interagences, demandes et conteneurs en parallèle
-        const [merenLien, enfants, demandesRes, conteneursRes] = await Promise.allSettled([
+        const [merenLien, enfants, demandesRes, conteneursRes, operationsRes, statutsRes] = await Promise.allSettled([
             InterAgenceService.getDossierMere(route.params.id),
             InterAgenceService.getSousDossiers(route.params.id),
             DemandeInteragenceService.getDemandesParDossier(route.params.id),
-            ConteneurService.getConteneursParDossier(route.params.id)
+            ConteneurService.getConteneursParDossier(route.params.id),
+            MvtDossierService.getOperationsStatusForDossier(route.params.id),
+            DossierService.getAllStatuts()
         ])
 
         if (merenLien.status === 'fulfilled') {
@@ -86,10 +110,44 @@ async function fetchDossier(id) {
         if (conteneursRes.status === 'fulfilled') {
             conteneurs.value = conteneursRes.value || []
         }
+        operationsStatus.value = operationsRes.status === 'fulfilled' ? operationsRes.value || [] : []
+        statutsDisponibles.value = statutsRes.status === 'fulfilled' ? statutsRes.value || [] : []
     } catch (e) {
         erreur.value = "Impossible de récupérer ce dossier."
     } finally {
         loading.value = false
+    }
+}
+
+async function enregistrerPhase() {
+    if (!phaseCible.value || phaseCible.value === dossier.value.phaseDossier?.id) return
+    const ok = await confirm('Changer la phase va effectuer ou annuler les mouvements concernés. Continuer ?')
+    if (!ok) return
+    enregistrementWorkflow.value = true
+    try {
+        await DossierService.changerPhase(dossier.value.id, phaseCible.value)
+        await fetchDossier(dossier.value.id)
+        notifySuccess('Phase du dossier mise à jour.')
+    } catch (e) {
+        notifyError(e.response?.data?.erreur || 'Impossible de modifier la phase.')
+    } finally {
+        enregistrementWorkflow.value = false
+    }
+}
+
+async function enregistrerStatut() {
+    if (!statutCible.value || statutCible.value === dossier.value.statutDossier?.id) return
+    const ok = await confirm('Changer le statut va effectuer ou annuler les mouvements concernés. Continuer ?')
+    if (!ok) return
+    enregistrementWorkflow.value = true
+    try {
+        await DossierService.changerStatut(dossier.value.id, statutCible.value)
+        await fetchDossier(dossier.value.id)
+        notifySuccess('Statut du dossier mis à jour.')
+    } catch (e) {
+        notifyError(e.response?.data?.erreur || 'Impossible de modifier le statut.')
+    } finally {
+        enregistrementWorkflow.value = false
     }
 }
 
@@ -271,6 +329,14 @@ function formatarDate(dt) {
                                             <div class="fw-semibold">{{ dossier.phaseDossier?.nom || '—' }}</div>
                                         </div>
                                         <div class="col-md-4">
+                                            <div class="text-secondary">STATUT</div>
+                                            <div class="fw-semibold">{{ dossier.statutDossier?.nom || '—' }}</div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="text-secondary">PROCHAINE OPÉRATION</div>
+                                            <div class="fw-semibold">{{ prochaineOperation?.operation?.description || 'Aucune' }}</div>
+                                        </div>
+                                        <div class="col-md-4">
                                             <div class="text-secondary">INCOTERM</div>
                                             <div class="fw-semibold">{{ dossier.inconterme?.abreviation || '—' }}</div>
                                         </div>
@@ -299,6 +365,32 @@ function formatarDate(dt) {
                                         <div class="col-12">
                                             <div class="text-secondary">ADRESSE LIVRAISON</div>
                                             <div class="fw-semibold">{{ dossier.adresseLivraison || '—' }}</div>
+                                        </div>
+                                    </div>
+                                    <div v-if="peutModifierWorkflow" class="border-top mt-3 pt-3">
+                                        <button type="button" class="btn btn-outline-primary btn-sm"
+                                            @click="modifierWorkflow = !modifierWorkflow">
+                                            {{ modifierWorkflow ? 'Fermer' : 'Modifier la phase ou le statut' }}
+                                        </button>
+                                        <div v-if="modifierWorkflow" class="row g-2 mt-1 align-items-end">
+                                            <div class="col-md-5">
+                                                <label class="form-label small">Phase</label>
+                                                <select v-model="phaseCible" class="form-select form-select-sm">
+                                                    <option v-for="phase in phasesDisponibles" :key="phase.id" :value="phase.id">{{ phase.nom }}</option>
+                                                </select>
+                                                <button type="button" class="btn btn-primary btn-sm mt-2"
+                                                    :disabled="enregistrementWorkflow || phaseCible === dossier.phaseDossier?.id"
+                                                    @click="enregistrerPhase">Appliquer la phase</button>
+                                            </div>
+                                            <div class="col-md-5">
+                                                <label class="form-label small">Statut</label>
+                                                <select v-model="statutCible" class="form-select form-select-sm">
+                                                    <option v-for="statut in statutsDisponibles" :key="statut.id" :value="statut.id">{{ statut.nom }}</option>
+                                                </select>
+                                                <button type="button" class="btn btn-primary btn-sm mt-2"
+                                                    :disabled="enregistrementWorkflow || statutCible === dossier.statutDossier?.id"
+                                                    @click="enregistrerStatut">Appliquer le statut</button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -415,7 +507,8 @@ function formatarDate(dt) {
                                 </div>
                                 <div class="card-body">
                                     <DocumentsSection :dossierId="dossier.id"
-                                        :typeProductionId="dossier.typeProduction?.id" :readOnly="true" />
+                                        :typeProductionId="dossier.typeProduction?.id"
+                                        :natureMarchandiseId="dossier.ordreTransit?.natureMarchandise?.id" :readOnly="true" />
                                 </div>
                             </div>
                         </div>

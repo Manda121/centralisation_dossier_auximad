@@ -21,7 +21,8 @@ class MvtDossierSearchDatesTest {
             mock(DeclarationRepository.class),
             mock(DocumentRepository.class),
             mock(DocumentMvtRepository.class),
-            mock(DocumentService.class)
+            mock(DocumentService.class),
+            mock(DossierWorkflowService.class)
     );
 
     @Test
