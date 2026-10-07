@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -137,6 +138,7 @@ public class DossierService {
                 (query == null || query.isBlank()) ? null : query,
                 phaseId, statutId, clientId, typeProductionId, otId,
                 estGroupage, dateMin, dateMax, agenceId, typeDossier,
+                Boolean.TRUE.equals(filtres.getDocumentsIncomplets()) ? Boolean.TRUE : null,
                 normaliserFiltre(filtres.getNumeroDossier()),
                 normaliserFiltre(filtres.getClientNom()),
                 normaliserFiltre(filtres.getCpClient()),
@@ -160,6 +162,7 @@ public class DossierService {
 
         // Enrichir chaque dossier récupéré avec ses données inter-agences
         result.getContent().forEach(this::enrichirInteragence);
+        enrichirEtatsDocuments(result.getContent());
 
         return PageResponse.of(result);
     }
@@ -168,10 +171,25 @@ public class DossierService {
         return valeur == null || valeur.isBlank() ? null : valeur.trim();
     }
 
+    private void enrichirEtatsDocuments(List<Dossier> dossiers) {
+        if (dossiers.isEmpty()) return;
+        List<Integer> ids = dossiers.stream().map(Dossier::getId).toList();
+        Map<Integer, String> etats = new HashMap<>();
+        for (Object[] ligne : dossierRepository.findEtatsDocuments(ids)) {
+            String etat = Boolean.TRUE.equals(ligne[1]) ? "OBLIGATOIRES_MANQUANTS"
+                    : Boolean.TRUE.equals(ligne[2]) ? "FACULTATIFS_MANQUANTS" : "COMPLET";
+            etats.put(((Number) ligne[0]).intValue(), etat);
+        }
+        dossiers.forEach(dossier -> dossier.setEtatDocuments(etats.get(dossier.getId())));
+    }
+
     @Transactional(readOnly = true)
     public Optional<Dossier> getById(Integer id) {
         Optional<Dossier> dossierOpt = dossierRepository.findById(id);
-        dossierOpt.ifPresent(this::enrichirInteragence);
+        dossierOpt.ifPresent(dossier -> {
+            enrichirInteragence(dossier);
+            enrichirEtatsDocuments(List.of(dossier));
+        });
         return dossierOpt;
     }
 

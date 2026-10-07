@@ -44,7 +44,8 @@ class DossierControllerFiltersTest {
         authenticate(1010);
         mvc.perform(get("/api/dossiers").param("agenceId", "2").param("clientNom", "Martin")
                 .param("cpClient", "001").param("numeroOt", "18").param("estPrepaye", "false")
-                .param("provisionMin", "10.50").param("dateLivraisonMax", "2026-10-02"))
+                .param("provisionMin", "10.50").param("dateLivraisonMax", "2026-10-02")
+                .param("documentsIncomplets", "true"))
                 .andExpect(status().isOk());
         var filters = ArgumentCaptor.forClass(DossierFiltres.class);
         verify(service).searchDossiers(eq(0), eq(15), isNull(), isNull(), isNull(), isNull(),
@@ -56,6 +57,7 @@ class DossierControllerFiltersTest {
         assertEquals(false, filters.getValue().getEstPrepaye());
         assertEquals(new java.math.BigDecimal("10.50"), filters.getValue().getProvisionMin());
         assertEquals("2026-10-02", filters.getValue().getDateLivraisonMax());
+        assertEquals(true, filters.getValue().getDocumentsIncomplets());
     }
 
     @Test void agencyParameterCannotExpandOwnAgencyScope() throws Exception {

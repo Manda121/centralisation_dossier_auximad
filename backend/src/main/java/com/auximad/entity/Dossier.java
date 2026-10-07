@@ -107,4 +107,7 @@ public class Dossier {
 
     @Transient
     private String numeroDossierMere;
+
+    @Transient
+    private String etatDocuments;
 }

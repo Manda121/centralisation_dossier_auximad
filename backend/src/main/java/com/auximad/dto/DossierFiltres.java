@@ -7,6 +7,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class DossierFiltres {
+    private Boolean documentsIncomplets;
     private String numeroDossier;
     private String clientNom;
     private String cpClient;

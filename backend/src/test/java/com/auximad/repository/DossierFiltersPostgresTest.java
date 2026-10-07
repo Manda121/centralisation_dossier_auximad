@@ -44,6 +44,8 @@ class DossierFiltersPostgresTest {
             CREATE TABLE statut_dossier(id int, nom text);
             CREATE TABLE ordre_transit(id int, numero_ordre_transit int);
             CREATE TABLE dossier_interagence(id_dossier_mere int, id_sous_dossier int);
+            CREATE TABLE type_document(id int, id_type_production int, est_obligatoire boolean);
+            CREATE TABLE document(id int, id_dossier int, id_type_document int, est_actif boolean);
             CREATE TABLE dossier(id int, numero_dossier text, id_client int, id_agence int,
                 id_phase int, id_statut int, id_type_production int, id_ordre_transit int,
                 est_groupage boolean, date_creation timestamp, id_pays_origine int,
@@ -63,6 +65,8 @@ class DossierFiltersPostgresTest {
                 (3, 'DOS-003', 2, 1, 2, 2, 2, 2, false, '2026-10-02 10:00', 2, 1, 2,
                  NULL, NULL, NULL, NULL, false, false, 0, NULL, NULL);
             INSERT INTO dossier_interagence VALUES(1, 2);
+            INSERT INTO type_document VALUES(1, 1, true), (2, 1, false), (3, 2, true);
+            INSERT INTO document VALUES(1, 1, 1, true), (2, 3, 3, true), (3, 1, 2, false);
             """);
         new DossierFullTextConfig(raw.getDataSource()).run(new DefaultApplicationArguments());
     }
@@ -92,6 +96,20 @@ class DossierFiltersPostgresTest {
         expect(List.of(1, 2), Map.of("clientNom", "MARTIN", "cpClient", "001"));
         expect(List.of(1), Map.of("clientNom", "anne", "cpClient", "001", "agenceId", 1));
         expect(List.of(), Map.of("clientNom", "Martin", "cpClient", "002"));
+    }
+
+    @Test void incompleteDocumentsFilterIncludesMissingOptionalAndRequiredTypes() throws Exception {
+        expect(List.of(1, 2), Map.of("documentsIncomplets", true));
+        expect(List.of(1, 2, 3), Map.of());
+        expect(List.of(1, 2), Map.of("documentsIncomplets", true, "clientNom", "Martin"));
+
+        var method = DossierRepository.class.getMethod("findEtatsDocuments", List.class);
+        var sql = method.getAnnotation(Query.class).value();
+        var statuses = jdbc.query(sql, new MapSqlParameterSource("ids", List.of(1, 2, 3)),
+                (rs, row) -> List.of(rs.getInt(1), rs.getBoolean(2), rs.getBoolean(3)));
+        assertTrue(statuses.contains(List.of(1, false, true)));
+        assertTrue(statuses.contains(List.of(2, true, true)));
+        assertTrue(statuses.contains(List.of(3, false, false)));
     }
 
     @Test void detailFieldsCanBeCombinedIncludingFalseAndAmounts() {

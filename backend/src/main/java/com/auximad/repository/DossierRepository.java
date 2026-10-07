@@ -81,6 +81,14 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
           AND (:dateMin IS NULL OR d.date_creation >= CAST(:dateMin AS TIMESTAMPTZ))
           AND (:dateMax IS NULL OR d.date_creation <= CAST(:dateMax AS TIMESTAMPTZ))
           AND (:agenceId IS NULL OR d.id_agence = :agenceId)
+          AND (:documentsIncomplets IS NULL OR EXISTS (
+            SELECT 1 FROM type_document td
+            WHERE td.id_type_production = d.id_type_production
+              AND NOT EXISTS (
+                SELECT 1 FROM document doc
+                WHERE doc.id_dossier = d.id AND doc.id_type_document = td.id AND doc.est_actif = true
+              )
+          ))
           AND (
             :typeDossier IS NULL OR :typeDossier = '' OR
             (:typeDossier = 'INTERAGENCE' AND (
@@ -127,6 +135,14 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
           AND (:dateMin IS NULL OR d.date_creation >= CAST(:dateMin AS TIMESTAMPTZ))
           AND (:dateMax IS NULL OR d.date_creation <= CAST(:dateMax AS TIMESTAMPTZ))
           AND (:agenceId IS NULL OR d.id_agence = :agenceId)
+          AND (:documentsIncomplets IS NULL OR EXISTS (
+            SELECT 1 FROM type_document td
+            WHERE td.id_type_production = d.id_type_production
+              AND NOT EXISTS (
+                SELECT 1 FROM document doc
+                WHERE doc.id_dossier = d.id AND doc.id_type_document = td.id AND doc.est_actif = true
+              )
+          ))
           AND (
             :typeDossier IS NULL OR :typeDossier = '' OR
             (:typeDossier = 'INTERAGENCE' AND (
@@ -150,6 +166,7 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
             @Param("dateMax") String dateMax,
             @Param("agenceId") Integer agenceId,
             @Param("typeDossier") String typeDossier,
+            @Param("documentsIncomplets") Boolean documentsIncomplets,
             @Param("numeroDossier") String numeroDossier,
             @Param("clientNom") String clientNom,
             @Param("cpClient") String cpClient,
@@ -175,9 +192,25 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
             Integer clientId, Integer typeProductionId, Integer otId, Boolean estGroupage,
             String dateMin, String dateMax, Integer agenceId, String typeDossier, Pageable pageable) {
         return searchDossiersFiltres(query, phaseId, statutId, clientId, typeProductionId, otId,
-                estGroupage, dateMin, dateMax, agenceId, typeDossier,
+                estGroupage, dateMin, dateMax, agenceId, typeDossier, null,
                 null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, pageable);
     }
+
+    @Query(value = """
+        SELECT d.id,
+          EXISTS (
+            SELECT 1 FROM type_document td
+            WHERE td.id_type_production = d.id_type_production AND td.est_obligatoire = true
+              AND NOT EXISTS (SELECT 1 FROM document doc WHERE doc.id_dossier = d.id AND doc.id_type_document = td.id AND doc.est_actif = true)
+          ) AS obligatoires_manquants,
+          EXISTS (
+            SELECT 1 FROM type_document td
+            WHERE td.id_type_production = d.id_type_production AND COALESCE(td.est_obligatoire, false) = false
+              AND NOT EXISTS (SELECT 1 FROM document doc WHERE doc.id_dossier = d.id AND doc.id_type_document = td.id AND doc.est_actif = true)
+          ) AS facultatifs_manquants
+        FROM dossier d WHERE d.id IN (:ids)
+        """, nativeQuery = true)
+    List<Object[]> findEtatsDocuments(@Param("ids") List<Integer> ids);
 
     /**
      * Dossiers qui ont des types de documents obligatoires non remis (actifs)

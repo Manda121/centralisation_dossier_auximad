@@ -512,7 +512,7 @@ CREATE TABLE mvt_dossier(
 CREATE TABLE declaration(
     id SERIAL PRIMARY KEY,
     id_dossier INTEGER  REFERENCES dossier(id),
-    numero_declaration VARCHAR(100)  UNIQUE,
+    numero_declaration VARCHAR(100) UNIQUE,
     date_declaration TIMESTAMPTZ ,
     id_bureau INTEGER  REFERENCES bureau(id),
     description TEXT,
