@@ -134,7 +134,7 @@ function reinitialiserFiltres() {
 
                 <div class="card border shadow-sm">
                     <div class="card-body p-3">
-                        <DataTable ref="datatableRef" :columns="columns" :fetch-function="chargerOts" :filters="allFilters"
+                        <DataTable ref="datatableRef" :columns="columns" :fetch-function="chargerOts" :filters="allFilters" export-title="Ordres de transit"
                             default-sort="date_creation" default-sort-dir="desc" :pageSize="15">
 
                             <template #filters="{ filters }">

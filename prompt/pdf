@@ -1,0 +1,9 @@
+met d'abord le D:\Stage Auximad\centralisation_app\doc dans le gitignore pour ne pas etre envoyer
+on vas ajouter un fonctionalite d'export au format pdf.
+on vas ajouter des export de donnee pour tous ce qui est liste, on poura choisir d'exporter en excel, csv, txt, pdf
+pour les export pdf en liste, on vas utiliser le style du pdf: D:\Stage Auximad\centralisation_app\doc\marchandise.png
+
+et pour les export pdf du dossier, on utilise exactement la forme du : D:\Stage Auximad\centralisation_app\doc\dossier.png
+et pour l'ordre de transit on utilise exactemnet la forme du : D:\Stage Auximad\centralisation_app\doc\ot.png
+
+ajoute aussi un fonctinnalite impression pour les imprimer directement.

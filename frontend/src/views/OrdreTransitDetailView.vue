@@ -5,6 +5,10 @@ import Header from '../components/inc/Header.vue'
 import PageSkeleton from '../components/inc/PageSkeleton.vue'
 import OrdreTransitService from '../services/OrdreTransitService'
 import DossierService from '../services/DossierService'
+import DocumentService from '../services/DocumentService'
+import MarchandiseService from '../services/MarchandiseService'
+import { exporterPdfHtml, imprimerHtml, ouvrirFenetreImpression } from '../utils/exportDocuments'
+import { ficheOrdreTransitReference, styleFiche } from '../utils/formTemplates'
 import PermissionService, { PORTEE_PROPRE_VALIDATION, PORTEE_PROPRE_SUPPRESSION, ACTION_OT } from '../utils/permission.service'
 import { useNotification } from '../composables/useNotification'
 
@@ -20,6 +24,29 @@ const dossierLie = ref(null)
 const contrat = ref(null)
 const instructions = ref([])
 const nouvelleInstruction = ref('')
+const exportEnCours = ref(false)
+
+async function produireFicheOt(impression = false) {
+    if (exportEnCours.value || !otModel.value?.id) return
+    let fenetre = null
+    try {
+        if (impression) fenetre = ouvrirFenetreImpression()
+        exportEnCours.value = true
+        const [marchandises, documents] = await Promise.all([
+            MarchandiseService.getMarchandisesByOtId(otModel.value.id),
+            dossierLie.value?.id ? DocumentService.getDocumentsByDossier(dossierLie.value.id) : Promise.resolve([])
+        ])
+        const titre = `Ordre de transit ${otModel.value.numeroOrdreTransit}`
+        const html = ficheOrdreTransitReference(otModel.value, { contrat: contrat.value, instructions: instructions.value, marchandises, documents })
+        if (impression) imprimerHtml(fenetre, titre, html, styleFiche)
+        else await exporterPdfHtml(titre, html, styleFiche, 'portrait')
+    } catch (e) {
+        fenetre?.close()
+        notifyError(e?.message || 'Impossible de préparer l’ordre de transit.')
+    } finally {
+        exportEnCours.value = false
+    }
+}
 
 const peutValider = computed(() => {
     return PermissionService.verifierPermission(PORTEE_PROPRE_VALIDATION, ACTION_OT)
@@ -136,6 +163,8 @@ function formatarDate(dt) {
                             </p>
                         </div>
                         <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-primary btn-sm" :disabled="exportEnCours" @click="produireFicheOt(false)">Exporter PDF</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" :disabled="exportEnCours" @click="produireFicheOt(true)">Imprimer</button>
                             <router-link v-if="dossierLie" :to="{ name: 'dossier-detail', params: { id: dossierLie.id } }"
                                 class="btn btn-primary btn-sm">Voir le dossier</router-link>
                             <router-link v-else :to="{ name: 'dossier-creer', query: { otId: otModel.id } }"

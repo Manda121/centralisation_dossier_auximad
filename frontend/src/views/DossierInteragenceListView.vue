@@ -44,7 +44,8 @@ const columns = [
     { key: 'dateCreation', label: 'Date', sortable: true },
     { key: 'client.nom', label: 'Client', sortable: false },
     { key: 'phaseDossier.nom', label: 'Phase', sortable: false },
-    { key: 'typeInteragence', label: 'Type Inter-agence', sortable: false }
+    { key: 'typeInteragence', label: 'Type Inter-agence', sortable: false,
+        get: row => row.estDossierMere ? 'Dossier Mère' : row.estSousDossier ? 'Sous-dossier' : 'Inter-agence' }
 ]
 
 async function chargerDossiers(page, size, sortBy, sortDir, queryFilters) {
@@ -108,7 +109,7 @@ function formatarDate(dt) {
                 <!-- Carte principale -->
                 <div class="card border shadow-sm">
                     <div class="card-body p-3">
-                        <DataTable ref="datatableRef" :columns="columns" :fetch-function="chargerDossiers"
+                        <DataTable ref="datatableRef" :columns="columns" :fetch-function="chargerDossiers" export-title="Dossiers inter-agences"
                             :filters="filters" default-sort="date_creation" default-sort-dir="desc" :pageSize="15">
 
                             <template #filters="{ filters: slotFilters }">

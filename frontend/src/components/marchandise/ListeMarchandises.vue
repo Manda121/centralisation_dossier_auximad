@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch, computed } from 'vue'
 import Skeleton from '../inc/Skeleton.vue'
+import ExportActions from '../inc/ExportActions.vue'
 import ModalMarchandise from './ModalMarchandise.vue'
 import Marchandise from '../../models/Marchandise'
 import MarchandiseService from '../../services/MarchandiseService'
@@ -20,6 +21,18 @@ const editionMode = ref(false)
 const formModel = ref(new Marchandise())
 const unites = ref([])
 const formLoading = ref(false)
+const colonnesExport = [
+  { key: 'numero', label: '#', get: row => marchandises.value.indexOf(row) + 1 },
+  { key: 'description', label: 'Description' },
+  { key: 'nature', label: 'Nature', get: () => props.ordreTransit?.natureMarchandise?.nom },
+  { key: 'marque', label: 'Marque' },
+  { key: 'modele', label: 'Modèle' },
+  { key: 'quantite', label: 'Quantité' },
+  { key: 'uniteMesure.nom', label: 'Unité' },
+  { key: 'poids', label: 'Poids (kg)' },
+  { key: 'volume', label: 'Volume (m³)' }
+]
+async function lignesExport() { return marchandises.value }
 
 const peutEditer = computed(() =>
   PermissionService.verifierPermission(PORTEE_PROPRE_ECRITURE, ACTION_OT)
@@ -122,9 +135,13 @@ async function supprimer(m) {
   <div class="card border shadow-sm">
     <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-2">
       <h5 class="mb-0  tefw-semiboldxt-dark">Contenu du Transit</h5>
-      <button v-if="peutEditer" class="btn btn-primary btn-sm" @click="ouvrirAjout">
-        + Ajouter une marchandise
-      </button>
+      <div class="d-flex align-items-center gap-2">
+        <ExportActions :title="`Liste des marchandises — OT ${ordreTransit?.numeroOrdreTransit || ''}`"
+          :columns="colonnesExport" :load-rows="lignesExport" :disabled="loading || !marchandises.length" />
+        <button v-if="peutEditer" class="btn btn-primary btn-sm" @click="ouvrirAjout">
+          + Ajouter une marchandise
+        </button>
+      </div>
     </div>
 
     <div class="card-body p-0">

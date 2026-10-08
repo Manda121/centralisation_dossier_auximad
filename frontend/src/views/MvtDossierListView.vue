@@ -56,14 +56,15 @@ const filters = reactive({
 // ── Colonnes ─────────────────────────────────────────────────
 const columns = [
   { key: 'dateMvt',                label: 'Date Mouvement',   sortable: true,  format: 'datetime' },
-  { key: 'dossier.numeroDossier',  label: 'Dossier',          sortable: false },
-  { key: 'client',                 label: 'Client',           sortable: false },
-  { key: 'operation.description',  label: 'Opération',        sortable: false },
-  { key: 'phases',                 label: 'Phase',            sortable: false },
-  { key: 'statuts',                label: 'Statut',           sortable: false },
-  { key: 'utilisateur',            label: 'Utilisateur',      sortable: false },
-  { key: 'document',               label: 'Document',         sortable: false },
-  { key: 'etat',                   label: 'État',             sortable: false },
+  { key: 'dossier.numeroDossier',  label: 'Dossier',          sortable: false, get: row => row.mouvement.dossier?.numeroDossier },
+  { key: 'client',                 label: 'Client',           sortable: false, get: row => [row.mouvement.dossier?.client?.cpClient, row.mouvement.dossier?.client?.nom].filter(Boolean).join(' — ') },
+  { key: 'operation.description',  label: 'Opération',        sortable: false, get: row => row.mouvement.operation?.description || 'Mouvement manuel' },
+  { key: 'phases',                 label: 'Phase',            sortable: false, get: row => `${row.mouvement.anciennePhase?.nom || ''} → ${row.mouvement.nouvellePhase?.nom || ''}` },
+  { key: 'statuts',                label: 'Statut',           sortable: false, get: row => `${row.mouvement.ancienStatut?.nom || ''} → ${row.mouvement.nouveauStatut?.nom || ''}` },
+  { key: 'utilisateur',            label: 'Utilisateur',      sortable: false, get: row => row.utilisateur?.nomComplet || row.utilisateur?.nomUtilisateur },
+  { key: 'document',               label: 'Document',         sortable: false, get: row => row.typeEvenement === 'CREATION' ? row.mouvement.document?.nomFichier : '' },
+  { key: 'etat',                   label: 'État',             sortable: false, get: row => row.typeEvenement === 'ANNULATION' ? 'Annulation' : row.mouvement.estAnnule ? 'Création annulée' : 'Création effectuée' },
+  { key: 'motif',                  label: 'Motif',            sortable: false, get: row => row.motif },
   { key: 'actions',                label: 'Actions',          sortable: false }
 ]
 
@@ -148,6 +149,7 @@ function estPdf(nom) {
             <DataTable
               ref="datatableRef"
               :columns="columns"
+              export-title="Historique des mouvements de dossier"
               :fetch-function="chargerMouvements"
               :filters="filters"
               default-sort="dateMvt"

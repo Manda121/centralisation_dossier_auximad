@@ -83,14 +83,15 @@ const columns = computed(() => {
     const list = [
         { key: 'numeroDossier', label: 'N° Dossier', sortable: true },
         { key: 'dateCreation', label: 'Date', sortable: true },
-        { key: 'client.nom', label: 'Client', sortable: false },
+        { key: 'client.nom', label: 'Client', sortable: false, get: row => `${row.client?.nom || ''} ${row.client?.prenom || ''}`.trim() },
         { key: 'agence.nom', label: 'Agence', sortable: false },
         { key: 'phaseDossier.nom', label: 'Phase', sortable: false }
     ]
     if (filters.typeDossier === 'INTERAGENCE' || filters.typeDossier === 'MERE' || filters.typeDossier === 'SOUS_DOSSIER') {
-        list.push({ key: 'typeInteragence', label: 'Type Inter-agence', sortable: false })
+        list.push({ key: 'typeInteragence', label: 'Type Inter-agence', sortable: false,
+            get: row => row.estDossierMere ? 'Mère' : row.estSousDossier ? 'Sous-dossier' : 'Inter-agence' })
     } else {
-        list.push({ key: 'estGroupage', label: 'Groupage', sortable: true })
+        list.push({ key: 'estGroupage', label: 'Groupage', sortable: true, get: row => row.estGroupage ? 'Groupage' : 'FCL' })
     }
     return list
 })
@@ -124,7 +125,7 @@ function formatarDate(dt) {
 
                 <div class="card border shadow-sm">
                     <div class="card-body p-3">
-                        <DataTable ref="datatableRef" :columns="columns" :fetch-function="chargerDossiers"
+                        <DataTable ref="datatableRef" :columns="columns" :fetch-function="chargerDossiers" export-title="Liste des dossiers"
                             :filters="filters" default-sort="date_creation" default-sort-dir="desc" :pageSize="15">
 
                             <template #filters="{ filters: slotFilters }">

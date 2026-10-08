@@ -97,11 +97,12 @@ onUnmounted(() => {
 const columns = [
   { key: 'numeroDossier', label: 'N° Dossier', sortable: true },
   { key: 'client.nom', label: 'Client', sortable: false },
-  { key: 'dateEmbarquement', label: 'Date Embarquement', sortable: false },
-  { key: 'dateArrivee', label: 'Date Arrivée', sortable: false },
-  { key: 'compagnie', label: 'Compagnie', sortable: false },
+  { key: 'dateEmbarquement', label: 'Date Embarquement', sortable: false, format: 'date', get: row => row.ordreTransit?.contratTransport?.datePrevue || row.echeance },
+  { key: 'dateArrivee', label: 'Date Arrivée', sortable: false, format: 'date', get: row => row.ordreTransit?.contratTransport?.dateArrivee || row.dateLivraison },
+  { key: 'compagnie', label: 'Compagnie', sortable: false, get: row => row.ordreTransit?.contratTransport?.compagnie?.nom || row.compagnie },
   { key: 'typeProduction.description', label: 'Description Type Prod.', sortable: false },
-  { key: 'conteneurs', label: 'Conteneurs Assignés', sortable: false },
+  { key: 'conteneurs', label: 'Conteneurs Assignés', sortable: false,
+    get: row => (conteneursParDossier.value[row.id] || []).map(c => c.numeroContainer).join(', ') },
   { key: 'actions', label: 'Actions', sortable: false }
 ]
 
@@ -179,7 +180,7 @@ function filtrerAujourdhui() {
           <div class="card-body p-3">
             <DataTable 
               ref="datatableRef" 
-              :columns="columns" 
+              :columns="columns" export-title="Dossiers et conteneurs"
               :fetch-function="chargerDossiers"
               :filters="filters" 
               default-sort="date_creation" 

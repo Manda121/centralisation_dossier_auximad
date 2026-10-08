@@ -192,7 +192,7 @@ function nomUtilisateur(row) {
                 <!-- Tableau -->
                 <div class="card border shadow-sm">
                     <div class="card-body p-3">
-                        <DataTable ref="datatableRef" :columns="columns" :fetch-function="chargerHistoriques"
+                        <DataTable ref="datatableRef" :columns="columns" :fetch-function="chargerHistoriques" :export-fetch-function="HistoriqueService.searchHistoriques.bind(HistoriqueService)" export-title="Historique des actions"
                             :filters="filters" default-sort="dateAction" default-sort-dir="desc" :pageSize="50"
                             row-clickable @row-click="ouvrirDetail">
 

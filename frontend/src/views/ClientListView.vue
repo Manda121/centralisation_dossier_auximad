@@ -119,7 +119,7 @@ function reinitialiserFiltres() {
 
                 <div class="card border shadow-sm">
                     <div class="card-body p-3">
-                        <DataTable ref="datatableRef" :columns="columns" :fetch-function="chargerClients"
+                        <DataTable ref="datatableRef" :columns="columns" :fetch-function="chargerClients" export-title="Liste des clients"
                             :filters="allFilters" default-sort="nom" default-sort-dir="asc" :pageSize="15">
 
                             <template #filters="{ filters }">
