@@ -50,7 +50,8 @@ const userConnecte = computed(() => UtilisateurService.obtenirUtilisateurConnect
 
 const columns = [
     { key: 'dossier.numeroDossier', label: 'N° Dossier', sortable: true },
-    { key: 'direction', label: 'Rôle', sortable: false },
+    { key: 'direction', label: 'Rôle', sortable: false,
+        get: row => estAgenceDemandeuse(row) ? 'Notre demande' : estAgenceDestinataire(row) ? 'Demande reçue' : 'Autre' },
     { key: 'agenceDemandeuse.nom', label: 'Agence Émettrice', sortable: false },
     { key: 'agenceDestinataire.nom', label: 'Agence Cible', sortable: false },
     { key: 'motif', label: 'Motif', sortable: false },
@@ -249,7 +250,7 @@ function formatarDate(dt) {
                 <!-- Carte principale -->
                 <div class="card border shadow-sm">
                     <div class="card-body p-3">
-                        <DataTable ref="datatableRef" :columns="columns" :fetch-function="chargerDemandes"
+                        <DataTable ref="datatableRef" :columns="columns" :fetch-function="chargerDemandes" export-title="Demandes inter-agences"
                             :filters="filters" default-sort="dateDemande" default-sort-dir="desc" :pageSize="15"
                             row-clickable @row-click="ouvrirDetail">
 

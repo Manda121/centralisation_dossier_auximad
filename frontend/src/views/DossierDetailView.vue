@@ -11,6 +11,10 @@ import { useNotification } from '../composables/useNotification'
 import ListeMarchandises from '@/components/marchandise/ListeMarchandises.vue'
 import DocumentsSection from '@/components/DocumentsSection.vue'
 import ConteneurService from '../services/ConteneurService'
+import DocumentService from '../services/DocumentService'
+import MarchandiseService from '../services/MarchandiseService'
+import { exporterPdfHtml, imprimerHtml, ouvrirFenetreImpression } from '../utils/exportDocuments'
+import { ficheDossierReference, styleFiche } from '../utils/formTemplates'
 import ModalConteneur from '@/components/conteneur/ModalConteneur.vue'
 import PermissionService, {
     PORTEE_PROPRE_SUPPRESSION, PORTEE_PROPRE_ECRITURE,
@@ -48,6 +52,34 @@ const demandesInteragence = ref([]) // demandes d'interagence pour ce dossier
 const conteneurs = ref([])           // conteneurs assignés
 const showConteneurModal = ref(false)
 const conteneurAEditer = ref(null)
+const exportEnCours = ref(false)
+
+async function produireFicheDossier(impression = false) {
+    if (exportEnCours.value || !dossier.value?.id) return
+    let fenetre = null
+    try {
+        if (impression) fenetre = ouvrirFenetreImpression()
+        exportEnCours.value = true
+        const idOt = dossier.value.ordreTransit?.id
+        const [docs, remises, marchandises, typesDocuments] = await Promise.all([
+            DocumentService.getDocumentsByDossier(dossier.value.id),
+            DocumentService.getRemises(dossier.value.id),
+            idOt ? MarchandiseService.getMarchandisesByOtId(idOt) : Promise.resolve([]),
+            dossier.value.ordreTransit?.typeProduction?.id
+                ? DocumentService.getTypeDocuments(dossier.value.ordreTransit.typeProduction.id, dossier.value.ordreTransit.natureMarchandise?.id)
+                : Promise.resolve([])
+        ])
+        const titre = `Dossier ${dossier.value.numeroDossier}`
+        const html = ficheDossierReference(dossier.value, { documents: docs, remises, marchandises, typesDocuments, operations: operationsStatus.value, conteneurs: conteneurs.value })
+        if (impression) imprimerHtml(fenetre, titre, html, styleFiche)
+        else await exporterPdfHtml(titre, html, styleFiche, 'portrait')
+    } catch (e) {
+        fenetre?.close()
+        notifyError(e?.message || 'Impossible de préparer la fiche du dossier.')
+    } finally {
+        exportEnCours.value = false
+    }
+}
 
 const estEligibleConteneur = computed(() => {
     return ConteneurService.estEligibleConteneur(dossier.value)
@@ -294,6 +326,8 @@ function formatarDate(dt) {
                             <p class="text-secondary mb-0 small">Créé le {{ formatarDate(dossier.dateCreation) }} · Agence : {{ dossier.agence?.nom || '—' }}</p>
                         </div>
                         <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-primary btn-sm" :disabled="exportEnCours" @click="produireFicheDossier(false)">Exporter PDF</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" :disabled="exportEnCours" @click="produireFicheDossier(true)">Imprimer</button>
                             <router-link v-if="dossier.ordreTransit" :to="`/ordres-transit/${dossier.ordreTransit.id}`"
                                 class="btn btn-outline-primary btn-sm">
                                 Voir l'OT associé OT-{{ dossier.ordreTransit.numeroOrdreTransit }}

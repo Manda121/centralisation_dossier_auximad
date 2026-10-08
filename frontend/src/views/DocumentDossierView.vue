@@ -38,8 +38,9 @@
                     <!-- ═══ Panneau gauche : recherche + liste dossiers ═══ -->
                     <div class="col-lg-5">
                         <div class="card border-0 shadow-sm">
-                            <div class="card-header bg-white border-bottom py-3">
+                            <div class="card-header bg-white border-bottom py-3 d-flex flex-wrap gap-2 justify-content-between align-items-center">
                                 <h6 class="fw-semibold mb-0">Sélectionner un dossier</h6>
+                                <ExportActions title="Liste des dossiers - documents" :columns="colonnesExportDocuments" :load-rows="chargerToutesLesLignes" />
                             </div>
                             <div class="card-body p-3">
                                 <p class="small text-secondary mb-2">{{ modeListe === 'incomplets' ? 'Dossiers avec au moins un document manquant' : 'Recherche dans tous les dossiers' }}</p>
@@ -242,6 +243,7 @@ import ClientService from '@/services/ClientService'
 import DocumentService from '@/services/DocumentService'
 import OrdreTransitService from '@/services/OrdreTransitService'
 import AgenceService from '@/services/AgenceService'
+import ExportActions from '@/components/inc/ExportActions.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -308,6 +310,32 @@ const pagination = ref({
     size: 15,
     totalPages: 0
 })
+
+const colonnesExportDocuments = [
+    { key: 'numeroDossier', label: 'N° dossier' },
+    { key: 'client.nom', label: 'Client', get: d => [d.client?.nom, d.client?.prenom].filter(Boolean).join(' ') },
+    { key: 'client.cpClient', label: 'C.P. client' },
+    { key: 'agence.nom', label: 'Agence' },
+    { key: 'phaseDossier.nom', label: 'Phase' },
+    { key: 'statutDossier.nom', label: 'Statut' },
+    { key: 'etatDocuments', label: 'Documents', get: libelleEtatDocuments },
+    { key: 'dateCreation', label: 'Création', format: 'date' }
+]
+
+async function chargerToutesLesLignes() {
+    const params = { ...filtresAppliques.value }
+    if (modeListe.value === 'incomplets') params.documentsIncomplets = true
+    const resultats = []
+    let page = 0
+    let nombrePages = 1
+    while (page < nombrePages) {
+        const reponse = await DossierService.searchDossiers(page, 200, 'date_creation', 'desc', params)
+        resultats.push(...(reponse.content || []))
+        nombrePages = reponse.totalPages || 0
+        page++
+    }
+    return resultats
+}
 
 onMounted(async () => {
     // Pré-sélection du dossier transmis par le détail dossier (?dossierId=...)

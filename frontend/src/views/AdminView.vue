@@ -52,6 +52,8 @@
                                     </h2>
                                     <p class="crud-header__desc">{{ activeConfig.description }}</p>
                                 </div>
+                                <ExportActions :title="activeConfig.label" :columns="activeConfig.columns"
+                                    :load-rows="lignesExportAdmin" :disabled="loading || !rows.length" />
                                 <button class="btn-add" @click="openCreate">
                                     <span>＋</span> Nouveau
                                 </button>
@@ -202,6 +204,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import Header from '../components/inc/Header.vue'
+import ExportActions from '../components/inc/ExportActions.vue'
 import OperationDossierAdminView from './OperationDossierAdminView.vue'
 import AdminService from '../services/AdminService'
 import authService from '../utils/auth.service'
@@ -215,6 +218,7 @@ const niveauAutorisation = userInfo?.niveauAutorisation || 0
 const activeKey = ref(null)
 const activeConfig = ref(null)
 const rows = ref([])
+async function lignesExportAdmin() { return rows.value }
 const loading = ref(false)
 const error = ref(null)
 const saving = ref(false)

@@ -6,6 +6,8 @@
         <p class="text-muted small mb-0">Configuration des étapes, phases, et statuts par type de production</p>
       </div>
       <div class="d-flex gap-2">
+        <ExportActions :title="`Opérations dossier — ${typesProduction.find(tp => tp.id === activeTypeProductionId)?.nom || ''}`"
+          :columns="colonnesExport" :load-rows="lignesExportOperations" :disabled="loading || !currentOperations.length" />
         <button v-if="selectedOpIds.length > 0" class="btn btn-danger btn-sm d-flex align-items-center gap-1 shadow-sm" @click="deleteBatch">
           🗑️ Supprimer en masse ({{ selectedOpIds.length }})
         </button>
@@ -238,6 +240,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import AdminService from '../services/AdminService'
+import ExportActions from '../components/inc/ExportActions.vue'
 import { useNotification } from '../composables/useNotification'
 
 const { notifySuccess, notifyError, notifyWarning } = useNotification()
@@ -247,6 +250,14 @@ const statuts = ref([])
 
 const activeTypeProductionId = ref(null)
 const currentOperations = ref([])
+const colonnesExport = [
+  { key: 'niveauOperation', label: 'Ordre' },
+  { key: 'description', label: 'Opération' },
+  { key: 'phaseDossier.nom', label: 'Phase' },
+  { key: 'statutDossier.nom', label: 'Statut' },
+  { key: 'estObligatoire', label: 'Obligatoire' }
+]
+async function lignesExportOperations() { return currentOperations.value }
 const loading = ref(false)
 const selectedOpIds = ref([])
 const isOrderChanged = ref(false)

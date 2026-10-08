@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import Skeleton from './Skeleton.vue'
+import ExportActions from './ExportActions.vue'
 
 const props = defineProps({
     columns: {
@@ -10,6 +11,10 @@ const props = defineProps({
     fetchFunction: {
         type: Function,
         required: true
+    },
+    exportFetchFunction: {
+        type: Function,
+        default: null
     },
     filters: {
         type: Object,
@@ -30,6 +35,14 @@ const props = defineProps({
     rowClickable: {
         type: Boolean,
         default: false
+    },
+    exportTitle: {
+        type: String,
+        default: 'Liste des données'
+    },
+    exportColumns: {
+        type: Array,
+        default: null
     }
 })
 
@@ -45,6 +58,23 @@ const sortBy = ref(props.defaultSort)
 const sortDir = ref(props.defaultSortDir)
 const showFilters = ref(false)
 const localFilters = ref({ ...props.filters })
+const appliedFilters = ref({ ...props.filters })
+const colonnesExport = computed(() => props.exportColumns || props.columns.filter(col => col.key !== 'actions'))
+
+async function chargerToutesLesLignes() {
+    const taille = 200
+    const filtres = { ...appliedFilters.value }
+    const toutes = []
+    let page = 0
+    let nombrePages = 1
+    while (page < nombrePages) {
+        const reponse = await (props.exportFetchFunction || props.fetchFunction)(page, taille, sortBy.value, sortDir.value, filtres)
+        toutes.push(...(reponse.content || []))
+        nombrePages = reponse.totalPages ?? (reponse.content?.length === taille ? page + 2 : page + 1)
+        page++
+    }
+    return toutes
+}
 
 const hasFilters = computed(() => Object.keys(props.filters).length > 0)
 const activeFilterCount = computed(() => {
@@ -77,6 +107,7 @@ const visiblePages = computed(() => {
 async function fetchData() {
     loading.value = true
     loadError.value = ''
+    appliedFilters.value = { ...localFilters.value }
     try {
         const response = await props.fetchFunction(
             currentPage.value,
@@ -196,6 +227,8 @@ defineExpose({ refresh })
             </div>
 
             <div class="datatable__toolbar-right">
+                <ExportActions :title="exportTitle" :columns="colonnesExport" :load-rows="chargerToutesLesLignes"
+                    :disabled="loading || totalElements === 0" />
                 <button
                     v-if="hasFilters"
                     type="button"
