@@ -2,7 +2,10 @@
   <aside class="sidebar">
     <!-- Brand -->
     <router-link to="/" class="sidebar__brand">
-      <span class="sidebar__brand-name">Auximad</span>
+      <span class="sidebar__brand-identity">
+        <img src="/logo/1000130987.webp" alt="" class="sidebar__brand-logo" />
+        <span class="sidebar__brand-name">Auximad</span>
+      </span>
       <span v-if="userInfo && userInfo.agence" class="sidebar__badge">
         {{ userInfo.agence }}
       </span>
@@ -324,6 +327,21 @@ const handleLogout = async () => {
   margin-bottom: 8px;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.sidebar__brand-identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  white-space: nowrap;
+}
+
+.sidebar__brand-logo {
+  display: block;
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  flex: none;
 }
 
 .sidebar__brand-name {

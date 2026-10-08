@@ -55,7 +55,7 @@ const handleLogin = async () => {
 <template>
   <div class="login-card">
     <div class="login-card__header">
-      <h1 class="login-card__title">Auximad</h1>
+      <h1 class="login-card__title"><img src="/logo/1000130987.webp" alt="" class="login-card__logo" />Auximad</h1>
       <p class="login-card__subtitle">Centralisation de dossiers</p>
     </div>
 
@@ -140,11 +140,23 @@ const handleLogin = async () => {
 }
 
 .login-card__title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: -0.4px;
   color: var(--lc-text);
   margin: 0 0 2px;
+}
+
+.login-card__logo {
+  display: block;
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+  flex: none;
 }
 
 .login-card__subtitle {
