@@ -307,6 +307,13 @@ const selectedDossier = ref(null)
 const operationsStatus = ref([])
 const loadingOperations = ref(false)
 const movementDates = ref({})
+
+function maintenantLocalPourChampDate() {
+  const maintenant = new Date()
+  const deuxChiffres = valeur => String(valeur).padStart(2, '0')
+  return `${maintenant.getFullYear()}-${deuxChiffres(maintenant.getMonth() + 1)}-${deuxChiffres(maintenant.getDate())}`
+    + `T${deuxChiffres(maintenant.getHours())}:${deuxChiffres(maintenant.getMinutes())}`
+}
 const selectedFiles = ref({})
 const savingOpId = ref(null)
 
@@ -328,7 +335,7 @@ const docForm = ref({ typeDocumentId: null, fichier: null })
 
 const declarationForm = ref({
   numeroDeclaration: '',
-  dateDeclaration: new Date().toISOString().slice(0, 16),
+  dateDeclaration: maintenantLocalPourChampDate(),
   bureauId: null,
   typeDeclarationId: null,
   description: ''
@@ -363,7 +370,7 @@ const loadOperationsStatus = async () => {
 
     // Pre-fill movement dates for uncompleted operations
     const dates = {}
-    const nowISO = new Date().toISOString().slice(0, 16)
+    const nowISO = maintenantLocalPourChampDate()
     operationsStatus.value.forEach(op => {
       if (!op.estFait) {
         dates[op.operation.id] = nowISO
@@ -518,7 +525,7 @@ const openDeclarationModal = async (opDto) => {
   if (opDto.declaration) {
     declarationForm.value = {
       numeroDeclaration: opDto.declaration.numeroDeclaration || '',
-      dateDeclaration: opDto.declaration.dateDeclaration ? opDto.declaration.dateDeclaration.slice(0, 16) : new Date().toISOString().slice(0, 16),
+      dateDeclaration: opDto.declaration.dateDeclaration ? opDto.declaration.dateDeclaration.slice(0, 16) : maintenantLocalPourChampDate(),
       bureauId: opDto.declaration.bureau ? opDto.declaration.bureau.id : null,
       typeDeclarationId: opDto.declaration.typeDeclaration ? opDto.declaration.typeDeclaration.id : null,
       description: opDto.declaration.description || ''
@@ -526,7 +533,7 @@ const openDeclarationModal = async (opDto) => {
   } else {
     declarationForm.value = {
       numeroDeclaration: '',
-      dateDeclaration: new Date().toISOString().slice(0, 16),
+      dateDeclaration: maintenantLocalPourChampDate(),
       bureauId: null,
       typeDeclarationId: null,
       description: ''
