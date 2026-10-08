@@ -118,10 +118,9 @@ export function imprimerHtml(fenetre, titre, html, style = styleListe) {
 
 export async function exporterPdfHtml(titre, html, style = styleListe, orientation = 'landscape') {
   const { default: html2pdf } = await import('html2pdf.js')
-  const conteneur = document.createElement('div')
-  conteneur.style.cssText = `position:fixed;left:-12000px;top:0;width:${orientation === 'landscape' ? 1050 : 760}px;background:white;z-index:-1;`
-  conteneur.innerHTML = `<style>${style}</style>${html}`
-  document.body.appendChild(conteneur)
+  const feuilleStyle = document.createElement('style')
+  feuilleStyle.textContent = style
+  document.head.appendChild(feuilleStyle)
   try {
     await html2pdf().set({
       margin: 7,
@@ -130,9 +129,9 @@ export async function exporterPdfHtml(titre, html, style = styleListe, orientati
       html2canvas: { scale: 1.7, useCORS: true, backgroundColor: '#ffffff' },
       jsPDF: { unit: 'mm', format: 'a4', orientation },
       pagebreak: { mode: ['css', 'legacy'] }
-    }).from(conteneur).save()
+    }).from(html, 'string').save()
   } finally {
-    conteneur.remove()
+    feuilleStyle.remove()
   }
 }
 
