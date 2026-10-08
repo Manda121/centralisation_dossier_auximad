@@ -508,7 +508,8 @@ CREATE TABLE mvt_dossier(
     commentaire TEXT,
     date_mvt TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP,
     origine VARCHAR(30) DEFAULT 'SAISIE',
-    groupe_ajustement VARCHAR(36)
+    groupe_ajustement VARCHAR(36),
+    est_annule BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE TABLE mvt_annulee(

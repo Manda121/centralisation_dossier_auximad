@@ -17,7 +17,10 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_schema = current_schema()
-          AND table_name = 'mvt_dossier' AND column_name = 'est_annule'
+          AND table_name = 'mvt_dossier'
+          AND column_name IN ('est_annule', 'date_annulation', 'motif_annulation', 'id_utilisateur_annulation')
+        GROUP BY table_schema, table_name
+        HAVING COUNT(*) = 4
     ) THEN
         EXECUTE $migration$
             INSERT INTO mvt_annulee
@@ -30,7 +33,10 @@ BEGIN
     END IF;
 END $$;
 
-ALTER TABLE mvt_dossier DROP COLUMN IF EXISTS est_annule;
+ALTER TABLE mvt_dossier ADD COLUMN IF NOT EXISTS est_annule BOOLEAN NOT NULL DEFAULT FALSE;
+UPDATE mvt_dossier m
+SET est_annule = TRUE
+WHERE EXISTS (SELECT 1 FROM mvt_annulee a WHERE a.id_mvt_dossier = m.id);
 ALTER TABLE mvt_dossier DROP COLUMN IF EXISTS date_annulation;
 ALTER TABLE mvt_dossier DROP COLUMN IF EXISTS motif_annulation;
 ALTER TABLE mvt_dossier DROP COLUMN IF EXISTS id_utilisateur_annulation;

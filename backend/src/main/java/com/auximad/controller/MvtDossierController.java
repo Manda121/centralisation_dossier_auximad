@@ -1,11 +1,13 @@
 package com.auximad.controller;
 
 import com.auximad.dto.MvtDossierRequest;
+import com.auximad.dto.HistoriqueMvtDossier;
 import com.auximad.dto.OperationDossierStatusDTO;
 import com.auximad.dto.PageResponse;
 import com.auximad.entity.MvtDossier;
 import com.auximad.service.MvtDossierService;
 import com.auximad.service.DossierWorkflowService;
+import com.auximad.service.ConfirmationAnnulationException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
@@ -57,6 +59,38 @@ public class MvtDossierController {
         ));
     }
 
+    @GetMapping("/historique")
+    public ResponseEntity<PageResponse<HistoriqueMvtDossier>> historique(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "15") int size,
+            @RequestParam(required = false) String sortDir,
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) Integer dossierId,
+            @RequestParam(required = false) String numeroDossier,
+            @RequestParam(required = false) String cpClient,
+            @RequestParam(required = false) Integer agenceId,
+            @RequestParam(required = false) Integer typeProductionId,
+            @RequestParam(required = false) Integer phaseId,
+            @RequestParam(required = false) Integer statutId,
+            @RequestParam(required = false) Integer operationId,
+            @RequestParam(required = false) Integer utilisateurId,
+            @RequestParam(required = false) String dateMin,
+            @RequestParam(required = false) String dateMax
+    ) {
+        return ResponseEntity.ok(mvtDossierService.searchHistorique(page, size, sortDir, query,
+                dossierId, numeroDossier, cpClient, agenceId, typeProductionId, phaseId,
+                statutId, operationId, utilisateurId, dateMin, dateMax));
+    }
+
+    @GetMapping("/{id}/impact-annulation")
+    public ResponseEntity<?> impactAnnulation(@PathVariable Integer id) {
+        try {
+            return ResponseEntity.ok(workflowService.prevoirAnnulation(id));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("erreur", e.getMessage()));
+        }
+    }
+
     @GetMapping("/dossier/{dossierId}/operations-status")
     @Operation(summary = "Obtenir la liste des opérations et leur statut pour un dossier")
     public ResponseEntity<List<OperationDossierStatusDTO>> getOperationsStatus(@PathVariable Integer dossierId) {
@@ -94,11 +128,14 @@ public class MvtDossierController {
     }
 
     @PostMapping("/{id}/annuler")
-    @Operation(summary = "Annuler un mouvement et les mouvements suivants du dossier")
+    @Operation(summary = "Annuler un mouvement et les mouvements qui en dépendent")
     public ResponseEntity<?> annulerMouvement(@PathVariable Integer id,
                                                @RequestBody(required = false) Map<String, String> body) {
         try {
-            return ResponseEntity.ok(workflowService.annulerMouvement(id, body == null ? null : body.get("motif")));
+            boolean confirmer = body != null && "true".equalsIgnoreCase(body.get("confirmerObligatoires"));
+            return ResponseEntity.ok(workflowService.annulerMouvement(id, body == null ? null : body.get("motif"), confirmer));
+        } catch (ConfirmationAnnulationException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("erreur", e.getMessage()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("erreur", e.getMessage()));
         }

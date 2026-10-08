@@ -26,6 +26,21 @@ class MvtDossierService {
         return response.data
     }
 
+    async searchHistorique(page = 0, size = 15, sortBy = 'dateMvt', sortDir = 'desc', filters = {}) {
+        const params = new URLSearchParams({ page, size, sortDir })
+        Object.keys(filters).forEach(key => {
+            const value = filters[key]
+            if (value !== '' && value !== null && value !== undefined) params.append(key, value)
+        })
+        const response = await axios.get(`${API_URL}/historique?${params.toString()}`, { headers: authHeader() })
+        return response.data
+    }
+
+    async impactAnnulation(id) {
+        const response = await axios.get(`${API_URL}/${id}/impact-annulation`, { headers: authHeader() })
+        return response.data
+    }
+
     async getOperationsStatusForDossier(dossierId) {
         const response = await axios.get(`${API_URL}/dossier/${dossierId}/operations-status`, { headers: authHeader() })
         return response.data
@@ -41,8 +56,8 @@ class MvtDossierService {
         return response.data
     }
 
-    async annulerMouvement(id, motif = '') {
-        const response = await axios.post(`${API_URL}/${id}/annuler`, { motif }, { headers: authHeader() })
+    async annulerMouvement(id, motif = '', confirmerObligatoires = false) {
+        const response = await axios.post(`${API_URL}/${id}/annuler`, { motif, confirmerObligatoires }, { headers: authHeader() })
         return response.data
     }
 }

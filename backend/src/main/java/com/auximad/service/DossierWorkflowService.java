@@ -143,8 +143,11 @@ public class DossierWorkflowService {
     }
 
     private void annulerDepuis(List<MvtDossier> actifs, int index, String motif, Utilisateur utilisateur) {
-        for (int i = index; i < actifs.size(); i++) {
-            MvtDossier mvt = actifs.get(i);
+        annulerSelection(actifs.subList(index, actifs.size()), motif, utilisateur);
+    }
+
+    private void annulerSelection(List<MvtDossier> selection, String motif, Utilisateur utilisateur) {
+        for (MvtDossier mvt : selection) {
             MvtAnnulee annulation = new MvtAnnulee();
             annulation.setMouvement(mvt);
             annulation.setDateAnnulation(LocalDateTime.now());
@@ -152,7 +155,66 @@ public class DossierWorkflowService {
             annulation.setUtilisateurAnnulation(utilisateur);
             annulations.save(annulation);
             mvt.setAnnulation(annulation);
+            mvt.setEstAnnule(true);
+            mouvements.save(mvt);
         }
+    }
+
+    public record ImpactAnnulation(List<Integer> mouvementIds, List<String> operationsObligatoiresSuivantes) {}
+
+    private List<MvtDossier> selectionAnnulation(MvtDossier cible, List<MvtDossier> actifs) {
+        int index = -1;
+        for (int i = 0; i < actifs.size(); i++) {
+            if (Objects.equals(actifs.get(i).getId(), cible.getId())) { index = i; break; }
+        }
+        if (index < 0) throw new IllegalArgumentException("Mouvement déjà annulé.");
+        List<MvtDossier> selection = new ArrayList<>();
+        selection.add(cible);
+        OperationDossier operation = cible.getOperation();
+        if (operation == null || !Boolean.TRUE.equals(operation.getEstObligatoire())) return selection;
+
+        List<OperationDossier> flux = cible.getDossier().getTypeProduction() == null ? List.of()
+                : operations.findByTypeProductionIdOrderByNiveauOperationAscIdAsc(
+                    cible.getDossier().getTypeProduction().getId());
+        int rangCible = -1;
+        for (int i = 0; i < flux.size(); i++) {
+            if (Objects.equals(flux.get(i).getId(), operation.getId())) { rangCible = i; break; }
+        }
+        for (int i = index + 1; i < actifs.size(); i++) {
+            MvtDossier suivant = actifs.get(i);
+            if (suivant.getOperation() == null) {
+                selection.add(suivant);
+                continue;
+            }
+            int rangSuivant = -1;
+            for (int j = 0; j < flux.size(); j++) {
+                if (Objects.equals(flux.get(j).getId(), suivant.getOperation().getId())) { rangSuivant = j; break; }
+            }
+            if (rangCible >= 0 && rangSuivant > rangCible) selection.add(suivant);
+        }
+        return selection;
+    }
+
+    @Transactional(readOnly = true)
+    public ImpactAnnulation prevoirAnnulation(Integer mouvementId) {
+        MvtDossier cible = mouvements.findById(mouvementId)
+                .orElseThrow(() -> new IllegalArgumentException("Mouvement introuvable : " + mouvementId));
+        if (Boolean.TRUE.equals(cible.getEstAnnule())) throw new IllegalArgumentException("Mouvement déjà annulé.");
+        List<MvtDossier> actifs = actifs(cible.getDossier().getId());
+        List<MvtDossier> selection = selectionAnnulation(cible, actifs);
+        int position = positionMouvement(actifs, cible.getId());
+        List<String> obligatoires = actifs.subList(position + 1, actifs.size()).stream()
+                .map(MvtDossier::getOperation).filter(Objects::nonNull)
+                .filter(op -> Boolean.TRUE.equals(op.getEstObligatoire()))
+                .map(OperationDossier::getDescription).distinct().toList();
+        return new ImpactAnnulation(selection.stream().map(MvtDossier::getId).toList(), obligatoires);
+    }
+
+    private int positionMouvement(List<MvtDossier> actifs, Integer mouvementId) {
+        for (int i = 0; i < actifs.size(); i++) {
+            if (Objects.equals(actifs.get(i).getId(), mouvementId)) return i;
+        }
+        throw new IllegalArgumentException("Mouvement déjà annulé.");
     }
 
     private void recalculer(Dossier dossier) {
@@ -220,17 +282,25 @@ public class DossierWorkflowService {
 
     @Transactional
     public Dossier annulerMouvement(Integer mouvementId, String motif) {
+        return annulerMouvement(mouvementId, motif, false);
+    }
+
+    @Transactional
+    public Dossier annulerMouvement(Integer mouvementId, String motif, boolean confirmerObligatoires) {
         MvtDossier mouvement = mouvements.findById(mouvementId)
                 .orElseThrow(() -> new IllegalArgumentException("Mouvement introuvable : " + mouvementId));
-        if (mouvement.getAnnulation() != null) return mouvement.getDossier();
+        if (Boolean.TRUE.equals(mouvement.getEstAnnule())) return mouvement.getDossier();
         Dossier dossier = mouvement.getDossier();
         List<MvtDossier> actifs = actifs(dossier.getId());
-        int index = -1;
-        for (int i = 0; i < actifs.size(); i++) {
-            if (Objects.equals(actifs.get(i).getId(), mouvementId)) { index = i; break; }
+        List<MvtDossier> selection = selectionAnnulation(mouvement, actifs);
+        int position = positionMouvement(actifs, mouvementId);
+        boolean obligatoireSuivante = actifs.subList(position + 1, actifs.size()).stream()
+                .map(MvtDossier::getOperation).filter(Objects::nonNull)
+                .anyMatch(op -> Boolean.TRUE.equals(op.getEstObligatoire()));
+        if (obligatoireSuivante && !confirmerObligatoires) {
+            throw new ConfirmationAnnulationException("Confirmez l'annulation : des opérations obligatoires ont déjà été effectuées après ce mouvement.");
         }
-        if (index < 0) throw new IllegalArgumentException("Mouvement déjà annulé.");
-        annulerDepuis(actifs, index, motif == null || motif.isBlank() ? "Annulation manuelle" : motif, auteur(dossier));
+        annulerSelection(selection, motif == null || motif.isBlank() ? "Annulation manuelle" : motif, auteur(dossier));
         recalculer(dossier);
         return dossier;
     }

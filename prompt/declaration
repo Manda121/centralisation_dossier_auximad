@@ -5,3 +5,5 @@ sa phase sera automatiquement le suivant avec le premier operation de la phase,
 donc si on complete les dossier au moment du creation,
 sa phase sera le suivant du preparation. on poura voir la phase,
 la statut du dossier dans l'affichage des details du dossier
+
+pour l'annullation on devra voir dans l'historique mvt un autre mvt qui est la creation du mvt ca ne change pas, mais un autre pour l'annulation, et le mvt sera a refaire, donc on enregistrera dans un nouvelle colone que le mvt est annullee. mais on ne le supprime pas, juste pour remetre les operations, et si le l'operation du mvt a annullee suivi d'un operation obligatoire deja effectue, on doit confirmer, et les autres mvt suivant qui necessiteront le mvt a annuler seront aussi annuler, mais ceux qui ne depent pas du mvt a annuler reste,
