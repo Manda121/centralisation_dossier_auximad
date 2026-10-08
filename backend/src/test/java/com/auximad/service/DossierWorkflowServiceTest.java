@@ -59,27 +59,71 @@ class DossierWorkflowServiceTest {
         StatutDossier cloture = new StatutDossier(); cloture.setId(2); cloture.setNom("Clôturé");
         Utilisateur auteur = new Utilisateur(); auteur.setId(7);
         Dossier dossier = new Dossier(); dossier.setId(4); dossier.setUtilisateur(auteur);
+        TypeProduction production = new TypeProduction(); production.setId(3); dossier.setTypeProduction(production);
         dossier.setPhaseDossier(traitement); dossier.setStatutDossier(cloture);
+        OperationDossier opPremier = operation(10, preparation);
+        OperationDossier opSecond = operation(11, traitement);
+        OperationDossier opTroisieme = operation(12, traitement);
         MvtDossier premier = new MvtDossier(); premier.setId(20); premier.setDossier(dossier);
+        premier.setOperation(opPremier);
         premier.setNouvellePhase(preparation); premier.setNouveauStatut(ouvert);
         MvtDossier second = new MvtDossier(); second.setId(21); second.setDossier(dossier);
+        second.setOperation(opSecond);
         second.setNouvellePhase(traitement); second.setNouveauStatut(ouvert);
         MvtDossier troisieme = new MvtDossier(); troisieme.setId(22); troisieme.setDossier(dossier);
+        troisieme.setOperation(opTroisieme);
         troisieme.setNouvellePhase(traitement); troisieme.setNouveauStatut(cloture);
         List<MvtDossier> tous = List.of(premier, second, troisieme);
+        when(operations.findByTypeProductionIdOrderByNiveauOperationAscIdAsc(3))
+                .thenReturn(List.of(opPremier, opSecond, opTroisieme));
         when(mouvements.findById(21)).thenReturn(Optional.of(second));
         when(mouvements.findActifsByDossierIdOrderByIdAsc(4))
-                .thenAnswer(call -> tous.stream().filter(m -> m.getAnnulation() == null).toList());
+                .thenAnswer(call -> tous.stream().filter(m -> !Boolean.TRUE.equals(m.getEstAnnule())).toList());
         when(utilisateurs.findById(7)).thenReturn(Optional.of(auteur));
-        workflow.annulerMouvement(21, "Erreur de saisie");
+        workflow.annulerMouvement(21, "Erreur de saisie", true);
         assertNull(premier.getAnnulation());
         assertNotNull(second.getAnnulation());
         assertNotNull(troisieme.getAnnulation());
         assertEquals("Erreur de saisie", second.getAnnulation().getMotifAnnulation());
+        assertTrue(second.getEstAnnule());
+        assertTrue(troisieme.getEstAnnule());
         verify(annulations, times(2)).save(any(MvtAnnulee.class));
         assertSame(preparation, dossier.getPhaseDossier());
         assertSame(ouvert, dossier.getStatutDossier());
         verify(dossiers).save(dossier);
+    }
+
+    @Test void cancellingOptionalOperationKeepsFollowingMovementAndRequiresConfirmationForMandatory() {
+        PhaseDossier preparation = phase(1, "PREPARATION");
+        StatutDossier ouvert = new StatutDossier(); ouvert.setId(1); ouvert.setNom("Ouvert");
+        TypeProduction production = new TypeProduction(); production.setId(3);
+        Utilisateur auteur = new Utilisateur(); auteur.setId(7);
+        Dossier dossier = new Dossier(); dossier.setId(4); dossier.setTypeProduction(production);
+        dossier.setUtilisateur(auteur); dossier.setPhaseDossier(preparation); dossier.setStatutDossier(ouvert);
+        OperationDossier facultative = operation(10, preparation); facultative.setEstObligatoire(false);
+        OperationDossier obligatoire = operation(11, preparation);
+        facultative.setDescription("Option facultative"); obligatoire.setDescription("Validation obligatoire");
+        MvtDossier premier = new MvtDossier(); premier.setId(20); premier.setDossier(dossier);
+        premier.setOperation(facultative); premier.setNouvellePhase(preparation); premier.setNouveauStatut(ouvert);
+        MvtDossier second = new MvtDossier(); second.setId(21); second.setDossier(dossier);
+        second.setOperation(obligatoire); second.setNouvellePhase(preparation); second.setNouveauStatut(ouvert);
+        when(mouvements.findById(20)).thenReturn(Optional.of(premier));
+        when(mouvements.findActifsByDossierIdOrderByIdAsc(4))
+                .thenAnswer(call -> List.of(premier, second).stream()
+                        .filter(m -> !Boolean.TRUE.equals(m.getEstAnnule())).toList());
+        when(utilisateurs.findById(7)).thenReturn(Optional.of(auteur));
+
+        DossierWorkflowService.ImpactAnnulation impact = workflow.prevoirAnnulation(20);
+        assertEquals(List.of(20), impact.mouvementIds());
+        assertEquals(List.of(obligatoire.getDescription()), impact.operationsObligatoiresSuivantes());
+        assertThrows(ConfirmationAnnulationException.class, () -> workflow.annulerMouvement(20, null));
+        verify(annulations, never()).save(any());
+
+        workflow.annulerMouvement(20, null, true);
+        assertTrue(premier.getEstAnnule());
+        assertFalse(second.getEstAnnule());
+        assertNull(second.getAnnulation());
+        verify(annulations).save(any(MvtAnnulee.class));
     }
 
     @Test void completingAndRemovingRequiredDocumentsMovesAndRestoresPreparation() {
@@ -102,7 +146,7 @@ class DossierWorkflowServiceTest {
         when(documents.findByDossierIdAndEstActifTrue(4))
                 .thenReturn(List.of(remis), List.of());
         when(mouvements.findActifsByDossierIdOrderByIdAsc(4))
-                .thenAnswer(call -> enregistres.stream().filter(m -> m.getAnnulation() == null).toList());
+                .thenAnswer(call -> enregistres.stream().filter(m -> !Boolean.TRUE.equals(m.getEstAnnule())).toList());
         when(mouvements.save(any())).thenAnswer(call -> {
             MvtDossier mvt = call.getArgument(0);
             if (!enregistres.contains(mvt)) enregistres.add(mvt);
@@ -138,7 +182,7 @@ class DossierWorkflowServiceTest {
         when(operations.findByTypeProductionIdOrderByNiveauOperationAscIdAsc(3))
                 .thenReturn(List.of(opPreparation, opTraitement, opComptabilite));
         when(mouvements.findActifsByDossierIdOrderByIdAsc(4))
-                .thenAnswer(call -> historique.stream().filter(m -> m.getAnnulation() == null).toList());
+                .thenAnswer(call -> historique.stream().filter(m -> !Boolean.TRUE.equals(m.getEstAnnule())).toList());
         when(mouvements.save(any())).thenAnswer(call -> {
             MvtDossier mvt = call.getArgument(0);
             if (!historique.contains(mvt)) { mvt.setId(20 + historique.size()); historique.add(mvt); }
@@ -177,7 +221,7 @@ class DossierWorkflowServiceTest {
         when(operations.findByTypeProductionIdOrderByNiveauOperationAscIdAsc(3))
                 .thenReturn(List.of(premiere, derniere));
         when(mouvements.findActifsByDossierIdOrderByIdAsc(4))
-                .thenAnswer(call -> historique.stream().filter(m -> m.getAnnulation() == null).toList());
+                .thenAnswer(call -> historique.stream().filter(m -> !Boolean.TRUE.equals(m.getEstAnnule())).toList());
         when(mouvements.save(any())).thenAnswer(call -> {
             MvtDossier mvt = call.getArgument(0);
             if (!historique.contains(mvt)) { mvt.setId(20 + historique.size()); historique.add(mvt); }

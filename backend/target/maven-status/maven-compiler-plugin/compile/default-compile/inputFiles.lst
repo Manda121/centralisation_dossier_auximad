@@ -46,6 +46,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\Declar
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\DemandeInteragenceReponseRequest.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\DemandeInteragenceRequest.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\DossierFiltres.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\HistoriqueMvtDossier.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\LoginRequest.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\LoginResponse.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\MvtDossierRequest.java
@@ -142,6 +143,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\security\J
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\AgenceService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\AuthentificationService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\ClientService.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\ConfirmationAnnulationException.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\ConteneurService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\DeclarationService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\DemandeInteragenceService.java

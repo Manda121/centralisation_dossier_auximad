@@ -68,10 +68,14 @@ const columns = [
 ]
 
 async function annulerMouvement(row) {
-  const ok = await confirm('Annuler ce mouvement ? Tous les mouvements suivants du dossier seront aussi annulés.')
-  if (!ok) return
   try {
-    await MvtDossierService.annulerMouvement(row.id)
+    const impact = await MvtDossierService.impactAnnulation(row.mouvement.id)
+    const autres = impact.mouvementIds.length - 1
+    const obligatoires = impact.operationsObligatoiresSuivantes || []
+    const message = `Annuler ce mouvement ? ${autres > 0 ? `${autres} mouvement(s) dépendant(s) seront aussi annulé(s).` : 'Les autres mouvements resteront actifs.'}`
+      + (obligatoires.length ? `\nOpérations obligatoires déjà effectuées après ce mouvement : ${obligatoires.join(', ')}.` : '')
+    if (!await confirm(message)) return
+    await MvtDossierService.annulerMouvement(row.mouvement.id, '', true)
     datatableRef.value?.refresh()
     notifySuccess('Mouvement annulé.')
   } catch (e) {
@@ -81,7 +85,7 @@ async function annulerMouvement(row) {
 
 // ── Fetch ─────────────────────────────────────────────────────
 async function chargerMouvements(page, size, sortBy, sortDir, f) {
-  return await MvtDossierService.searchMouvements(page, size, sortBy || 'dateMvt', sortDir || 'desc', f)
+  return await MvtDossierService.searchHistorique(page, size, sortBy || 'dateMvt', sortDir || 'desc', f)
 }
 
 // ── Formatage ─────────────────────────────────────────────────
@@ -213,42 +217,42 @@ function estPdf(nom) {
               </template>
 
               <template #cell-dossier.numeroDossier="{ row }">
-                <router-link v-if="row.dossier" :to="`/dossiers/${row.dossier.id}`"
+                <router-link v-if="row.mouvement.dossier" :to="`/dossiers/${row.mouvement.dossier.id}`"
                              class="fw-bold text-primary text-decoration-none">
-                  {{ row.dossier.numeroDossier }}
+                  {{ row.mouvement.dossier.numeroDossier }}
                 </router-link>
                 <span v-else class="text-muted">—</span>
               </template>
 
               <template #cell-client="{ row }">
-                <span v-if="row.dossier?.client" class="small">
-                  <span class="fw-semibold">{{ row.dossier.client.cpClient }}</span>
-                  — {{ row.dossier.client.nom }}
+                <span v-if="row.mouvement.dossier?.client" class="small">
+                  <span class="fw-semibold">{{ row.mouvement.dossier.client.cpClient }}</span>
+                  — {{ row.mouvement.dossier.client.nom }}
                 </span>
                 <span v-else class="text-muted">—</span>
               </template>
 
               <template #cell-operation.description="{ row }">
                 <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle px-2 py-1">
-                  {{ row.operation ? row.operation.description : 'Mouvement manuel' }}
+                  {{ row.mouvement.operation ? row.mouvement.operation.description : 'Mouvement manuel' }}
                 </span>
               </template>
 
               <template #cell-phases="{ row }">
                 <div class="d-flex align-items-center gap-1">
-                  <span v-if="row.anciennePhase" class="badge bg-light text-dark border">{{ row.anciennePhase.nom }}</span>
-                  <span v-if="row.anciennePhase && row.nouvellePhase" class="text-muted small">➔</span>
-                  <span v-if="row.nouvellePhase" class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ row.nouvellePhase.nom }}</span>
-                  <span v-if="!row.anciennePhase && !row.nouvellePhase" class="text-muted">—</span>
+                  <span v-if="row.mouvement.anciennePhase" class="badge bg-light text-dark border">{{ row.mouvement.anciennePhase.nom }}</span>
+                  <span v-if="row.mouvement.anciennePhase && row.mouvement.nouvellePhase" class="text-muted small">➔</span>
+                  <span v-if="row.mouvement.nouvellePhase" class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ row.mouvement.nouvellePhase.nom }}</span>
+                  <span v-if="!row.mouvement.anciennePhase && !row.mouvement.nouvellePhase" class="text-muted">—</span>
                 </div>
               </template>
 
               <template #cell-statuts="{ row }">
                 <div class="d-flex align-items-center gap-1">
-                  <span v-if="row.ancienStatut" class="badge bg-light text-dark border">{{ row.ancienStatut.nom }}</span>
-                  <span v-if="row.ancienStatut && row.nouveauStatut" class="text-muted small">➔</span>
-                  <span v-if="row.nouveauStatut" class="badge bg-success-subtle text-success border border-success-subtle">{{ row.nouveauStatut.nom }}</span>
-                  <span v-if="!row.ancienStatut && !row.nouveauStatut" class="text-muted">—</span>
+                  <span v-if="row.mouvement.ancienStatut" class="badge bg-light text-dark border">{{ row.mouvement.ancienStatut.nom }}</span>
+                  <span v-if="row.mouvement.ancienStatut && row.mouvement.nouveauStatut" class="text-muted small">➔</span>
+                  <span v-if="row.mouvement.nouveauStatut" class="badge bg-success-subtle text-success border border-success-subtle">{{ row.mouvement.nouveauStatut.nom }}</span>
+                  <span v-if="!row.mouvement.ancienStatut && !row.mouvement.nouveauStatut" class="text-muted">—</span>
                 </div>
               </template>
 
@@ -259,27 +263,28 @@ function estPdf(nom) {
               </template>
 
               <template #cell-document="{ row }">
-                <button v-if="row.document" type="button"
+                <button v-if="row.typeEvenement === 'CREATION' && row.mouvement.document" type="button"
                         class="btn btn-outline-primary btn-sm px-2 py-0 d-inline-flex align-items-center gap-1"
-                        @click="ouvrirApercu(row.document)"
-                        :title="row.document.nomFichier">
+                        @click="ouvrirApercu(row.mouvement.document)"
+                        :title="row.mouvement.document.nomFichier">
                   📎 <span class="small" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                    {{ row.document.nomFichier || 'Fichier' }}
+                    {{ row.mouvement.document.nomFichier || 'Fichier' }}
                   </span>
                 </button>
                 <span v-else class="text-muted small">—</span>
               </template>
               <template #cell-etat="{ row }">
-                <span v-if="row.annulation" class="badge bg-danger-subtle text-danger">Annulé</span>
-                <span v-else-if="row.origine === 'SAISIE' || !row.origine" class="badge bg-success-subtle text-success">Effectué</span>
+                <span v-if="row.typeEvenement === 'ANNULATION'" class="badge bg-danger-subtle text-danger">Annulation</span>
+                <span v-else-if="row.mouvement.estAnnule" class="badge bg-secondary-subtle text-secondary">Création · annulée</span>
+                <span v-else-if="row.mouvement.origine === 'SAISIE' || !row.mouvement.origine" class="badge bg-success-subtle text-success">Création · effectuée</span>
                 <span v-else class="badge bg-info-subtle text-info-emphasis">Automatique</span>
               </template>
 
               <template #cell-actions="{ row }">
-                <button v-if="peutAnnuler && !row.annulation" type="button"
+                <button v-if="peutAnnuler && row.typeEvenement === 'CREATION' && !row.mouvement.estAnnule" type="button"
                   class="btn btn-outline-danger btn-sm" @click="annulerMouvement(row)">Annuler</button>
-                <span v-else-if="row.annulation" class="small text-muted" :title="row.annulation.motifAnnulation">
-                  {{ row.annulation.motifAnnulation || 'Annulé' }}
+                <span v-else-if="row.typeEvenement === 'ANNULATION'" class="small text-muted" :title="row.motif">
+                  {{ row.motif || 'Annulation' }}
                 </span>
               </template>
             </DataTable>

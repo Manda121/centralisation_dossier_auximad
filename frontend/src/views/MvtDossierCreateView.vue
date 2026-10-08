@@ -423,11 +423,15 @@ const executeMouvement = async (opDto) => {
 }
 
 const annulerOperation = async (opDto) => {
-  const ok = await confirm(`Annuler « ${opDto.operation.description} » ? Les mouvements suivants seront aussi annulés.`)
-  if (!ok) return
-  savingOpId.value = opDto.operation.id
   try {
-    await MvtDossierService.annulerMouvement(opDto.mvtId)
+    const impact = await MvtDossierService.impactAnnulation(opDto.mvtId)
+    const autres = impact.mouvementIds.length - 1
+    const obligatoires = impact.operationsObligatoiresSuivantes || []
+    const message = `Annuler « ${opDto.operation.description} » ? ${autres > 0 ? `${autres} mouvement(s) dépendant(s) seront aussi annulé(s).` : 'Les autres mouvements resteront actifs.'}`
+      + (obligatoires.length ? `\nOpérations obligatoires déjà effectuées ensuite : ${obligatoires.join(', ')}.` : '')
+    if (!await confirm(message)) return
+    savingOpId.value = opDto.operation.id
+    await MvtDossierService.annulerMouvement(opDto.mvtId, '', true)
     selectedDossier.value = await DossierService.getDossierById(selectedDossier.value.id)
     await loadOperationsStatus()
     notifySuccess('Mouvement annulé.')

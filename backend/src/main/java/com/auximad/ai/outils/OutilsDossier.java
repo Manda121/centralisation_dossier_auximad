@@ -262,7 +262,7 @@ public final class OutilsDossier {
                                 ? " (" + (m.getAnciennePhase() != null ? m.getAnciennePhase().getNom() : "-")
                                 + " → " + (m.getNouvellePhase() != null ? m.getNouvellePhase().getNom() : "-") + ")" : "")
                         .append(" par ").append(m.getUtilisateur() != null ? m.getUtilisateur().getNomUtilisateur() : "-")
-                        .append(m.getAnnulation() != null ? " [ANNULÉ]" : "")
+                        .append(Boolean.TRUE.equals(m.getEstAnnule()) ? " [ANNULÉ]" : "")
                         .append("\n");
             }
 

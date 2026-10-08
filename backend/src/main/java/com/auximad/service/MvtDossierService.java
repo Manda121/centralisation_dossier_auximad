@@ -1,6 +1,7 @@
 package com.auximad.service;
 
 import com.auximad.dto.MvtDossierRequest;
+import com.auximad.dto.HistoriqueMvtDossier;
 import com.auximad.dto.OperationDossierStatusDTO;
 import com.auximad.dto.PageResponse;
 import com.auximad.entity.*;
@@ -85,6 +86,59 @@ public class MvtDossierService {
         }
 
         return PageResponse.of(resultPage);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<HistoriqueMvtDossier> searchHistorique(
+            int page, int size, String sortDir, String query,
+            Integer dossierId, String numeroDossier, String cpClient,
+            Integer agenceId, Integer typeProductionId, Integer phaseId,
+            Integer statutId, Integer operationId, Integer utilisateurId,
+            String dateMinStr, String dateMaxStr
+    ) {
+        if (page < 0 || size <= 0) throw new IllegalArgumentException("Pagination invalide.");
+        LocalDateTime dateMin = parseDateMin(dateMinStr);
+        LocalDateTime dateMax = parseDateMax(dateMaxStr);
+        // Les dates portent sur chaque événement : une annulation récente reste visible
+        // même si la création du mouvement est antérieure à la période filtrée.
+        List<MvtDossier> tous = mvtDossierRepository.searchMouvements(
+                query, dossierId, numeroDossier, cpClient, agenceId,
+                typeProductionId, phaseId, statutId, operationId, null,
+                null, null, Pageable.unpaged()).getContent();
+        List<HistoriqueMvtDossier> evenements = new ArrayList<>();
+        for (MvtDossier mvt : tous) {
+            evenements.add(new HistoriqueMvtDossier("mvt-" + mvt.getId(), "CREATION",
+                    mvt.getDateMvt(), mvt, mvt.getUtilisateur(), mvt.getCommentaire()));
+            if (mvt.getAnnulation() != null) {
+                MvtAnnulee annulation = mvt.getAnnulation();
+                evenements.add(new HistoriqueMvtDossier("annulation-" + annulation.getId(), "ANNULATION",
+                        annulation.getDateAnnulation(), mvt, annulation.getUtilisateurAnnulation(),
+                        annulation.getMotifAnnulation()));
+            }
+        }
+        evenements.removeIf(e -> ((dateMin != null || dateMax != null) && e.dateMvt() == null)
+                || (dateMin != null && e.dateMvt().isBefore(dateMin))
+                || (dateMax != null && e.dateMvt().isAfter(dateMax))
+                || (utilisateurId != null && (e.utilisateur() == null
+                    || !Objects.equals(e.utilisateur().getId(), utilisateurId))));
+        Comparator<HistoriqueMvtDossier> ordre = Comparator.comparing(HistoriqueMvtDossier::dateMvt,
+                    Comparator.nullsFirst(Comparator.naturalOrder()))
+                .thenComparing(HistoriqueMvtDossier::id);
+        evenements.sort("asc".equalsIgnoreCase(sortDir) ? ordre : ordre.reversed());
+        int debut = (int) Math.min((long) page * size, evenements.size());
+        int fin = Math.min(debut + size, evenements.size());
+        List<HistoriqueMvtDossier> contenu = evenements.subList(debut, fin);
+        Set<Integer> documentsCharges = new HashSet<>();
+        for (HistoriqueMvtDossier evenement : contenu) {
+            MvtDossier mvt = evenement.mouvement();
+            if (documentsCharges.add(mvt.getId())) {
+                documentMvtRepository.findFirstByMvtDossierIdOrderByIdDesc(mvt.getId())
+                        .ifPresent(docMvt -> mvt.setDocument(docMvt.getDocument()));
+            }
+        }
+        long total = evenements.size();
+        int pages = (int) ((total + size - 1) / size);
+        return new PageResponse<>(contenu, page, size, total, pages, page == 0, page >= pages - 1);
     }
 
     @Transactional(readOnly = true)

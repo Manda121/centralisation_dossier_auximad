@@ -58,6 +58,9 @@ public class MvtDossier {
     @Column(name = "groupe_ajustement", length = 36)
     private String groupeAjustement;
 
+    @Column(name = "est_annule", nullable = false)
+    private Boolean estAnnule = false;
+
     @OneToOne(mappedBy = "mouvement", fetch = FetchType.EAGER)
     private MvtAnnulee annulation;
 
