@@ -1,0 +1,26 @@
+je suis en stage chez auximad en tant qu informaticien, et voila les app existant:
+la technologie de leur app actuelle est en windev7, ce qui induit a une performance un peut plus lent,
+l'app est moins optimiser et a tendance a planter pour les non connaisseurs alors qu il fait des traitements en arriere.
+un logiciel de gestion de dossier avec les autre module qui concerne un dossier.
+chaque agence en a separement, et lors des dossiers interagence 
+(un agence a le dossier mais il a besoin des service d un autre agence, 
+alors l autre agence creer un dossier interagence avec l agence mere), 
+et pour voir les dossiers ou faire des demande interagence, 
+on envoie tous les jours un fichier .wgz par email contenant les dossier a interagence et l autre agence accepte.
+aucun moyen pour le responsable de determiner facilement l'etat actuelle des dossiers,
+car l'app est juste fait principalement pour creer un dossier.
+aucun moyen de visualisation immediat de l'activite en temps reel,
+aucun moyen de voir les indicateurs cle de performance(KPI) pour faire une prise de decision rapide
+pas de moyen facile pour le responsable de voir en entier le marche du societe de tous les agences
+(pas de transparence puisque chaque agence a son propre app local).
+mon projet est une Centralisation de la gestion des dossiers de transit.
+
+le serveur du societe a la config suivant:
+DELL POWEREDGE R620
+double processeur intel Xeon E5-2630L, 12 coeurs, 2.3 GHZ
+128 Go RAM DDR3 10600R
+4 SSD 2.5 2TB, 2 SAS 2.5 de 300GB
+controleur RAID H710P 1GB
+Carte ethernet GIGABITE 4ports
+IDRAC 7 integré
+2 alimentations 750W
