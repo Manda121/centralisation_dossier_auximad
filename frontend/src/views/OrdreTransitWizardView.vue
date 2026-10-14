@@ -343,7 +343,7 @@ async function creerOrdreTransit() {
                                         <input type="text" v-model="contratModel.notify" class="form-control form-control-sm" placeholder="ex: Auximad Tana">
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label small fw-semibold text-secondary">Date prévue de départ / d'arrivée</label>
+                                        <label class="form-label small fw-semibold text-secondary">Date prévue de départ</label>
                                         <input type="datetime-local" v-model="contratModel.datePrevue" class="form-control form-control-sm">
                                     </div>
                                     <div class="col-md-6">

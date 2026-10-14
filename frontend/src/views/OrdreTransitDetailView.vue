@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Header from '../components/inc/Header.vue'
 import PageSkeleton from '../components/inc/PageSkeleton.vue'
+import ListeMarchandises from '../components/marchandise/ListeMarchandises.vue'
 import OrdreTransitService from '../services/OrdreTransitService'
 import DossierService from '../services/DossierService'
 import DocumentService from '../services/DocumentService'
@@ -311,17 +312,7 @@ function formatarDate(dt) {
                                 </div>
                             </div>
 
-                            <div class="card border shadow-sm">
-                                <div class="card-header bg-white border-bottom py-2">
-                                    <h5 class="mb-0 fw-semibold text-dark">Marchandises associées</h5>
-                                </div>
-                                <div class="card-body">
-                                    <p class="text-secondary small mb-2">Les marchandises liées à cet ordre de transit sont gérées dans le module Marchandises.</p>
-                                    <router-link :to="`/marchandises?otId=${otModel.id}`" class="btn btn-outline-primary btn-sm w-100">
-                                        Consulter les marchandises &rarr;
-                                    </router-link>
-                                </div>
-                            </div>
+                            <ListeMarchandises :ordreTransit="otModel" compact />
                         </div>
                     </div>
                 </div>

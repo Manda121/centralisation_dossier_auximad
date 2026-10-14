@@ -1,74 +1,114 @@
 <template>
-  <div class="mvt-create-container">
-    <!-- Header -->
-    <div class="d-flex align-items-center gap-3 mb-4">
+  <div class="d-flex min-vh-100 bg-light">
+    <Header />
+    <main class="mvt-main flex-grow-1">
+      <div class="mvt-create-container">
+    <header class="mvt-page-header">
+      <div>
+        <span class="mvt-eyebrow">SUIVI DES DOSSIERS</span>
+        <h1>Créer un mouvement de dossier</h1>
+        <p>Sélectionnez un dossier pour consulter ses étapes et enregistrer son avancement.</p>
+      </div>
       <router-link to="/mouvements-dossier" class="btn btn-outline-secondary btn-sm">
         ← Retour aux mouvements
       </router-link>
-      <div>
-        <h3 class="fw-bold mb-0">Créer un Mouvement de Dossier</h3>
-        <p class="text-muted small mb-0">Sélectionnez un dossier et enregistrez l'avancement de ses opérations</p>
-      </div>
-    </div>
+    </header>
 
-    <!-- Section 1 : Autocomplete Dossier & Info Box -->
-    <div class="card border-0 shadow-sm mb-4">
+    <section class="card mvt-search-card mb-4" aria-labelledby="mvt-search-title">
       <div class="card-body p-4">
-        <label class="form-label fw-bold">Numéro de Dossier <span class="text-danger">*</span></label>
-        <div class="position-relative col-md-6 mb-3">
-          <input
-            type="text"
-            v-model="dossierSearchQuery"
-            @input="onSearchDossier"
-            class="form-control"
-            placeholder="Tapez le numéro de dossier (ex: DOS-2026)..."
-          />
-          <!-- Autocomplete Dropdown -->
-          <ul v-if="suggestions.length > 0" class="dropdown-menu show w-100 shadow-sm" style="max-height: 200px; overflow-y: auto;">
-            <li v-for="d in suggestions" :key="d.id">
-              <button class="dropdown-item d-flex justify-content-between align-items-center" @click="selectDossier(d)">
-                <span class="fw-bold">{{ d.numeroDossier }}</span>
-                <span class="small text-muted">{{ d.client ? d.client.nom : '' }} | {{ d.typeProduction ? d.typeProduction.nom : '' }}</span>
-              </button>
-            </li>
-          </ul>
+        <div class="mvt-section-heading mb-3">
+          <span class="mvt-section-heading__number">01</span>
+          <div>
+            <h2 id="mvt-search-title">Choisir un dossier</h2>
+            <p>Recherchez par numéro, puis sélectionnez le dossier correspondant.</p>
+          </div>
         </div>
+        <label class="form-label fw-semibold">Numéro de dossier <span class="text-danger">*</span></label>
+        <div class="mvt-search-field mb-2">
+          <AutocompleteRecherche v-model="dossierSearchQuery" :fetch-results="rechercherDossiers"
+            :label-fn="dossier => dossier.numeroDossier"
+            :sublabel-fn="dossier => [dossier.client?.nom, dossier.agence?.nom].filter(Boolean).join(' · ')"
+            :value-fn="dossier => dossier.numeroDossier" :min-chars="2" :petit="false"
+            placeholder="Ex. 1101060001" message-vide="Aucun dossier correspondant"
+            @update:model-value="onDossierQueryChange" @efface="effacerDossier" @selection="selectDossier">
+            <template #action>
+              <button type="button" class="btn btn-primary" :disabled="chargementDossier || !dossierSearchQuery.trim()"
+                @click="chargerDossierSaisi">
+                {{ chargementDossier ? 'Chargement…' : 'Charger' }}
+              </button>
+            </template>
+          </AutocompleteRecherche>
+        </div>
+        <p class="mvt-search-help">Quelques chiffres affichent des suggestions. Le numéro complet peut aussi être chargé directement.</p>
 
-        <!-- Small Info Box (Petit boite) -->
-        <div v-if="selectedDossier" class="dossier-info-box p-3 rounded-3 border bg-light">
+        <div v-if="selectedDossier" class="dossier-info-box">
           <div class="row g-3 align-items-center">
             <div class="col-md-3">
-              <span class="text-muted small d-block">Numéro Dossier</span>
+              <span class="text-muted small d-block">Numéro de dossier</span>
               <strong class="text-primary fs-5">{{ selectedDossier.numeroDossier }}</strong>
             </div>
             <div class="col-md-3">
               <span class="text-muted small d-block">Client</span>
-              <span class="fw-semibold">{{ selectedDossier.client ? `${selectedDossier.client.cpClient} - ${selectedDossier.client.nom}` : '-' }}</span>
+              <span class="fw-semibold">{{ selectedDossier.client ? ([selectedDossier.client.cpClient, selectedDossier.client.nom].filter(Boolean).join(' - ') || '-') : '-' }}</span>
             </div>
             <div class="col-md-2">
               <span class="text-muted small d-block">Agence</span>
               <span class="fw-semibold">{{ selectedDossier.agence ? selectedDossier.agence.nom : '-' }}</span>
             </div>
             <div class="col-md-2">
-              <span class="text-muted small d-block">Type de Production</span>
+              <span class="text-muted small d-block">Type de production</span>
               <span class="badge bg-secondary">{{ selectedDossier.typeProduction ? selectedDossier.typeProduction.nom : '-' }}</span>
             </div>
             <div class="col-md-2">
-              <span class="text-muted small d-block">Phase / Statut Actuel</span>
+              <span class="text-muted small d-block">Phase / statut actuel</span>
               <div class="d-flex flex-wrap gap-1 mt-1">
                 <span v-if="selectedDossier.phaseDossier" class="badge bg-info text-dark">{{ selectedDossier.phaseDossier.nom }}</span>
                 <span v-if="selectedDossier.statutDossier" class="badge bg-success">{{ selectedDossier.statutDossier.nom }}</span>
+                <span v-if="!selectedDossier.phaseDossier && !selectedDossier.statutDossier">—</span>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- Section 2 : Table des Opérations à effectuer -->
-    <div v-if="selectedDossier" class="card border-0 shadow-sm">
-      <div class="card-header bg-white py-3">
-        <h5 class="fw-bold mb-0 text-dark">Opérations du type de produit ({{ selectedDossier.typeProduction?.nom }})</h5>
+    <section v-if="!selectedDossier" class="mvt-empty-state card" aria-label="Étapes de création d'un mouvement">
+      <div class="card-body p-4 p-md-5">
+        <div class="mvt-empty-icon">03 ÉTAPES</div>
+        <h2>Le suivi du dossier commence ici</h2>
+        <p>Entrez le numéro d’un dossier pour afficher son avancement et les mouvements disponibles.</p>
+        <div class="mvt-empty-steps">
+          <div><span>01</span><strong>Rechercher</strong><small>Saisir ou sélectionner le numéro de dossier.</small></div>
+          <div><span>02</span><strong>Consulter</strong><small>Vérifier les opérations effectuées et celles à venir.</small></div>
+          <div><span>03</span><strong>Enregistrer</strong><small>Renseigner la date et valider le mouvement.</small></div>
+        </div>
+      </div>
+    </section>
+
+    <section v-if="selectedDossier && !loadingOperations && !operationsError" class="mvt-overview" aria-label="Avancement du dossier">
+      <div class="mvt-progress-card card">
+        <div class="card-body p-4">
+          <div class="d-flex justify-content-between align-items-start gap-3">
+            <div><span class="mvt-overline">AVANCEMENT</span><h2>Progression des opérations</h2></div>
+            <strong class="mvt-progress-value">{{ progression }} %</strong>
+          </div>
+          <div class="progress mvt-progress-bar" role="progressbar" :aria-valuenow="progression" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar" :style="{ width: progression + '%' }"></div>
+          </div>
+          <p class="mb-0 text-muted small">{{ operationsTerminees }} opération(s) terminée(s) sur {{ operationsStatus.length }}.</p>
+        </div>
+      </div>
+      <div class="mvt-stat-card card"><div class="card-body p-4"><span class="mvt-overline">À TRAITER</span><strong>{{ operationsRestantes }}</strong><small>opération(s) restante(s)</small></div></div>
+      <div class="mvt-stat-card card"><div class="card-body p-4"><span class="mvt-overline">EN ATTENTE</span><strong>{{ operationsBloquees }}</strong><small>opération(s) bloquée(s)</small></div></div>
+      <div class="mvt-next-card card"><div class="card-body p-4"><span class="mvt-overline">PROCHAINE ÉTAPE</span><strong>{{ prochaineOperation?.operation?.description || (operationsRestantes ? 'Opérations en attente de prérequis' : operationsStatus.length ? 'Toutes les opérations sont terminées' : 'Aucune opération configurée') }}</strong><small v-if="prochaineOperation">Prête à être enregistrée</small></div></div>
+    </section>
+
+    <div v-if="selectedDossier" class="card mvt-operations-card">
+      <div class="card-header bg-white py-3 px-4">
+        <div class="mvt-section-heading">
+          <span class="mvt-section-heading__number">02</span>
+          <div><h2>Opérations du dossier</h2><p>{{ selectedDossier.typeProduction?.nom || 'Type de production non renseigné' }} · {{ operationsStatus.length }} opération(s)</p></div>
+        </div>
       </div>
       <div class="card-body p-0">
         <div v-if="loadingOperations" class="text-center py-5">
@@ -76,6 +116,10 @@
           <p class="text-muted small mt-2">Chargement des opérations...</p>
         </div>
 
+        <div v-else-if="operationsError" class="mvt-no-operations text-danger">{{ operationsError }}</div>
+        <div v-else-if="operationsStatus.length === 0" class="mvt-no-operations">
+          Aucune opération n’est configurée pour le type de production de ce dossier.
+        </div>
         <div v-else class="table-responsive">
           <table class="table table-hover align-middle mb-0">
             <thead class="bg-light small text-uppercase">
@@ -93,7 +137,7 @@
                 <td class="ps-4">
                   <div class="fw-semibold">{{ opDto.operation.description }}</div>
                   <small v-if="opDto.estBloque" class="text-danger fw-semibold">
-                    🔒 Requis : réaliser d'abord "{{ opDto.operationPrecedenteObligatoire?.description }}"
+                    Prérequis : réaliser d’abord « {{ opDto.operationPrecedenteObligatoire?.description }} »
                   </small>
                 </td>
 
@@ -113,7 +157,7 @@
 
                 <td style="min-width: 180px;">
                   <span v-if="opDto.estFait" class="text-success fw-bold small">
-                    ✓ {{ formatDate(opDto.dateMvt) }}
+                    {{ formatDate(opDto.dateMvt) }}
                   </span>
                   <input
                     v-else
@@ -131,7 +175,7 @@
                       :disabled="opDto.estBloque"
                       @click="openDeclarationModal(opDto)"
                     >
-                      📜 {{ opDto.declaration ? 'Voir/Modifier Déclaration' : 'Remplir Déclaration' }}
+                      {{ opDto.declaration ? 'Voir / modifier la déclaration' : 'Remplir la déclaration' }}
                     </button>
                     <span v-if="opDto.declaration" class="badge bg-success small">
                       N° {{ opDto.declaration.numeroDeclaration }}
@@ -147,7 +191,7 @@
                       class="form-control form-control-sm"
                     />
                     <a v-else-if="opDto.document" :href="getFileUrl(opDto.document.cheminFichier)" target="_blank" class="btn btn-link btn-sm p-0">
-                      📎 {{ opDto.document.nomFichier || 'Voir Fichier' }}
+                      {{ opDto.document.nomFichier || 'Voir le fichier' }}
                     </a>
                   </div>
                 </td>
@@ -282,12 +326,15 @@
         </div>
       </div>
     </div>
+      </div>
+    </main>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import Header from '../components/inc/Header.vue'
+import AutocompleteRecherche from '../components/inc/AutocompleteRecherche.vue'
 import DossierService from '../services/DossierService'
 import MvtDossierService from '../services/MvtDossierService'
 import DeclarationService from '../services/DeclarationService'
@@ -296,17 +343,22 @@ import DocumentService from '../services/DocumentService'
 import { useNotification } from '../composables/useNotification'
 import PermissionService, { PORTEE_PROPRE_ECRITURE, ACTION_OT } from '../utils/permission.service'
 
-const router = useRouter()
 const { notifyError, notifySuccess, notifyWarning, confirm } = useNotification()
 const peutAnnuler = PermissionService.verifierPermission(PORTEE_PROPRE_ECRITURE, ACTION_OT)
 
 const dossierSearchQuery = ref('')
-const suggestions = ref([])
 const selectedDossier = ref(null)
+const chargementDossier = ref(false)
 
 const operationsStatus = ref([])
 const loadingOperations = ref(false)
+const operationsError = ref('')
 const movementDates = ref({})
+const operationsTerminees = computed(() => operationsStatus.value.filter(op => op.estFait).length)
+const operationsRestantes = computed(() => operationsStatus.value.length - operationsTerminees.value)
+const operationsBloquees = computed(() => operationsStatus.value.filter(op => !op.estFait && op.estBloque).length)
+const progression = computed(() => operationsStatus.value.length ? Math.round(operationsTerminees.value / operationsStatus.value.length * 100) : 0)
+const prochaineOperation = computed(() => operationsStatus.value.find(op => !op.estFait && !op.estBloque))
 
 function maintenantLocalPourChampDate() {
   const maintenant = new Date()
@@ -341,31 +393,60 @@ const declarationForm = ref({
   description: ''
 })
 
-const onSearchDossier = async () => {
-  if (!dossierSearchQuery.value || dossierSearchQuery.value.length < 2) {
-    suggestions.value = []
-    return
-  }
-  try {
-    const res = await DossierService.searchDossiers(0, 10, 'numeroDossier', 'asc', { numeroDossier: dossierSearchQuery.value })
-    suggestions.value = res.content || []
-  } catch (err) {
-    console.error('Erreur autocomplete dossier:', err)
-  }
+const rechercherDossiers = async (numero, limite = 8) => {
+  const res = await DossierService.searchDossiers(0, limite, 'numeroDossier', 'asc', { numeroDossier: numero })
+  return res.content || []
+}
+
+let operationsRequestId = 0
+
+const effacerDossier = () => {
+  operationsRequestId += 1
+  selectedDossier.value = null
+  operationsStatus.value = []
+  operationsError.value = ''
+  selectedFiles.value = {}
+  movementDates.value = {}
+  loadingOperations.value = false
+}
+
+const onDossierQueryChange = (numero) => {
+  if (selectedDossier.value && String(numero) !== String(selectedDossier.value.numeroDossier)) effacerDossier()
 }
 
 const selectDossier = (dossier) => {
+  effacerDossier()
   selectedDossier.value = dossier
   dossierSearchQuery.value = dossier.numeroDossier
-  suggestions.value = []
   loadOperationsStatus()
+}
+
+const chargerDossierSaisi = async () => {
+  const numero = String(dossierSearchQuery.value || '').trim()
+  if (!numero) return
+  chargementDossier.value = true
+  try {
+    const dossiers = await rechercherDossiers(numero, 10)
+    if (numero !== String(dossierSearchQuery.value || '').trim()) return
+    const dossier = dossiers.find(item => String(item.numeroDossier).trim() === numero)
+    if (dossier) selectDossier(dossier)
+    else notifyWarning('Aucun dossier ne correspond exactement à ce numéro.')
+  } catch (err) {
+    notifyError(err.response?.data?.erreur || 'Impossible de rechercher ce dossier.')
+  } finally {
+    chargementDossier.value = false
+  }
 }
 
 const loadOperationsStatus = async () => {
   if (!selectedDossier.value) return
+  const requestId = ++operationsRequestId
+  const dossierId = selectedDossier.value.id
   loadingOperations.value = true
+  operationsError.value = ''
   try {
-    const res = await MvtDossierService.getOperationsStatusForDossier(selectedDossier.value.id)
+    const res = await MvtDossierService.getOperationsStatusForDossier(dossierId)
+    if (requestId !== operationsRequestId) return
     operationsStatus.value = res || []
 
     // Pre-fill movement dates for uncompleted operations
@@ -378,9 +459,13 @@ const loadOperationsStatus = async () => {
     })
     movementDates.value = dates
   } catch (err) {
-    console.error('Erreur chargement statut opérations:', err)
+    if (requestId === operationsRequestId) {
+      operationsStatus.value = []
+      operationsError.value = err.response?.data?.erreur || 'Impossible de charger les opérations du dossier.'
+      notifyError(operationsError.value)
+    }
   } finally {
-    loadingOperations.value = false
+    if (requestId === operationsRequestId) loadingOperations.value = false
   }
 }
 
@@ -614,10 +699,69 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.mvt-main { margin-left: 260px; min-width: 0; }
 .mvt-create-container {
-  padding: 1.5rem;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 30px 34px 48px;
 }
+.mvt-page-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 28px; }
+.mvt-page-header h1 { margin: 4px 0 6px; color: #1e2a3a; font-size: clamp(1.55rem, 2.3vw, 2rem); font-weight: 700; }
+.mvt-page-header p, .mvt-section-heading p { margin: 0; color: #64748b; }
+.mvt-eyebrow, .mvt-overline { color: #3b6a9c; font-size: .68rem; font-weight: 800; letter-spacing: .11em; }
+.mvt-page-header .btn { flex-shrink: 0; margin-top: 8px; border-color: #cbd5e1; color: #334155; background: #fff; }
+.mvt-search-card, .mvt-empty-state, .mvt-overview .card, .mvt-operations-card {
+  border: 1px solid #e2e6ec; border-radius: 12px; box-shadow: 0 3px 18px rgba(30, 42, 58, .045);
+}
+.mvt-section-heading { display: flex; align-items: center; gap: 13px; }
+.mvt-section-heading__number {
+  display: grid; place-items: center; width: 36px; height: 36px; flex: 0 0 36px;
+  border-radius: 9px; color: #3b6a9c; background: #eaf1f8; font-size: .8rem; font-weight: 800;
+}
+.mvt-section-heading h2 { margin: 0 0 2px; color: #1e2a3a; font-size: 1rem; font-weight: 700; }
+.mvt-section-heading p { font-size: .82rem; }
+.mvt-search-field { max-width: 620px; }
+.mvt-search-field :deep(.form-control) { min-height: 42px; }
+.mvt-search-field :deep(.btn-primary), .mvt-operations-card .btn-primary { background: #3b6a9c; border-color: #3b6a9c; }
+.mvt-search-help { margin: 0; color: #64748b; font-size: .78rem; }
 .dossier-info-box {
-  background-color: #f8f9fa;
+  margin-top: 22px; padding: 18px 20px; border: 1px solid #dbe5ef; border-radius: 10px; background: #f7fafd;
+}
+.dossier-info-box .text-primary { color: #3b6a9c !important; }
+.mvt-empty-state { min-height: 300px; }
+.mvt-empty-state h2 { color: #1e2a3a; font-size: 1.25rem; font-weight: 700; }
+.mvt-empty-state p { max-width: 620px; color: #64748b; }
+.mvt-empty-icon {
+  display: inline-block; margin-bottom: 14px; padding: 8px 11px; border-radius: 7px;
+  background: #eaf1f8; color: #3b6a9c; font-size: .75rem; font-weight: 800; letter-spacing: .08em;
+}
+.mvt-empty-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 30px; }
+.mvt-empty-steps div { display: grid; grid-template-columns: 32px 1fr; column-gap: 10px; align-items: start; }
+.mvt-empty-steps span { grid-row: span 2; color: #3b6a9c; font-size: .78rem; font-weight: 800; }
+.mvt-empty-steps strong { color: #1e2a3a; font-size: .86rem; }
+.mvt-empty-steps small { color: #64748b; }
+.mvt-overview {
+  display: grid; grid-template-columns: minmax(270px, 2fr) repeat(2, minmax(140px, 1fr)) minmax(220px, 1.5fr);
+  gap: 14px; margin-bottom: 22px;
+}
+.mvt-overview h2 { margin: 4px 0 0; font-size: .98rem; font-weight: 700; color: #1e2a3a; }
+.mvt-progress-value { color: #3b6a9c; font-size: 1.25rem; }
+.mvt-progress-bar { height: 8px; margin: 24px 0 12px; background: #e8eef5; }
+.mvt-progress-bar .progress-bar { background: #3b6a9c; }
+.mvt-stat-card strong, .mvt-next-card strong { display: block; margin: 12px 0 3px; color: #1e2a3a; font-size: 1.55rem; line-height: 1.2; }
+.mvt-next-card strong { font-size: .98rem; line-height: 1.4; }
+.mvt-stat-card small, .mvt-next-card small { color: #64748b; }
+.mvt-operations-card { overflow: hidden; }
+.mvt-operations-card .card-header { border-bottom: 1px solid #e2e6ec; }
+.mvt-operations-card thead th { padding-top: 14px; padding-bottom: 14px; color: #526579; font-size: .7rem; letter-spacing: .035em; }
+.mvt-operations-card tbody td { padding-top: 14px; padding-bottom: 14px; }
+.mvt-no-operations { padding: 32px; color: #64748b; text-align: center; }
+@media (max-width: 1250px) { .mvt-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 768px) {
+  .mvt-create-container { padding: 22px 16px 38px; }
+  .mvt-page-header { flex-direction: column; }
+  .mvt-page-header .btn { margin-top: 0; }
+  .mvt-empty-steps { grid-template-columns: 1fr; }
+  .mvt-overview { grid-template-columns: 1fr; }
 }
 </style>

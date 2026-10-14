@@ -11,7 +11,8 @@ import { useNotification } from '../../composables/useNotification'
 const { notifySuccess, notifyError } = useNotification()
 
 const props = defineProps({
-  ordreTransit: { type: Object, default: null }
+  ordreTransit: { type: Object, default: null },
+  compact: { type: Boolean, default: false }
 })
 
 const marchandises = ref([])
@@ -133,12 +134,12 @@ async function supprimer(m) {
 
 <template>
   <div class="card border shadow-sm">
-    <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-2">
-      <h5 class="mb-0  tefw-semiboldxt-dark">Contenu du Transit</h5>
-      <div class="d-flex align-items-center gap-2">
-        <ExportActions :title="`Liste des marchandises — OT ${ordreTransit?.numeroOrdreTransit || ''}`"
+    <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center gap-2 flex-wrap py-2">
+      <h5 class="mb-0 fw-semibold text-dark">Marchandises associées</h5>
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <ExportActions v-if="!compact" :title="`Liste des marchandises — OT ${ordreTransit?.numeroOrdreTransit || ''}`"
           :columns="colonnesExport" :load-rows="lignesExport" :disabled="loading || !marchandises.length" />
-        <button v-if="peutEditer" class="btn btn-primary btn-sm" @click="ouvrirAjout">
+        <button v-if="peutEditer" type="button" class="btn btn-primary btn-sm" @click="ouvrirAjout">
           + Ajouter une marchandise
         </button>
       </div>
@@ -160,8 +161,28 @@ async function supprimer(m) {
 
       <!-- Empty -->
       <div v-else-if="marchandises.length === 0" class="text-center py-5 text-secondary small">
-        Aucune marchandise n'est associée à cet ordre de transit.<br>
-        Cliquez sur le bouton "Ajouter une marchandise" pour commencer.
+        Aucune marchandise n'est associée à cet ordre de transit.
+        <template v-if="peutEditer"><br>Cliquez sur « Ajouter une marchandise » pour commencer.</template>
+      </div>
+
+      <!-- Table -->
+      <div v-else-if="compact" class="list-group list-group-flush">
+        <div v-for="m in marchandises" :key="m.id" class="list-group-item py-3">
+          <div class="fw-semibold text-dark mb-1">{{ m.description }}</div>
+          <div class="small text-secondary">
+            {{ m.quantite }} {{ m.uniteMesure?.nom || 'unité(s)' }}
+            <span v-if="m.marque || m.modele"> · {{ [m.marque, m.modele].filter(Boolean).join(' / ') }}</span>
+          </div>
+          <div v-if="m.poids || m.volume" class="small text-secondary mt-1">
+            <span v-if="m.poids">Poids : {{ m.poids }} kg</span>
+            <span v-if="m.poids && m.volume"> · </span>
+            <span v-if="m.volume">Volume : {{ m.volume }} m³</span>
+          </div>
+          <div v-if="peutEditer" class="d-flex gap-2 mt-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm" @click="ouvrirEdition(m)">Éditer</button>
+            <button type="button" class="btn btn-outline-danger btn-sm" @click="supprimer(m)">Supprimer</button>
+          </div>
+        </div>
       </div>
 
       <!-- Table -->
