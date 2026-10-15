@@ -1,3 +1,15 @@
+Choix des technologies	
+JPA
+Vue.js
+Vite
+Bootstrap 5
+Spring Boot
+REST API
+Choix de langage	
+Java
+Choix de base de données	
+Postgresql
+
 # Technologies utilisées
 
 ## Présentation générale

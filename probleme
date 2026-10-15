@@ -1,0 +1,56 @@
+probleme rencontre:
+    la connexion: pour bien verifier l utilisateur il fallait mettre le code agence dans le champ
+    les permissions: il fallait des superviseurs, des createur, des modificateurs; le but c'est de verifier les autorisatio navec un seul fonction de facon dynamique, alors on a mis des niveau par utilisateur et des niveau requis pour les operations
+    les documents sont toujours ecrit dans l'historique meme si on regarde seulement les dossiers car l'historique est gerer du cote back, alors j'ai mis un parametre boolean ecrire, alors pour tous ce qu il y a visualisation dnas l'app il est false sauf si on regarde directemnt un document
+    les saisie de numero unique peuvent etre erronnee, alors ajout de autocompletion en choix
+    les suppressions, il falait delier l entite a supprmier a tous les table qui lui correspont
+
+bilan de l entreprise:
+    a toi d'analyser ce qui doit etre bilan de l'entreprise
+    analyse bien
+
+bilan personnel:
+    j'ai appris a comprendre le foncitonnement d un nouveau metier: le transit
+    ce stage m'a permis d'entrer dans un monde plus professionel et de repondre a quoi les utilisateurs demandes vraiment
+    opportunite de travailler avec des informaticiens experimentee dans le domaine
+
+extension et evolution de l'app:
+    integrer les autres modules de chaque operation:
+        facturation et comptabilite, transport, ...
+    mise au point sur l'assistant IA local
+
+
+voila la nouvelle lien du projet: [Manda - Google Docs](https://docs.google.com/document/d/11v05QQtSNz5w5-L4DadorfBPd8Wx0eSYvFZbkVm2N3Q/edit?tab=t.0)
+le projet est toujours ici: https://github.com/Manda121/centralisation_dossier_auximad
+il faudrait que tu complete le livre avec ca:
+probleme rencontre:
+    la connexion: pour bien verifier l utilisateur il fallait mettre le code agence dans le champ
+    les permissions: il fallait des superviseurs, des createur, des modificateurs; le but c'est de verifier les autorisatio navec un seul fonction de facon dynamique, alors on a mis des niveau par utilisateur et des niveau requis pour les operations
+    les documents sont toujours ecrit dans l'historique meme si on regarde seulement les dossiers car l'historique est gerer du cote back, alors j'ai mis un parametre boolean ecrire, alors pour tous ce qu il y a visualisation dnas l'app il est false sauf si on regarde directemnt un document
+    les saisie de numero unique peuvent etre erronnee, alors ajout de autocompletion en choix
+    les suppressions, il falait delier l entite a supprmier a tous les table qui lui correspont
+
+bilan de l entreprise:
+    a toi d'analyser ce qui doit etre bilan de l'entreprise
+    analyse bien
+
+bilan personnel:
+    j'ai appris a comprendre le foncitonnement d un nouveau metier: le transit
+    ce stage m'a permis d'entrer dans un monde plus professionel et de repondre a quoi les utilisateurs demandes vraiment
+    opportunite de travailler avec des informaticiens experimentee dans le domaine
+
+extension et evolution de l'app:
+    integrer les autres modules de chaque operation:
+        facturation et comptabilite, transport, ...
+    mise au point sur l'assistant IA local
+
+instructino:
+analyse bien, ecrit comme un humain non un robot, il faut que ce soit vraie et credible aussi pour ne pas eveiller des soupsons qui condiorons a des pose de question.
+
+fait aussi la conclusion
+
+complete directement le document du livre,
+
+cava, mais pour les lister, il faut utiliser un petit titre, comme dans l'affichage des 1.1.1     Présentation des technologies utilisées ou des 1.1.1     Règles de conception structurantes
+
+et pour le bilan de l'entreprise n'hesite pas a utiliser des graph ou des comparaison avec des donnee correct et coherent
