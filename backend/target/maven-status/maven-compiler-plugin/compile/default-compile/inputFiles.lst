@@ -29,6 +29,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\ChatController.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\ClientController.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\ConteneurController.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\DashboardController.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\DeclarationController.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\DemandeInteragenceController.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\DocumentController.java
@@ -145,6 +146,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\Au
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\ClientService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\ConfirmationAnnulationException.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\ConteneurService.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\DashboardService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\DeclarationService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\DemandeInteragenceService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\DocumentService.java

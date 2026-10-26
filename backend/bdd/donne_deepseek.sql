@@ -721,7 +721,7 @@ BEGIN
             (random() < 0.4),
             v_phase_id,
             v_statut_ouvert_id,
-            CURRENT_TIMESTAMP + ((i % 60) || ' days')::interval,
+            '2025-06-01'::timestamp + ((i % 60) || ' days')::interval,
             'Pour compte de ' || i,
             v_pays_origine,
             v_pays_destination,
@@ -730,7 +730,7 @@ BEGIN
             (random() * 1000000)::numeric(10, 2),
             'Antananarivo',
             'Port/Aeroport ' || i,
-            CURRENT_TIMESTAMP + (((i % 120) + 30) || ' days')::interval,
+            '2025-06-01'::timestamp + (((i % 120) + 30) || ' days')::interval,
             'Adresse livraison ' || i,
             v_inconterme_id
         ) RETURNING id INTO v_dossier_id;
@@ -768,7 +768,7 @@ BEGIN
         SELECT
             d.id_dossier,
             d.id_type_document,
-            CURRENT_TIMESTAMP - ((i % 30) || ' days')::interval
+            '2026-08-15'::timestamp - ((i % 30) || ' days')::interval
         FROM document d
         WHERE d.id = v_document_ids[1 + floor(random() * array_length(v_document_ids, 1))::int]
         LIMIT 1;
@@ -806,14 +806,14 @@ BEGIN
                 v_compagnie_id,
                 'BL-' || lpad(i::text, 6, '0'),
                 v_navire_id,
-                CURRENT_TIMESTAMP - ((i % 20) || ' days')::interval,
+                '2026-07-20'::timestamp - ((i % 20) || ' days')::interval,
                 'Port de Toamasina',
                 v_port_emb,
                 v_port_deb,
                 'Scan ' || i,
-                CURRENT_TIMESTAMP - ((i % 20) || ' days')::interval,
-                CURRENT_TIMESTAMP + ((i % 20) || ' days')::interval,
-                CURRENT_TIMESTAMP + ((i % 25) || ' days')::interval
+                '2026-07-20'::timestamp - ((i % 20) || ' days')::interval,
+                '2026-08-01'::timestamp + ((i % 20) || ' days')::interval,
+                '2026-08-10'::timestamp + ((i % 25) || ' days')::interval
             ) RETURNING id INTO v_expedition_id;
         ELSE
             -- Aérien
@@ -834,14 +834,14 @@ BEGIN
                 v_compagnie_id,
                 'VOL-' || lpad(i::text, 6, '0'),
                 'LTA-' || lpad(i::text, 6, '0'),
-                CURRENT_TIMESTAMP - ((i % 15) || ' days')::interval,
+                '2026-07-25'::timestamp - ((i % 15) || ' days')::interval,
                 'Aeroport Ivato',
                 v_aeroport_emb,
                 v_aeroport_deb,
                 'Scan ' || i,
-                CURRENT_TIMESTAMP - ((i % 20) || ' days')::interval,
-                CURRENT_TIMESTAMP + ((i % 20) || ' days')::interval,
-                CURRENT_TIMESTAMP + ((i % 25) || ' days')::interval
+                '2026-07-25'::timestamp - ((i % 20) || ' days')::interval,
+                '2026-08-05'::timestamp + ((i % 20) || ' days')::interval,
+                '2026-08-15'::timestamp + ((i % 25) || ' days')::interval
             ) RETURNING id INTO v_expedition_id;
         END IF;
 
@@ -930,7 +930,7 @@ BEGIN
         VALUES (
             v_dossier_ids[1 + floor(random() * array_length(v_dossier_ids, 1))::int],
             'DEC-' || lpad(i::text, 8, '0'),
-            CURRENT_TIMESTAMP - ((i % 30) || ' days')::interval,
+            '2026-09-01'::timestamp - ((i % 30) || ' days')::interval,
             v_bureau_ids[1 + floor(random() * array_length(v_bureau_ids, 1))::int],
             v_type_declaration_ids[1 + floor(random() * array_length(v_type_declaration_ids, 1))::int],
             'Declaration ' || i
@@ -943,7 +943,7 @@ BEGIN
         VALUES (
             (SELECT id FROM utilisateur WHERE nom_utilisateur = 'user' || i),
             i,
-            CURRENT_TIMESTAMP - ((i || ' days')::interval),
+            '2026-09-15'::timestamp - ((i || ' days')::interval),
             15
         )
         ON CONFLICT (id_utilisateur) DO NOTHING;
