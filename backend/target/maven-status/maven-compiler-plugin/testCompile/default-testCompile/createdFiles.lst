@@ -1,0 +1,10 @@
+com\auximad\service\DocumentObligatoireMvtServiceTest.class
+com\auximad\service\DossierCreationRulesTest.class
+com\auximad\service\MouvementDocumentsRulesTest.class
+com\auximad\service\SuppressionServicePostgresTest.class
+com\auximad\config\AuditInterceptorTest.class
+com\auximad\service\DossierWorkflowServiceTest.class
+com\auximad\service\MvtDossierSearchDatesTest.class
+com\auximad\controller\DossierControllerFiltersTest.class
+com\auximad\repository\DossierFiltersPostgresTest.class
+com\auximad\service\OrdreTransitExpeditionTest.class

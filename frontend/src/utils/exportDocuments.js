@@ -84,7 +84,8 @@ const styleListe = `
   body { margin: 0; color: #111; font-family: Arial, sans-serif; }
   .export-sheet { width: 100%; box-sizing: border-box; padding: 8px; background: white; }
   .export-heading { display:flex; justify-content:space-between; align-items:end; margin-bottom:14px; }
-  .export-brand { font-size:20px; font-weight:700; letter-spacing:5px; }
+  .export-brand { display:inline-flex; align-items:center; gap:8px; font-size:20px; font-weight:700; letter-spacing:5px; }
+  .export-brand img { width:28px; height:28px; object-fit:contain; }
   .export-date { font-size:11px; }
   .export-title { border:1px solid #222; background:#e8ebf0; padding:7px; text-align:center; font-size:17px; font-weight:700; }
   .export-table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:10px; }
@@ -97,7 +98,7 @@ const styleListe = `
 export function htmlListe(titre, colonnes, lignes) {
   const donnees = tableauDonnees(colonnes, lignes)
   const date = new Date().toLocaleDateString('fr-FR')
-  return `<div class="export-sheet"><div class="export-heading"><span class="export-brand">AUXIMAD</span><span class="export-date">Édité le ${echapperHtml(date)}</span></div><div class="export-title">${echapperHtml(titre)}</div><table class="export-table"><thead><tr>${donnees.titres.map(valeur => `<th>${echapperHtml(valeur)}</th>`).join('')}</tr></thead><tbody>${donnees.cellules.map(ligne => `<tr>${ligne.map(valeur => `<td>${echapperHtml(valeur)}</td>`).join('')}</tr>`).join('')}</tbody></table><div class="export-footer">${lignes.length} résultat(s)</div></div>`
+  return `<div class="export-sheet"><div class="export-heading"><span class="export-brand"><img src="/logo/1000130987.webp" alt="">AUXIMAD</span><span class="export-date">Édité le ${echapperHtml(date)}</span></div><div class="export-title">${echapperHtml(titre)}</div><table class="export-table"><thead><tr>${donnees.titres.map(valeur => `<th>${echapperHtml(valeur)}</th>`).join('')}</tr></thead><tbody>${donnees.cellules.map(ligne => `<tr>${ligne.map(valeur => `<td>${echapperHtml(valeur)}</td>`).join('')}</tr>`).join('')}</tbody></table><div class="export-footer">${lignes.length} résultat(s)</div></div>`
 }
 
 export function ouvrirFenetreImpression() {
@@ -113,7 +114,13 @@ export function imprimerHtml(fenetre, titre, html, style = styleListe) {
   fenetre.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${echapperHtml(titre)}</title><style>${style}</style></head><body>${html}</body></html>`)
   fenetre.document.close()
   fenetre.focus()
-  setTimeout(() => { if (!fenetre.closed) fenetre.print() }, 350)
+  const images = [...fenetre.document.images]
+  Promise.all(images.map(img => img.complete ? Promise.resolve() : new Promise(resolve => {
+    img.addEventListener('load', resolve, { once: true })
+    img.addEventListener('error', resolve, { once: true })
+  }))).then(() => {
+    setTimeout(() => { if (!fenetre.closed) fenetre.print() }, 150)
+  })
 }
 
 export async function exporterPdfHtml(titre, html, style = styleListe, orientation = 'landscape') {

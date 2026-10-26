@@ -6,7 +6,7 @@ import LoginForm from '../components/LoginForm.vue'
   <div class="login-page">
     <!-- Image / visuel à gauche (75 %) -->
     <div class="login-page__image">
-      <img src="../../public/images/still-life-documents-stack.jpg" alt="AUXIMAD" class="login-page__img" />
+      <img src="/images/login.jpg" alt="Transport maritime, aérien et routier" class="login-page__img" />
     </div>
 
     <!-- Formulaire à droite (25 %) -->

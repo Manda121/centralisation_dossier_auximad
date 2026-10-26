@@ -1,47 +1,42 @@
 <template>
   <div class="admin-op-container">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="operation-page-header">
       <div>
-        <h3 class="fw-bold text-dark mb-1">Administration - Opérations Dossier</h3>
-        <p class="text-muted small mb-0">Configuration des étapes, phases, et statuts par type de production</p>
+        <span class="operation-page-header__eyebrow">RÉFÉRENTIEL MÉTIER</span>
+        <h2>Opérations de dossier</h2>
+        <p>Organisez les étapes, les phases et les statuts par type de production.</p>
       </div>
-      <div class="d-flex gap-2">
+      <div class="operation-page-header__actions">
         <ExportActions :title="`Opérations dossier — ${typesProduction.find(tp => tp.id === activeTypeProductionId)?.nom || ''}`"
           :columns="colonnesExport" :load-rows="lignesExportOperations" :disabled="loading || !currentOperations.length" />
-        <button v-if="selectedOpIds.length > 0" class="btn btn-danger btn-sm d-flex align-items-center gap-1 shadow-sm" @click="deleteBatch">
-          🗑️ Supprimer en masse ({{ selectedOpIds.length }})
+        <button v-if="selectedOpIds.length > 0" type="button" class="btn btn-outline-danger btn-sm" @click="deleteBatch">
+          Supprimer la sélection ({{ selectedOpIds.length }})
         </button>
-        <button class="btn btn-primary btn-sm d-flex align-items-center gap-1 shadow-sm" @click="openCreateModal">
-          ➕ Ajouter une Opération
+        <button type="button" class="btn btn-primary btn-sm" @click="openCreateModal">
+          + Ajouter une opération
         </button>
       </div>
     </div>
 
-    <!-- Main Layout with Fixed Right Sidebar -->
-    <div class="row g-4">
-      <!-- Left / Center Content: Tabs by Production Type & Matrix Table -->
-      <div class="col-lg-9 col-md-8">
-        <!-- Tabs for Product Types -->
-        <ul class="nav nav-tabs nav-fill mb-3 bg-white p-2 rounded shadow-sm">
-          <li v-for="tp in typesProduction" :key="tp.id" class="nav-item">
-            <button
-              class="nav-link text-nowrap fw-semibold"
-              :class="{ active: activeTypeProductionId === tp.id }"
-              @click="switchTypeProduction(tp.id)"
-            >
-              📦 {{ tp.nom }}
-            </button>
-          </li>
-        </ul>
+    <div class="row g-3">
+      <div class="col-xl-9">
+        <div class="production-tabs" role="tablist" aria-label="Type de production">
+          <button v-for="tp in typesProduction" :key="tp.id" type="button" role="tab"
+            class="production-tabs__item" :class="{ 'production-tabs__item--active': activeTypeProductionId === tp.id }"
+            :aria-selected="activeTypeProductionId === tp.id"
+            @click="switchTypeProduction(tp.id)">
+            {{ tp.nom }}<span v-if="tp.modeTransport?.nom" class="production-tabs__mode"> · {{ tp.modeTransport.nom }}</span>
+          </button>
+        </div>
 
-        <!-- Operations Matrix Table -->
-        <div class="card border-0 shadow-sm">
-          <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-            <h6 class="fw-bold mb-0 text-secondary">
-              Sequence des Opérations (Glisser-Déposer pour réordonner ou affecter Phase/Statut)
-            </h6>
-            <button class="btn btn-outline-success btn-sm py-0" @click="saveReorder" :disabled="!isOrderChanged">
-              💾 Enregistrer l'ordre
+        <div class="card operation-table-card">
+          <div class="card-header bg-white d-flex justify-content-between align-items-center gap-3 flex-wrap">
+            <div>
+              <h3 class="operation-table-card__title">Séquence des opérations</h3>
+              <p class="operation-table-card__hint">{{ currentOperations.length }} opération(s) · Glissez les lignes pour changer leur ordre.</p>
+            </div>
+            <button type="button" class="btn btn-outline-primary btn-sm" @click="saveReorder" :disabled="!isOrderChanged">
+              Enregistrer l’ordre
             </button>
           </div>
           <div class="card-body p-0">
@@ -61,9 +56,9 @@
                       <input type="checkbox" class="form-check-input" :checked="isAllSelected" @change="toggleSelectAll" />
                     </th>
                     <th style="width: 30px;">#</th>
-                    <th>Description Opération</th>
-                    <th>Phase Déposée</th>
-                    <th>Statut Déposé</th>
+                    <th>Opération</th>
+                    <th>Phase</th>
+                    <th>Statut</th>
                     <th>Obligatoire</th>
                     <th class="pe-3 text-end">Actions</th>
                   </tr>
@@ -83,7 +78,7 @@
                       <input type="checkbox" class="form-check-input" :value="op.id" v-model="selectedOpIds" />
                     </td>
                     <td class="text-muted small cursor-move" title="Glisser pour réordonner">
-                      ☰ {{ index + 1 }}
+                      <span class="operation-drag-handle" aria-hidden="true">⋮⋮</span> {{ index + 1 }}
                     </td>
                     <td class="fw-semibold">
                       <span class="d-block">{{ op.description }}</span>
@@ -96,12 +91,12 @@
                       class="drop-zone p-2 border-dashed rounded"
                       :class="{'bg-info-subtle': dragOverOpId === op.id}"
                     >
-                      <div v-if="op.phaseDossier" class="d-flex align-items-center justify-content-between badge bg-info text-dark p-2 w-100">
-                        <span>🔷 {{ op.phaseDossier.nom }}</span>
-                        <button class="btn-close btn-close-white ms-1" style="font-size: 0.6rem;" @click.stop="removePhase(op)"></button>
+                      <div v-if="op.phaseDossier" class="operation-assignment operation-assignment--phase">
+                        <span>{{ op.phaseDossier.nom }}</span>
+                        <button type="button" class="operation-assignment__remove" :aria-label="'Retirer la phase ' + op.phaseDossier.nom" @click.stop="removePhase(op)">×</button>
                       </div>
                       <div v-else class="text-muted small text-center py-1">
-                        ➕ Déposer une Phase ici
+                        Déposer une phase
                       </div>
                     </td>
 
@@ -112,12 +107,12 @@
                       class="drop-zone p-2 border-dashed rounded"
                       :class="{'bg-success-subtle': dragOverOpId === op.id}"
                     >
-                      <div v-if="op.statutDossier" class="d-flex align-items-center justify-content-between badge bg-success p-2 w-100">
-                        <span>🟢 {{ op.statutDossier.nom }}</span>
-                        <button class="btn-close btn-close-white ms-1" style="font-size: 0.6rem;" @click.stop="removeStatut(op)"></button>
+                      <div v-if="op.statutDossier" class="operation-assignment operation-assignment--status">
+                        <span>{{ op.statutDossier.nom }}</span>
+                        <button type="button" class="operation-assignment__remove" :aria-label="'Retirer le statut ' + op.statutDossier.nom" @click.stop="removeStatut(op)">×</button>
                       </div>
                       <div v-else class="text-muted small text-center py-1">
-                        ➕ Déposer un Statut ici
+                        Déposer un statut
                       </div>
                     </td>
 
@@ -131,8 +126,8 @@
                     </td>
 
                     <td class="pe-3 text-end">
-                      <button class="btn btn-link text-primary p-0 me-2" @click="editOp(op)" title="Modifier">✏️</button>
-                      <button class="btn btn-link text-danger p-0" @click="deleteSingleOp(op.id)" title="Supprimer">🗑️</button>
+                      <button type="button" class="btn btn-link btn-sm text-primary p-0 me-2" @click="editOp(op)">Modifier</button>
+                      <button type="button" class="btn btn-link btn-sm text-danger p-0" @click="deleteSingleOp(op.id)">Supprimer</button>
                     </td>
                   </tr>
                 </tbody>
@@ -142,44 +137,41 @@
         </div>
       </div>
 
-      <!-- Right Fixed Sidebar Box (Boîte fixe ne bougeant pas au scroll) -->
-      <div class="col-lg-3 col-md-4">
-        <div class="fixed-sidebar-box p-3 bg-white rounded shadow-sm border">
-          <h6 class="fw-bold text-uppercase text-secondary fs-7 mb-3 d-flex align-items-center gap-1">
-            <span>🎯 Boîte à Outils (Drag & Drop)</span>
-          </h6>
-          <p class="text-muted extra-small mb-3">Glissez les éléments ci-dessous vers les cases du tableau pour les assigner aux opérations.</p>
+      <div class="col-xl-3">
+        <div class="fixed-sidebar-box">
+          <h3 class="operation-toolbox__title">Affectations</h3>
+          <p class="operation-toolbox__hint">Glissez une phase ou un statut vers une opération.</p>
 
           <!-- Draggable Phases -->
           <div class="mb-4">
-            <h6 class="fw-semibold text-info small border-bottom pb-1 mb-2">Phases de Dossier</h6>
-            <div class="d-flex flex-column gap-2" style="max-height: 220px; overflow-y: auto;">
+            <h4 class="operation-toolbox__section-title">Phases du dossier</h4>
+            <div class="d-flex flex-column gap-2 operation-toolbox__list">
               <div
                 v-for="phase in phases"
                 :key="phase.id"
                 draggable="true"
                 @dragstart="onDragStartPhase($event, phase)"
-                class="badge bg-info text-dark p-2 d-flex align-items-center gap-2 cursor-grab shadow-sm border"
+                class="operation-toolbox__item cursor-grab"
               >
-                <span>🖐️</span>
-                <span class="fw-bold">{{ phase.nom }}</span>
+                <span class="operation-toolbox__grip" aria-hidden="true">⋮⋮</span>
+                <span>{{ phase.nom }}</span>
               </div>
             </div>
           </div>
 
           <!-- Draggable Statuts -->
           <div>
-            <h6 class="fw-semibold text-success small border-bottom pb-1 mb-2">Statuts de Dossier</h6>
-            <div class="d-flex flex-column gap-2" style="max-height: 250px; overflow-y: auto;">
+            <h4 class="operation-toolbox__section-title">Statuts du dossier</h4>
+            <div class="d-flex flex-column gap-2 operation-toolbox__list">
               <div
                 v-for="statut in statuts"
                 :key="statut.id"
                 draggable="true"
                 @dragstart="onDragStartStatut($event, statut)"
-                class="badge bg-success text-white p-2 d-flex align-items-center gap-2 cursor-grab shadow-sm border"
+                class="operation-toolbox__item cursor-grab"
               >
-                <span>🖐️</span>
-                <span class="fw-bold">{{ statut.nom }}</span>
+                <span class="operation-toolbox__grip" aria-hidden="true">⋮⋮</span>
+                <span>{{ statut.nom }}</span>
               </div>
             </div>
           </div>
@@ -191,9 +183,9 @@
     <div v-if="showOpModal" class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
-          <div class="modal-header bg-dark text-white">
+          <div class="modal-header bg-white">
             <h5 class="modal-title fw-bold">{{ opForm.id ? 'Modifier l\'Opération' : 'Nouvelle Opération' }}</h5>
-            <button type="button" class="btn-close btn-close-white" @click="showOpModal = false"></button>
+            <button type="button" class="btn-close" aria-label="Fermer" @click="showOpModal = false"></button>
           </div>
           <div class="modal-body p-4">
             <div class="mb-3">
@@ -208,7 +200,7 @@
             </div>
             <div class="row g-3 mb-3">
               <div class="col-md-6">
-                <label class="form-label small fw-bold">Phase Associeé</label>
+                <label class="form-label small fw-bold">Phase associée</label>
                 <select v-model="opForm.idPhase" class="form-select">
                   <option :value="null">Aucune phase</option>
                   <option v-for="p in phases" :key="p.id" :value="p.id">{{ p.nom }}</option>
@@ -498,12 +490,179 @@ onMounted(() => {
 
 <style scoped>
 .admin-op-container {
-  padding: 1.5rem;
+  min-width: 0;
+}
+.operation-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+.operation-page-header__eyebrow {
+  display: block;
+  margin-bottom: 5px;
+  color: #3b6a9c;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+}
+.operation-page-header h2 {
+  margin: 0 0 5px;
+  color: #1e2a3a;
+  font-size: 1.45rem;
+  font-weight: 700;
+}
+.operation-page-header p {
+  margin: 0;
+  color: #5e6f88;
+  font-size: 0.86rem;
+}
+.operation-page-header__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.production-tabs {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 6px;
+  margin-bottom: 15px;
+  background: #fff;
+  border: 1px solid #e2e6ec;
+  border-radius: 10px;
+}
+.production-tabs__item {
+  flex: none;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: #5e6f88;
+  font-size: 0.79rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.production-tabs__item:hover,
+.production-tabs__item:focus-visible {
+  background: #f2f4f8;
+  color: #1e2a3a;
+}
+.production-tabs__item--active {
+  background: #e6edf6;
+  color: #244d73;
+  border-color: #d4e1ef;
+}
+.production-tabs__mode {
+  font-weight: 400;
+}
+.operation-table-card,
+.fixed-sidebar-box {
+  border: 1px solid #e2e6ec;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(30, 42, 58, 0.035);
+}
+.operation-table-card .card-header {
+  padding: 17px 18px;
+  border-bottom: 1px solid #e2e6ec;
+}
+.operation-table-card__title,
+.operation-toolbox__title {
+  margin: 0 0 4px;
+  color: #1e2a3a;
+  font-size: 0.96rem;
+  font-weight: 700;
+}
+.operation-table-card__hint,
+.operation-toolbox__hint {
+  margin: 0;
+  color: #5e6f88;
+  font-size: 0.77rem;
+}
+.operation-table-card table {
+  min-width: 800px;
+  font-size: 0.8rem;
+}
+.operation-table-card th {
+  color: #5e6f88;
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+.operation-drag-handle,
+.operation-toolbox__grip {
+  margin-right: 6px;
+  color: #8a9aa8;
+  letter-spacing: -2px;
+}
+.operation-assignment {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+.operation-assignment--phase {
+  color: #2c5f8a;
+  background: #e6edf6;
+}
+.operation-assignment--status {
+  color: #2b6d50;
+  background: #e8f4ed;
+}
+.operation-assignment__remove {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 1rem;
+  line-height: 1;
 }
 .fixed-sidebar-box {
   position: sticky;
-  top: 80px;
-  z-index: 100;
+  top: 24px;
+  z-index: 1;
+  padding: 18px;
+}
+.operation-toolbox__hint {
+  margin-bottom: 19px;
+  line-height: 1.5;
+}
+.operation-toolbox__section-title {
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e2e6ec;
+  color: #5e6f88;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+.operation-toolbox__list {
+  max-height: 225px;
+  overflow-y: auto;
+}
+.operation-toolbox__item {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid #e2e6ec;
+  border-radius: 7px;
+  background: #f9fafc;
+  color: #1e2a3a;
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: normal;
+}
+.operation-toolbox__item:hover {
+  border-color: #b7c8da;
+  background: #f2f6fb;
 }
 .cursor-grab {
   cursor: grab;
@@ -512,12 +671,14 @@ onMounted(() => {
   cursor: move;
 }
 .border-dashed {
-  border: 2px dashed #dee2e6;
+  border: 1px dashed #c7d1de;
 }
 .drop-zone {
-  min-height: 48px;
+  min-height: 46px;
 }
-.extra-small {
-  font-size: 0.7rem;
+@media (max-width: 1199px) {
+  .fixed-sidebar-box {
+    position: static;
+  }
 }
 </style>

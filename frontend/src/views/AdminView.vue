@@ -2,71 +2,106 @@
     <div class="d-flex min-vh-100 bg-light">
         <Header />
 
-        <main class="flex-grow-1" style="margin-left: 260px; min-height: 100vh;">
-            <div class="admin-topbar">
+        <main class="admin-main flex-grow-1">
+            <header class="admin-topbar">
                 <div class="admin-topbar__inner">
                     <div class="admin-topbar__title">
-                        <span class="admin-topbar__icon">⚙️</span>
+                        <span class="admin-topbar__icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" />
+                                <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.86 1.86-.06-.06A1.7 1.7 0 0 0 16 18.4a1.7 1.7 0 0 0-1 1.57V20h-2.64v-.09a1.7 1.7 0 0 0-1-1.57 1.7 1.7 0 0 0-1.88.34l-.06.06-1.86-1.86.06-.06A1.7 1.7 0 0 0 7.96 15a1.7 1.7 0 0 0-1.57-1H6.3v-2.64h.09a1.7 1.7 0 0 0 1.57-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06 1.86-1.86.06.06A1.7 1.7 0 0 0 11.36 7a1.7 1.7 0 0 0 1-1.57V5.3H15v.09A1.7 1.7 0 0 0 16 6.96a1.7 1.7 0 0 0 1.88-.34l.06-.06 1.86 1.86-.06.06a1.7 1.7 0 0 0-.34 1.88 1.7 1.7 0 0 0 1.57 1h.09V14h-.09A1.7 1.7 0 0 0 19.4 15Z" transform="translate(-1 -1)" />
+                            </svg>
+                        </span>
                         <div>
-                            <h1 class="admin-topbar__heading">Administration</h1>
-                            <p class="admin-topbar__sub">Panneau de configuration système — Niveau 10 000</p>
+                            <span class="admin-topbar__eyebrow">ADMINISTRATION</span>
+                            <h1 class="admin-topbar__heading">Configuration système</h1>
+                            <p class="admin-topbar__sub">Gérez les accès, les référentiels et les opérations.</p>
                         </div>
                     </div>
                     <div class="admin-topbar__badge">
-                        <span class="badge-admin">🔑 Administrateur</span>
+                        <span class="badge-admin">Espace administrateur</span>
                     </div>
                 </div>
-            </div>
+            </header>
 
             <div class="admin-body">
                 <div class="admin-layout">
-                    <!-- Sidebar de navigation admin -->
                     <aside class="admin-sidebar">
-                        <div v-for="section in sections" :key="section.id" class="admin-sidebar__section">
-                            <div class="admin-sidebar__section-title">{{ section.label }}</div>
-                            <button v-for="item in section.items" :key="item.key" class="admin-sidebar__item"
-                                :class="{ 'admin-sidebar__item--active': activeKey === item.key }"
-                                @click="setActive(item)">
-                                <span class="admin-sidebar__item-icon">{{ item.icon }}</span>
-                                <span class="admin-sidebar__item-label">{{ item.label }}</span>
-                            </button>
+                        <div class="admin-sidebar__intro">
+                            <span>Paramètres</span>
+                            <span class="admin-sidebar__count">{{ totalParametres }}</span>
                         </div>
+                        <label for="admin-menu-search" class="visually-hidden">Rechercher un paramètre</label>
+                        <input id="admin-menu-search" v-model="menuSearch" type="search"
+                            class="admin-sidebar__search" placeholder="Rechercher un paramètre..." />
+                        <nav aria-label="Sections de configuration">
+                            <div v-for="section in filteredSections" :key="section.id" class="admin-sidebar__section">
+                                <div class="admin-sidebar__section-title">{{ section.label }}</div>
+                                <button v-for="item in section.items" :key="item.key" type="button"
+                                    class="admin-sidebar__item"
+                                    :class="{ 'admin-sidebar__item--active': activeKey === item.key }"
+                                    :aria-current="activeKey === item.key ? 'page' : undefined"
+                                    @click="setActive(item)">
+                                    <span class="admin-sidebar__item-icon" aria-hidden="true">{{ item.label.slice(0, 2).toUpperCase() }}</span>
+                                    <span class="admin-sidebar__item-label">{{ item.label }}</span>
+                                </button>
+                            </div>
+                            <p v-if="filteredSections.length === 0" class="admin-sidebar__empty">
+                                Aucun paramètre correspondant.
+                            </p>
+                        </nav>
                     </aside>
 
-                    <!-- Zone principale CRUD -->
                     <section class="admin-content">
                         <OperationDossierAdminView v-if="activeKey === 'operationsDossier'" />
 
                         <div v-else-if="!activeConfig" class="admin-welcome">
-                            <div class="admin-welcome__icon">⚙️</div>
-                            <h2>Sélectionnez une configuration</h2>
-                            <p>Choisissez une section dans le menu de gauche pour commencer la configuration.</p>
+                            <div class="admin-welcome__intro">
+                                <span class="admin-eyebrow">VUE D’ENSEMBLE</span>
+                                <h2>Paramètres de l’application</h2>
+                                <p>Sélectionnez une rubrique pour gérer les données de référence et les accès.</p>
+                            </div>
+                            <div class="admin-welcome__grid">
+                                <button v-for="(section, index) in sections" :key="section.id" type="button"
+                                    class="admin-welcome__card" @click="setActive(section.items[0])">
+                                    <span class="admin-welcome__number">{{ String(index + 1).padStart(2, '0') }}</span>
+                                    <span class="admin-welcome__card-title">{{ section.label }}</span>
+                                    <span class="admin-welcome__card-meta">{{ section.items.length }} paramètres <span aria-hidden="true">→</span></span>
+                                </button>
+                            </div>
                         </div>
 
                         <template v-else>
                             <!-- En-tête de la section active -->
                             <div class="crud-header">
-                                <div>
-                                    <h2 class="crud-header__title">
-                                        <span>{{ activeConfig.icon }}</span> {{ activeConfig.label }}
-                                    </h2>
+                                <div class="crud-header__copy">
+                                    <span class="admin-eyebrow">{{ activeSectionLabel }}</span>
+                                    <h2 class="crud-header__title">{{ activeConfig.label }}</h2>
                                     <p class="crud-header__desc">{{ activeConfig.description }}</p>
                                 </div>
-                                <ExportActions :title="activeConfig.label" :columns="activeConfig.columns"
-                                    :load-rows="lignesExportAdmin" :disabled="loading || !rows.length" />
-                                <button class="btn-add" @click="openCreate">
-                                    <span>＋</span> Nouveau
-                                </button>
+                                <div class="crud-header__actions">
+                                    <ExportActions :title="activeConfig.label" :columns="activeConfig.columns"
+                                        :load-rows="lignesExportAdmin" :disabled="loading || !rows.length" />
+                                    <button v-if="!activeConfig.readOnly && activeKey !== 'autorisations'"
+                                        type="button" class="btn-add" @click="openCreate">
+                                        <span aria-hidden="true">＋</span> Nouveau
+                                    </button>
+                                </div>
                             </div>
 
                             <!-- Table de données -->
                             <div class="crud-card">
+                                <div class="crud-card__summary">
+                                    <span>Enregistrements</span>
+                                    <strong>{{ rows.length }}</strong>
+                                </div>
                                 <div v-if="loading" class="crud-loading">
                                     <div class="spinner"></div>
                                     Chargement...
                                 </div>
                                 <div v-else-if="error" class="crud-error">
-                                    ❌ {{ error }}
+                                    {{ error }}
                                 </div>
                                 <div v-else-if="rows.length === 0" class="crud-empty">
                                     Aucun enregistrement trouvé.
@@ -93,19 +128,20 @@
                                                     <span v-else>{{ getCellValue(row, col) || '—' }}</span>
                                                 </td>
                                                 <td class="col-actions">
-                                                    <button v-if="!activeConfig.readOnly" class="btn-edit" @click="openEdit(row)"
-                                                        title="Modifier">✏️</button>
-                                                    <button v-if="!activeConfig.readOnly" class="btn-delete" :disabled="saving" @click="confirmerSuppression(row)"
-                                                        title="Supprimer">🗑️</button>
+                                                    <button v-if="!activeConfig.readOnly" type="button" class="btn-edit"
+                                                        :aria-label="'Modifier ' + activeConfig.label" @click="openEdit(row)">Modifier</button>
+                                                    <button v-if="!activeConfig.readOnly && activeKey !== 'autorisations'"
+                                                        type="button" class="btn-delete" :disabled="saving"
+                                                        :aria-label="'Supprimer ' + activeConfig.label" @click="confirmerSuppression(row)">Supprimer</button>
                                                     <!-- Actions spéciales utilisateurs -->
                                                     <template v-if="activeKey === 'utilisateurs'">
-                                                        <button class="btn-key" @click="openResetMdp(row)"
-                                                            title="Réinitialiser MDP">🔑</button>
+                                                        <button type="button" class="btn-key" @click="openResetMdp(row)"
+                                                            title="Réinitialiser le mot de passe">Mot de passe</button>
                                                     </template>
                                                     <!-- Débloquer pour suspensions -->
                                                     <template v-if="activeKey === 'suspensions' && row.estSuspendu">
-                                                        <button class="btn-unlock" @click="debloquer(row)"
-                                                            title="Débloquer">🔓</button>
+                                                        <button type="button" class="btn-unlock" @click="debloquer(row)"
+                                                            title="Débloquer le compte">Débloquer</button>
                                                     </template>
                                                 </td>
                                             </tr>
@@ -218,6 +254,7 @@ const niveauAutorisation = userInfo?.niveauAutorisation || 0
 const activeKey = ref(null)
 const activeConfig = ref(null)
 const rows = ref([])
+const menuSearch = ref('')
 async function lignesExportAdmin() { return rows.value }
 const loading = ref(false)
 const error = ref(null)
@@ -677,7 +714,7 @@ const CONFIGS = {
 const sections = [
     {
         id: 'securite',
-        label: '1. Utilisateurs & Sécurité',
+        label: 'Utilisateurs et sécurité',
         items: [
             CONFIGS.utilisateurs,
             CONFIGS.roles,
@@ -688,12 +725,12 @@ const sections = [
     },
     {
         id: 'structure',
-        label: '2. Structure Organisationnelle',
+        label: 'Structure organisationnelle',
         items: [CONFIGS.agences, CONFIGS.bureaux],
     },
     {
         id: 'referentiels',
-        label: '3. Référentiels Métier Transit',
+        label: 'Référentiels métier',
         items: [
             CONFIGS.modesTransport,
             CONFIGS.typesProduction,
@@ -710,15 +747,33 @@ const sections = [
     },
     {
         id: 'documents',
-        label: '4. Documents',
+        label: 'Documents',
         items: [CONFIGS.typesDocument],
     },
     {
         id: 'tiers',
-        label: '5. Tiers / Annuaires',
+        label: 'Tiers et annuaires',
         items: [CONFIGS.compagnies, CONFIGS.navires, CONFIGS.pays],
     },
 ]
+
+const totalParametres = sections.reduce((total, section) => total + section.items.length, 0)
+const normaliserRecherche = valeur => String(valeur ?? '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+const filteredSections = computed(() => {
+    const terme = normaliserRecherche(menuSearch.value.trim())
+    if (!terme) return sections
+    return sections.map(section => ({
+        ...section,
+        items: section.items.filter(item =>
+            normaliserRecherche(item.label).includes(terme)
+            || normaliserRecherche(item.description).includes(terme)
+        )
+    })).filter(section => section.items.length > 0)
+})
+const activeSectionLabel = computed(() =>
+    sections.find(section => section.items.some(item => item.key === activeKey.value))?.label || 'Configuration'
+)
 
 // ── Navigation ────────────────────────────────────────────────────────────
 const setActive = async (config) => {
@@ -908,98 +963,187 @@ const afficherToast = (message, type = 'success') => {
 </script>
 
 <style scoped>
-/* ── Topbar ─────────────────────────────────────────────────────────────── */
+.admin-main {
+    margin-left: 260px;
+    min-height: 100vh;
+    background: #f5f7fa;
+    color: #1e2a3a;
+}
+
 .admin-topbar {
-    background: linear-gradient(135deg, #1e3a5f 0%, #2c5f8a 100%);
-    color: white;
-    padding: 0 32px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: #ffffff;
+    border-bottom: 1px solid #e2e6ec;
+    padding: 0 28px;
 }
 
 .admin-topbar__inner {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    height: 72px;
+    gap: 20px;
+    min-height: 96px;
+    max-width: 1600px;
+    margin: 0 auto;
 }
 
 .admin-topbar__title {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 16px;
 }
 
 .admin-topbar__icon {
-    font-size: 1.6rem;
+    display: grid;
+    place-items: center;
+    width: 46px;
+    height: 46px;
+    flex: none;
+    border-radius: 12px;
+    background: #e6edf6;
+    color: #2c5f8a;
+}
+
+.admin-topbar__icon svg {
+    width: 25px;
+    height: 25px;
+}
+
+.admin-topbar__eyebrow,
+.admin-eyebrow {
+    display: block;
+    margin-bottom: 5px;
+    color: #3b6a9c;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
 }
 
 .admin-topbar__heading {
-    margin: 0;
-    font-size: 1.2rem;
+    margin: 0 0 2px;
+    color: #1e2a3a;
+    font-size: 1.45rem;
     font-weight: 700;
-    letter-spacing: -0.3px;
+    letter-spacing: -0.025em;
 }
 
 .admin-topbar__sub {
     margin: 0;
-    font-size: 0.78rem;
-    opacity: 0.75;
+    color: #5e6f88;
+    font-size: 0.86rem;
 }
 
 .badge-admin {
-    background: rgba(255, 215, 0, 0.2);
-    color: #ffd700;
-    border: 1px solid rgba(255, 215, 0, 0.4);
-    padding: 4px 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #f3f7fc;
+    color: #2c5f8a;
+    border: 1px solid #dce6f1;
+    padding: 7px 13px;
     border-radius: 999px;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     font-weight: 600;
 }
 
-/* ── Layout ─────────────────────────────────────────────────────────────── */
+.badge-admin::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #3b6a9c;
+}
+
 .admin-body {
-    padding: 24px;
+    max-width: 1656px;
+    margin: 0 auto;
+    padding: 28px;
 }
 
 .admin-layout {
     display: grid;
-    grid-template-columns: 240px 1fr;
-    gap: 20px;
-    min-height: calc(100vh - 120px);
+    grid-template-columns: 260px minmax(0, 1fr);
+    align-items: start;
+    gap: 24px;
 }
 
-/* ── Admin Sidebar ──────────────────────────────────────────────────────── */
 .admin-sidebar {
     background: white;
     border: 1px solid #e2e6ec;
     border-radius: 12px;
-    padding: 12px 8px;
+    box-shadow: 0 2px 10px rgba(30, 42, 58, 0.035);
+    padding: 18px 10px 12px;
     height: fit-content;
     position: sticky;
-    top: 20px;
+    top: 24px;
     overflow-y: auto;
-    max-height: calc(100vh - 120px);
+    max-height: calc(100vh - 48px);
+}
+
+.admin-sidebar__intro {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 10px 13px;
+    color: #1e2a3a;
+    font-size: 0.92rem;
+    font-weight: 700;
+}
+
+.admin-sidebar__count {
+    min-width: 26px;
+    padding: 2px 7px;
+    border-radius: 6px;
+    background: #edf2f7;
+    color: #5e6f88;
+    text-align: center;
+    font-size: 0.73rem;
+}
+
+.admin-sidebar__search {
+    width: calc(100% - 12px);
+    margin: 0 6px 13px;
+    padding: 9px 11px;
+    border: 1px solid #dce3ec;
+    border-radius: 8px;
+    outline: none;
+    color: #1e2a3a;
+    background: #f9fafc;
+    font-size: 0.82rem;
+}
+
+.admin-sidebar__search:focus {
+    border-color: #3b6a9c;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(59, 106, 156, 0.13);
+}
+
+.admin-sidebar__empty {
+    margin: 10px;
+    color: #5e6f88;
+    font-size: 0.8rem;
 }
 
 .admin-sidebar__section {
-    margin-bottom: 6px;
+    padding: 8px 0 10px;
+    border-top: 1px solid #edf0f4;
 }
 
 .admin-sidebar__section-title {
-    font-size: 0.68rem;
+    font-size: 0.67rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.8px;
-    color: #8a9aa8;
-    padding: 8px 10px 4px;
+    letter-spacing: 0.09em;
+    color: #708197;
+    padding: 5px 12px 8px;
 }
 
 .admin-sidebar__item {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     width: 100%;
-    padding: 7px 10px;
+    padding: 8px 10px;
     border: none;
     background: transparent;
     border-radius: 8px;
@@ -1007,24 +1151,39 @@ const afficherToast = (message, type = 'success') => {
     font-size: 0.82rem;
     font-weight: 500;
     color: #5e6f88;
-    transition: background 0.15s, color 0.15s;
+    transition: background 0.15s, color 0.15s, box-shadow 0.15s;
     text-align: left;
 }
 
-.admin-sidebar__item:hover {
+.admin-sidebar__item:hover,
+.admin-sidebar__item:focus-visible {
     background: #f2f4f8;
     color: #1e2a3a;
 }
 
 .admin-sidebar__item--active {
     background: #e6edf6;
-    color: #2c5f8a;
-    font-weight: 600;
+    color: #244d73;
+    font-weight: 700;
+    box-shadow: inset 3px 0 #3b6a9c;
 }
 
 .admin-sidebar__item-icon {
-    font-size: 0.95rem;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
     flex-shrink: 0;
+    border-radius: 7px;
+    background: #f0f3f7;
+    color: #5e6f88;
+    font-size: 0.65rem;
+    font-weight: 700;
+}
+
+.admin-sidebar__item--active .admin-sidebar__item-icon {
+    background: #d4e1ef;
+    color: #244d73;
 }
 
 .admin-sidebar__item-label {
@@ -1032,48 +1191,117 @@ const afficherToast = (message, type = 'success') => {
     line-height: 1.3;
 }
 
-/* ── Content ────────────────────────────────────────────────────────────── */
 .admin-content {
     min-width: 0;
 }
 
 .admin-welcome {
-    text-align: center;
-    padding: 80px 20px;
-    color: #8a9aa8;
+    background: #fff;
+    border: 1px solid #e2e6ec;
+    border-radius: 12px;
+    padding: 32px;
+    box-shadow: 0 2px 10px rgba(30, 42, 58, 0.035);
 }
 
-.admin-welcome__icon {
-    font-size: 3rem;
-    margin-bottom: 16px;
+.admin-welcome__intro {
+    max-width: 590px;
+    margin-bottom: 28px;
 }
 
 .admin-welcome h2 {
     color: #1e2a3a;
-    margin-bottom: 8px;
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 7px;
 }
 
-/* ── CRUD Header ─────────────────────────────────────────────────────────── */
+.admin-welcome p {
+    color: #5e6f88;
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.admin-welcome__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 12px;
+}
+
+.admin-welcome__card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 13px;
+    min-height: 142px;
+    padding: 18px;
+    border: 1px solid #e2e6ec;
+    border-radius: 10px;
+    background: #fff;
+    text-align: left;
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.admin-welcome__card:hover,
+.admin-welcome__card:focus-visible {
+    border-color: #aebfd2;
+    box-shadow: 0 5px 16px rgba(30, 42, 58, 0.08);
+    transform: translateY(-2px);
+}
+
+.admin-welcome__number {
+    color: #3b6a9c;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+
+.admin-welcome__card-title {
+    color: #1e2a3a;
+    font-size: 0.97rem;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.admin-welcome__card-meta {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    margin-top: auto;
+    color: #5e6f88;
+    font-size: 0.78rem;
+}
+
 .crud-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 16px;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 20px;
+}
+
+.crud-header__copy {
+    min-width: 0;
+}
+
+.crud-header__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
 }
 
 .crud-header__title {
-    font-size: 1.15rem;
+    font-size: 1.45rem;
     font-weight: 700;
     color: #1e2a3a;
-    margin: 0 0 4px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    letter-spacing: -0.02em;
+    margin: 0 0 5px;
 }
 
 .crud-header__desc {
-    color: #8a9aa8;
-    font-size: 0.82rem;
+    color: #5e6f88;
+    font-size: 0.86rem;
     margin: 0;
 }
 
@@ -1082,10 +1310,10 @@ const afficherToast = (message, type = 'success') => {
     align-items: center;
     gap: 6px;
     padding: 8px 18px;
-    background: #2c5f8a;
+    background: #3b6a9c;
     color: white;
     border: none;
-    border-radius: 8px;
+    border-radius: 7px;
     font-size: 0.88rem;
     font-weight: 600;
     cursor: pointer;
@@ -1094,15 +1322,33 @@ const afficherToast = (message, type = 'success') => {
 }
 
 .btn-add:hover {
-    background: #1e3a5f;
+    background: #2c5f8a;
 }
 
-/* ── CRUD Card / Table ───────────────────────────────────────────────────── */
 .crud-card {
     background: white;
     border: 1px solid #e2e6ec;
     border-radius: 12px;
     overflow: hidden;
+    box-shadow: 0 2px 10px rgba(30, 42, 58, 0.035);
+}
+
+.crud-card__summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 18px;
+    border-bottom: 1px solid #e2e6ec;
+    color: #5e6f88;
+    font-size: 0.8rem;
+}
+
+.crud-card__summary strong {
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: #edf2f7;
+    color: #2c5f8a;
+    font-size: 0.76rem;
 }
 
 .crud-loading,
@@ -1124,6 +1370,7 @@ const afficherToast = (message, type = 'success') => {
 
 .crud-table {
     width: 100%;
+    min-width: 680px;
     border-collapse: collapse;
     font-size: 0.85rem;
 }
@@ -1178,22 +1425,28 @@ const afficherToast = (message, type = 'success') => {
 }
 
 .col-actions {
-    text-align: center;
+    text-align: right;
     white-space: nowrap;
-    width: 120px;
+    width: 170px;
 }
 
 .btn-edit,
 .btn-delete,
 .btn-key,
 .btn-unlock {
-    border: none;
-    background: transparent;
+    border: 1px solid #dce3ec;
+    background: #fff;
     cursor: pointer;
-    padding: 4px 6px;
+    padding: 5px 8px;
     border-radius: 6px;
-    font-size: 1rem;
-    transition: background 0.15s;
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: #2c5f8a;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.col-actions button + button {
+    margin-left: 5px;
 }
 
 .btn-edit:hover {
@@ -1202,6 +1455,10 @@ const afficherToast = (message, type = 'success') => {
 
 .btn-delete:hover {
     background: #fde8e8;
+}
+
+.btn-delete {
+    color: #bd3f3f;
 }
 
 .btn-key:hover {
@@ -1431,5 +1688,20 @@ const afficherToast = (message, type = 'success') => {
 .text-muted {
     color: #8a9aa8;
     font-size: 0.85rem;
+}
+@media (max-width: 1250px) {
+    .admin-layout { grid-template-columns: minmax(0, 1fr); }
+    .admin-sidebar { position: static; max-height: 260px; }
+    .admin-sidebar nav { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0 12px; }
+}
+@media (max-width: 768px) {
+    .admin-body { padding: 20px 16px; }
+    .admin-topbar { padding: 0 16px; }
+    .admin-topbar__inner { min-height: 84px; }
+    .admin-topbar__badge { display: none; }
+    .admin-topbar__icon { display: none; }
+    .crud-header { align-items: flex-start; flex-direction: column; }
+    .crud-header__actions { justify-content: flex-start; }
+    .admin-welcome { padding: 22px; }
 }
 </style>

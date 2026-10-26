@@ -10,7 +10,9 @@ export const styleFiche = `
   * { box-sizing: border-box; }
   body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #171717; font-size: 10px; }
   .sheet { width: 100%; padding: 7mm; background: white; }
-  .brand { font-size: 19px; font-weight: 800; letter-spacing: 5px; }
+  .brand { display:inline-flex; align-items:center; gap:7px; font-size: 19px; font-weight: 800; letter-spacing: 5px; }
+  .brand img, .brand-inline img { width:24px; height:24px; object-fit:contain; }
+  .brand-inline { display:inline-flex; align-items:center; gap:5px; white-space:nowrap; vertical-align:middle; }
   .top { display: flex; align-items: end; justify-content: space-between; border-bottom: 2px solid #222; padding-bottom: 7px; margin-bottom: 8px; }
   .top-small { text-align: right; font-size: 10px; }
   .title { text-align: center; font-weight: 800; font-size: 16px; border: 1px solid #222; padding: 8px 3px; background: #eee; margin: 7px 0; }
@@ -84,7 +86,7 @@ export function ficheDossierReference(dossier, { marchandises = [], documents = 
     : `<td>${e(item?.operation?.description)}</td><td>${item?.estFait ? e(date(item.dateMvt)) : '___/___/____'}</td>`
   const marchandisesRows = marchandises.length ? marchandises : [{}]
   return `<div class="sheet">
-    <div class="reference-header"><div><div class="brand">AUXIMAD</div>AGENCE ${e(dossier.agence?.nom)}</div><div class="reference-title">DOSSIER IMPORT ${e(ot.typeProduction?.nom || 'TRANSIT')} N° ${e(dossier.numeroDossier)}<br>ANNÉE ${e(dossier.dateCreation ? new Date(dossier.dateCreation).getFullYear() : '')}</div></div>
+    <div class="reference-header"><div><div class="brand"><img src="/logo/1000130987.webp" alt="">AUXIMAD</div><br>AGENCE ${e(dossier.agence?.nom)}</div><div class="reference-title">DOSSIER IMPORT ${e(ot.typeProduction?.nom || 'TRANSIT')} N° ${e(dossier.numeroDossier)}<br>ANNÉE ${e(dossier.dateCreation ? new Date(dossier.dateCreation).getFullYear() : '')}</div></div>
     <div class="reference-client"><strong>Client : ${e(nomClient)}</strong><br>Adresse : ${e(dossier.client?.adresse)} &nbsp;&nbsp; Tél : ${e(dossier.client?.telephone)}<br>Adresse Mail : ${e(dossier.client?.email)} &nbsp;&nbsp; NIF : ${e(dossier.client?.nif)} &nbsp;&nbsp; STAT : ${e(dossier.client?.stat)}</div>
     <div class="reference-split"><div><span class="label">DESTINATAIRE :</span>${e(nom(ot.destinataire))}</div><div><span class="label">PARTIE À NOTIFIER :</span>${e(nom(ot.destinationFacture || ot.destinataire))}</div></div>
     <div class="reference-meta">
@@ -109,7 +111,7 @@ export function ficheOrdreTransitReference(ot, { contrat = null, marchandises = 
   const client = ot.client || {}
   const facturation = ot.destinationFacture || client
   return `<div class="sheet">
-    <div class="reference-ot-header"><div>${caseCochee('MARITIME', mode.includes('maritime'))}${caseCochee('AÉRIEN', mode.includes('aérien') || mode.includes('aerien'))}${caseCochee('COMBINÉ', mode.includes('combin'))}</div><div class="reference-title">ORDRE DE TRANSIT IMPORT<br><span style="font-size:12px;font-weight:400">À LA SOCIÉTÉ AUXIMAD<br>Agence ${e(ot.agence?.nom)} · OT N° ${e(ot.numeroOrdreTransit)}</span></div></div>
+    <div class="reference-ot-header"><div>${caseCochee('MARITIME', mode.includes('maritime'))}${caseCochee('AÉRIEN', mode.includes('aérien') || mode.includes('aerien'))}${caseCochee('COMBINÉ', mode.includes('combin'))}</div><div class="reference-title">ORDRE DE TRANSIT IMPORT<br><span style="font-size:12px;font-weight:400">À LA SOCIÉTÉ <span class="brand-inline"><img src="/logo/1000130987.webp" alt="">AUXIMAD</span><br>Agence ${e(ot.agence?.nom)} · OT N° ${e(ot.numeroOrdreTransit)}</span></div></div>
     <div class="reference-ot-body"><div class="tall"><span class="small-title">DONNEUR D’ORDRE</span><strong>${e(nom(client))}</strong><br>${e(client.adresse)}<br>Tél : ${e(client.telephone)}</div><div class="tall">${caseCochee('Constats systématiques à chaque transfert de responsabilité', false)}<br>${caseCochee('Constat en cas d’avaries ou pertes apparentes', false)}<br>${caseCochee('Pas de constats', false)}</div>
     <div class="tall"><span class="small-title">IMPORTATEUR</span><strong>${e(nom(facturation))}</strong><br>${e(facturation.adresse)}<br>Tél : ${e(facturation.telephone)}</div><div class="tall"><div class="center">NOM DE L’EXPERT</div><hr>Acheminement jusqu’à destination finale<br>${caseCochee('Par train', false)} &nbsp; ${caseCochee('Par camion', false)} &nbsp; ${caseCochee('Par avion', false)} &nbsp; ${caseCochee('Par nos soins', false)}</div>
     <div class="tall"><span class="small-title">CAUTION</span>${e(ot.caution)}</div><div class="tall">Bureau de dédouanement : <strong>${e(ot.bureauDedouanement?.nom)}</strong><br><br>Livraison à<br><strong>${e(ot.destinationFinale || nom(ot.destinataire))}</strong></div>
