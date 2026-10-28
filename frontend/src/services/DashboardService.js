@@ -8,6 +8,18 @@ function authHeader() {
 }
 
 class DashboardService {
+    /** Vue dossiers du tableau de bord : KPI, graphiques, prioritaires, activités */
+    async getVueDossiers(params = {}) {
+        const qs = new URLSearchParams()
+        Object.keys(params).forEach(cle => {
+            if (params[cle] !== '' && params[cle] !== null && params[cle] !== undefined) {
+                qs.append(cle, params[cle])
+            }
+        })
+        const response = await axios.get(`${API_URL}/dossiers?${qs.toString()}`, { headers: authHeader() })
+        return response.data
+    }
+
     /** Toutes les stats en un seul appel */
     async getDashboardComplet() {
         const response = await axios.get(API_URL, { headers: authHeader() })

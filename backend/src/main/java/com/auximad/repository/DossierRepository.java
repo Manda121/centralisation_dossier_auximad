@@ -85,11 +85,29 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
             SELECT 1 FROM type_document td
             WHERE td.id_type_production = d.id_type_production
               AND (td.id_nature_marchandise IS NULL OR td.id_nature_marchandise = ot.id_nature_marchandise)
+              AND td.est_obligatoire = true
               AND NOT EXISTS (
                 SELECT 1 FROM document doc
                 WHERE doc.id_dossier = d.id AND doc.id_type_document = td.id AND doc.est_actif = true
               )
           ))
+          AND (:estActif IS NULL OR NOT (:estActif = true AND EXISTS (
+            SELECT 1 FROM statut_dossier sx
+            WHERE sx.id = d.id_statut
+              AND (lower(sx.nom) ~ '^cl.?tur' OR lower(sx.nom) ~ '^ann.?l')
+          )))
+          AND (:statutCloture IS NULL OR NOT (:statutCloture = true AND NOT EXISTS (
+            SELECT 1 FROM statut_dossier sx
+            WHERE sx.id = d.id_statut AND lower(sx.nom) ~ '^cl.?tur'
+          )))
+          AND (:echeanceDepassee IS NULL OR NOT (:echeanceDepassee = true AND (
+            d.echeance IS NULL OR d.echeance >= NOW() OR
+            EXISTS (SELECT 1 FROM statut_dossier sx WHERE sx.id = d.id_statut AND lower(sx.nom) ~ '^cl.?tur')
+          )))
+          AND (:demandeEnAttente IS NULL OR NOT (:demandeEnAttente = true AND NOT EXISTS (
+            SELECT 1 FROM demande_interagence dge
+            WHERE dge.id_dossier = d.id AND dge.statut = 'EN_ATTENTE'
+          )))
           AND (
             :typeDossier IS NULL OR :typeDossier = '' OR
             (:typeDossier = 'INTERAGENCE' AND (
@@ -140,11 +158,29 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
             SELECT 1 FROM type_document td
             WHERE td.id_type_production = d.id_type_production
               AND (td.id_nature_marchandise IS NULL OR td.id_nature_marchandise = ot.id_nature_marchandise)
+              AND td.est_obligatoire = true
               AND NOT EXISTS (
                 SELECT 1 FROM document doc
                 WHERE doc.id_dossier = d.id AND doc.id_type_document = td.id AND doc.est_actif = true
               )
           ))
+          AND (:estActif IS NULL OR NOT (:estActif = true AND EXISTS (
+            SELECT 1 FROM statut_dossier sx
+            WHERE sx.id = d.id_statut
+              AND (lower(sx.nom) ~ '^cl.?tur' OR lower(sx.nom) ~ '^ann.?l')
+          )))
+          AND (:statutCloture IS NULL OR NOT (:statutCloture = true AND NOT EXISTS (
+            SELECT 1 FROM statut_dossier sx
+            WHERE sx.id = d.id_statut AND lower(sx.nom) ~ '^cl.?tur'
+          )))
+          AND (:echeanceDepassee IS NULL OR NOT (:echeanceDepassee = true AND (
+            d.echeance IS NULL OR d.echeance >= NOW() OR
+            EXISTS (SELECT 1 FROM statut_dossier sx WHERE sx.id = d.id_statut AND lower(sx.nom) ~ '^cl.?tur')
+          )))
+          AND (:demandeEnAttente IS NULL OR NOT (:demandeEnAttente = true AND NOT EXISTS (
+            SELECT 1 FROM demande_interagence dge
+            WHERE dge.id_dossier = d.id AND dge.statut = 'EN_ATTENTE'
+          )))
           AND (
             :typeDossier IS NULL OR :typeDossier = '' OR
             (:typeDossier = 'INTERAGENCE' AND (
@@ -169,6 +205,10 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
             @Param("agenceId") Integer agenceId,
             @Param("typeDossier") String typeDossier,
             @Param("documentsIncomplets") Boolean documentsIncomplets,
+            @Param("estActif") Boolean estActif,
+            @Param("statutCloture") Boolean statutCloture,
+            @Param("echeanceDepassee") Boolean echeanceDepassee,
+            @Param("demandeEnAttente") Boolean demandeEnAttente,
             @Param("numeroDossier") String numeroDossier,
             @Param("clientNom") String clientNom,
             @Param("cpClient") String cpClient,
@@ -195,7 +235,8 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
             String dateMin, String dateMax, Integer agenceId, String typeDossier, Pageable pageable) {
         return searchDossiersFiltres(query, phaseId, statutId, clientId, typeProductionId, otId,
                 estGroupage, dateMin, dateMax, agenceId, typeDossier, null,
-                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, pageable);
+                null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, pageable);
     }
 
     @Query(value = """

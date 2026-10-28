@@ -1,17 +1,288 @@
 package com.auximad.service;
 
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
 public class DashboardService {
 
     private final JdbcTemplate jdbc;
+    private final NamedParameterJdbcTemplate named;
+
+    // Schémas SQL communs. Le nommage des statuts de clôture/annulation peut contenir
+    // des accents : on utilise des expressions régulières ASCII ('^cl.?tur' couvre
+    // "Cloture" comme "Clôturé").
+    private static final String SCOPE_DOSSIER =
+            " (CAST(:agenceId AS int) IS NULL OR d.id_agence = :agenceId) " +
+            " AND (CAST(:typeProductionId AS int) IS NULL OR d.id_type_production = :typeProductionId) ";
+
+    private static final String DOSSIER_ACTIF =
+            " NOT EXISTS (SELECT 1 FROM statut_dossier sx " +
+            "   WHERE sx.id = d.id_statut " +
+            "   AND (lower(sx.nom) ~ '^cl.?tur' OR lower(sx.nom) ~ '^ann.?l')) ";
+
+    private static final String DOSSIER_CLOTURE =
+            " EXISTS (SELECT 1 FROM statut_dossier sx " +
+            "   WHERE sx.id = d.id_statut AND lower(sx.nom) ~ '^cl.?tur') ";
+
+    private static final String DOCS_OBLIGATOIRES_MANQUANTS =
+            " EXISTS (SELECT 1 FROM type_document td " +
+            "   WHERE td.id_type_production = d.id_type_production " +
+            "   AND (td.id_nature_marchandise IS NULL OR td.id_nature_marchandise = ot.id_nature_marchandise) " +
+            "   AND td.est_obligatoire = true " +
+            "   AND NOT EXISTS (SELECT 1 FROM document doc " +
+            "     WHERE doc.id_dossier = d.id AND doc.id_type_document = td.id AND doc.est_actif = true)) ";
+
+    private static final String DEMANDE_EN_ATTENTE =
+            " EXISTS (SELECT 1 FROM demande_interagence dge " +
+            "   WHERE dge.id_dossier = d.id AND dge.statut = 'EN_ATTENTE') ";
 
     public DashboardService(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
+        this.named = new NamedParameterJdbcTemplate(jdbc.getDataSource());
+    }
+
+    // =========================================================
+    // VUE DOSSIERS DU TABLEAU DE BORD (KPI, graphiques, prioritaires, activités)
+    // =========================================================
+    public Map<String, Object> getVueDossiers(Integer agenceId, Integer typeProductionId,
+                                              String dateDebut, String dateFin) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("agenceId", agenceId)
+                .addValue("typeProductionId", typeProductionId);
+
+        LocalDate debut = parserDate(dateDebut);
+        LocalDate fin = parserDate(dateFin);
+        LocalDate aujourdhui = LocalDate.now();
+        if (fin == null) fin = aujourdhui;
+
+        Map<String, Object> result = new LinkedHashMap<>();
+
+        // ── Filtres globaux renvoyés pour information (périmètre effectif côté serveur)
+        Map<String, Object> perimetre = new LinkedHashMap<>();
+        perimetre.put("agenceId", agenceId);
+        perimetre.put("typeProductionId", typeProductionId);
+        if (debut != null) perimetre.put("debut", debut.toString());
+        perimetre.put("fin", fin.toString());
+        result.put("perimetre", perimetre);
+
+        // ── KPI situationnels (périmètre agence + type de production, sans limite de période)
+        Map<String, Object> kpi = new LinkedHashMap<>();
+        kpi.put("enCours", count("""
+                SELECT COUNT(*) FROM dossier d
+                WHERE %s AND %s""".formatted(SCOPE_DOSSIER, DOSSIER_ACTIF), params));
+        kpi.put("clotures", count("""
+                SELECT COUNT(*) FROM dossier d
+                WHERE %s AND %s""".formatted(SCOPE_DOSSIER, DOSSIER_CLOTURE), params));
+        kpi.put("documentsIncomplets", count("""
+                SELECT COUNT(*) FROM (
+                  SELECT DISTINCT d.id FROM dossier d
+                  LEFT JOIN ordre_transit ot ON ot.id = d.id_ordre_transit
+                  JOIN type_document td ON td.id_type_production = d.id_type_production
+                    AND (td.id_nature_marchandise IS NULL OR td.id_nature_marchandise = ot.id_nature_marchandise)
+                    AND td.est_obligatoire = true
+                  WHERE %s
+                    AND NOT EXISTS (SELECT 1 FROM document doc
+                      WHERE doc.id_dossier = d.id AND doc.id_type_document = td.id AND doc.est_actif = true)
+                ) manquants""".formatted(SCOPE_DOSSIER), params));
+        kpi.put("echeancesDepassees", count("""
+                SELECT COUNT(*) FROM dossier d
+                WHERE %s AND %s
+                  AND d.echeance IS NOT NULL AND d.echeance < NOW()""".formatted(SCOPE_DOSSIER, DOSSIER_ACTIF), params));
+        kpi.put("demandesEnAttente", count("""
+                SELECT COUNT(DISTINCT dge.id_dossier)
+                FROM demande_interagence dge
+                JOIN dossier d ON d.id = dge.id_dossier
+                WHERE dge.statut = 'EN_ATTENTE' AND %s""".formatted(SCOPE_DOSSIER), params));
+        if (debut != null) {
+            params.addValue("debutI", debut.atStartOfDay());
+            params.addValue("finExcI", fin.plusDays(1).atStartOfDay());
+            kpi.put("dossiersPeriode", count("""
+                    SELECT COUNT(*) FROM dossier d
+                    WHERE %s
+                      AND d.date_creation >= :debutI AND d.date_creation < :finExcI""".formatted(SCOPE_DOSSIER), params));
+        } else {
+            kpi.put("dossiersPeriode", count("SELECT COUNT(*) FROM dossier d WHERE " + SCOPE_DOSSIER, params));
+        }
+        result.put("kpi", kpi);
+
+        // ── Répartition des dossiers ACTIFS par phase
+        result.put("parPhase", named.queryForList("""
+                SELECT ph.id AS id, COALESCE(ph.nom, '(Sans phase)') AS label, COUNT(*) AS valeur
+                FROM dossier d
+                LEFT JOIN phase_dossier ph ON ph.id = d.id_phase
+                WHERE %s AND %s
+                GROUP BY ph.id, ph.nom
+                ORDER BY valeur DESC""".formatted(SCOPE_DOSSIER, DOSSIER_ACTIF), params));
+
+        // ── Répartition par agence (comparaison, réservée aux utilisateurs multi-agences)
+        result.put("parAgence", named.queryForList("""
+                SELECT a.id AS id, a.nom AS label, COUNT(*) AS valeur
+                FROM dossier d
+                JOIN agence a ON a.id = d.id_agence
+                WHERE %s AND %s
+                GROUP BY a.id, a.nom
+                ORDER BY valeur DESC""".formatted(SCOPE_DOSSIER, DOSSIER_ACTIF), params));
+
+        // ── Évolution des créations de dossiers sur la période sélectionnée
+        result.put("evolution", evolutionCreations(agenceId, typeProductionId, debut, fin));
+
+        // ── Dossiers prioritaires : anomalies en premier
+        result.put("prioritaires", named.queryForList("""
+                SELECT d.id, d.numero_dossier,
+                       TRIM(COALESCE(c.nom, '') || ' ' || COALESCE(c.prenom, '')) AS client,
+                       a.nom AS agence, ph.nom AS phase, d.echeance,
+                       (d.echeance IS NOT NULL AND d.echeance < NOW()) AS echeance_depassee,
+                       (d.echeance IS NOT NULL AND d.echeance >= NOW()
+                          AND d.echeance < NOW() + INTERVAL '7 days') AS echeance_proche,
+                       %s AS docs_manquants,
+                       %s AS demande_attente
+                FROM dossier d
+                LEFT JOIN ordre_transit ot ON ot.id = d.id_ordre_transit
+                LEFT JOIN clients c ON c.id = d.id_client
+                JOIN agence a ON a.id = d.id_agence
+                LEFT JOIN phase_dossier ph ON ph.id = d.id_phase
+                WHERE %s AND %s
+                  AND (
+                    (d.echeance IS NOT NULL AND d.echeance < NOW() + INTERVAL '7 days')
+                    OR %s
+                    OR %s
+                  )
+                ORDER BY
+                  (CASE WHEN d.echeance IS NOT NULL AND d.echeance < NOW() THEN 4 ELSE 0 END
+                   + CASE WHEN %s THEN 2 ELSE 0 END
+                   + CASE WHEN %s THEN 2 ELSE 0 END
+                   + CASE WHEN d.echeance IS NOT NULL AND d.echeance >= NOW()
+                        AND d.echeance < NOW() + INTERVAL '7 days' THEN 1 ELSE 0 END) DESC,
+                  d.echeance ASC NULLS LAST
+                LIMIT 12""".formatted(DOCS_OBLIGATOIRES_MANQUANTS, DEMANDE_EN_ATTENTE,
+                    SCOPE_DOSSIER, DOSSIER_ACTIF,
+                    DOCS_OBLIGATOIRES_MANQUANTS, DEMANDE_EN_ATTENTE,
+                    DOCS_OBLIGATOIRES_MANQUANTS, DEMANDE_EN_ATTENTE), params));
+
+        // ── Activités récentes (mouvements, créations, demandes inter-agences)
+        result.put("activites", activationsRecentes(agenceId, typeProductionId));
+
+        return result;
+    }
+
+    private Map<String, Object> evolutionCreations(Integer agenceId, Integer typeProductionId,
+                                                   LocalDate debut, LocalDate fin) {
+        LocalDate finEffective = fin != null ? fin : LocalDate.now();
+        LocalDate debutEffective = debut != null ? debut : finEffective.minusMonths(11);
+        long jours = java.time.temporal.ChronoUnit.DAYS.between(debutEffective, finEffective.plusDays(1));
+
+        // Granularité adaptée à la durée de la période sélectionnée
+        String granularite;
+        List<LocalDate[]> bornes = new ArrayList<>();
+        if (jours <= 31) {
+            granularite = "JOUR";
+            for (LocalDate d = debutEffective; !d.isAfter(finEffective); d = d.plusDays(1)) {
+                bornes.add(new LocalDate[]{d, d});
+            }
+        } else if (jours <= 120) {
+            granularite = "SEMAINE";
+            LocalDate cursor = debutEffective.minusDays((debutEffective.getDayOfWeek().getValue() - 1) % 7);
+            for (; !cursor.isAfter(finEffective); cursor = cursor.plusWeeks(1)) {
+                bornes.add(new LocalDate[]{cursor, cursor.plusDays(6)});
+            }
+        } else {
+            granularite = "MOIS";
+            LocalDate cursor = debutEffective.withDayOfMonth(1);
+            for (; !cursor.isAfter(finEffective); cursor = cursor.plusMonths(1)) {
+                bornes.add(new LocalDate[]{cursor, cursor.plusMonths(1).minusDays(1)});
+            }
+        }
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("agenceId", agenceId)
+                .addValue("typeProductionId", typeProductionId);
+        List<Map<String, Object>> lignes = named.queryForList("""
+                SELECT TO_CHAR(d.date_creation, 'YYYY-MM-DD') AS jour, COUNT(*) AS valeur
+                FROM dossier d
+                WHERE %s GROUP BY 1""".formatted(SCOPE_DOSSIER), params);
+        Map<String, Long> parJour = new HashMap<>();
+        for (Map<String, Object> ligne : lignes) {
+            parJour.put((String) ligne.get("jour"), ((Number) ligne.get("valeur")).longValue());
+        }
+
+        DateTimeFormatter iso = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        List<Map<String, Object>> evolution = new ArrayList<>();
+        for (LocalDate[] borne : bornes) {
+            long total = 0;
+            for (LocalDate d = borne[0]; !d.isAfter(borne[1]); d = d.plusDays(1)) {
+                total += parJour.getOrDefault(d.format(iso), 0L);
+            }
+            Map<String, Object> point = new LinkedHashMap<>();
+            point.put("debut", borne[0].toString());
+            point.put("fin", borne[1].toString());
+            switch (granularite) {
+                case "JOUR"   -> point.put("label", borne[0].format(DateTimeFormatter.ofPattern("dd/MM")));
+                case "SEMAINE"-> point.put("label", "S " + borne[1].format(DateTimeFormatter.ofPattern("dd/MM")));
+                default       -> point.put("label", borne[0].format(DateTimeFormatter.ofPattern("MM/yyyy")));
+            }
+            point.put("valeur", total);
+            evolution.add(point);
+        }
+        Map<String, Object> sortie = new LinkedHashMap<>();
+        sortie.put("granularite", granularite);
+        sortie.put("points", evolution);
+        return sortie;
+    }
+
+    private List<Map<String, Object>> activationsRecentes(Integer agenceId, Integer typeProductionId) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("agenceId", agenceId)
+                .addValue("typeProductionId", typeProductionId);
+        String scope = SCOPE_DOSSIER;
+        return named.queryForList("""
+                SELECT evt.type AS type, evt.id_dossier AS id_dossier, evt.numero_dossier AS numero_dossier,
+                       evt.libelle AS libelle, evt.utilisateur AS utilisateur, evt.date_evt AS date_evt
+                FROM (
+                  (SELECT 'MOUVEMENT' AS type, d.id AS id_dossier, d.numero_dossier, op.description AS libelle,
+                          u.nom_utilisateur AS utilisateur, m.date_mvt AS date_evt
+                   FROM mvt_dossier m
+                   JOIN dossier d ON d.id = m.id_dossier
+                   LEFT JOIN operation_dossier op ON op.id = m.id_operation
+                   LEFT JOIN utilisateur u ON u.id = m.id_utilisateur
+                   WHERE %s AND NOT m.est_annule)
+                  UNION ALL
+                  (SELECT 'DEMANDE', d.id, d.numero_dossier,
+                          'Demande inter-agences : ' || COALESCE(dge.motif, ''),
+                          u.nom_utilisateur AS utilisateur, dge.date_demande AS date_evt
+                   FROM demande_interagence dge
+                   JOIN dossier d ON d.id = dge.id_dossier
+                   LEFT JOIN utilisateur u ON u.id = dge.id_utilisateur_demande
+                   WHERE %s)
+                  UNION ALL
+                  (SELECT 'DOSSIER', d.id, d.numero_dossier, 'Creation du dossier',
+                          u.nom_utilisateur AS utilisateur, d.date_creation AS date_evt
+                   FROM dossier d
+                   LEFT JOIN utilisateur u ON u.id = d.id_utilisateur
+                   WHERE %s AND d.date_creation >= NOW() - INTERVAL '30 days')
+                ) evt
+                ORDER BY evt.date_evt DESC
+                LIMIT 12""".formatted(scope, scope, scope), params);
+    }
+
+    private LocalDate parserDate(String valeur) {
+        if (valeur == null || valeur.isBlank()) return null;
+        try {
+            return LocalDate.parse(valeur.trim());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private long count(String sql, MapSqlParameterSource params) {
+        Long result = named.queryForObject(sql, params, Long.class);
+        return result != null ? result : 0L;
     }
 
     // =========================================================

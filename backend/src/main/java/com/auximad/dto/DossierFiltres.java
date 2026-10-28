@@ -8,6 +8,14 @@ import lombok.Setter;
 @Setter
 public class DossierFiltres {
     private Boolean documentsIncomplets;
+    /** Dossiers actifs (statut ni cloture ni annule). */
+    private Boolean estActif;
+    /** Dossiers dont le statut correspond a une cloture. */
+    private Boolean statutCloture;
+    /** Dossiers non clotures dont l'echerance est passee. */
+    private Boolean echeanceDepassee;
+    /** Dossiers concernes par une demande inter-agences en attente. */
+    private Boolean demandeEnAttente;
     private String numeroDossier;
     private String clientNom;
     private String cpClient;

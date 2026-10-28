@@ -1,15 +1,21 @@
 package com.auximad.service;
 
 import com.auximad.controller.DashboardController;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
 
@@ -45,28 +51,44 @@ class DashboardServicePostgresTest {
             CREATE TABLE type_client(id int PRIMARY KEY, nom text);
             CREATE TABLE pays(id int PRIMARY KEY, nom text);
             CREATE TABLE type_container(id int PRIMARY KEY, nom text);
-            CREATE TABLE type_document(id int PRIMARY KEY, nom text);
-            CREATE TABLE dossier(id int PRIMARY KEY, numero_dossier text, id_statut int,
-                id_phase int, id_type_production int, id_agence int, echeance timestamptz,
-                date_creation timestamptz DEFAULT NOW());
+            CREATE TABLE type_document(id int PRIMARY KEY, nom text, id_type_production int,
+                id_nature_marchandise int, est_obligatoire boolean);
+            CREATE TABLE dossier(id int PRIMARY KEY, numero_dossier text, id_client int, id_ordre_transit int,
+                id_utilisateur int, id_statut int, id_phase int, id_type_production int, id_agence int,
+                echeance timestamptz, date_creation timestamptz DEFAULT NOW());
             CREATE TABLE ordre_transit(id int PRIMARY KEY, id_statut_ot int,
-                id_type_production int, id_type_regime int, id_agence int);
-            CREATE TABLE clients(id int PRIMARY KEY, id_type_client int, id_pays int);
+                id_type_production int, id_type_regime int, id_agence int, id_nature_marchandise int);
+            CREATE TABLE clients(id int PRIMARY KEY, nom text, prenom text, id_type_client int, id_pays int);
             CREATE TABLE operation_dossier(id int PRIMARY KEY, description text, id_phase int);
             CREATE TABLE utilisateur(id int PRIMARY KEY, nom_utilisateur text, nom text);
             CREATE TABLE mvt_dossier(id int PRIMARY KEY, id_dossier int, id_utilisateur int,
-                id_operation int, commentaire text, date_mvt timestamptz);
+                id_operation int, commentaire text, date_mvt timestamptz, est_annule boolean DEFAULT false);
             CREATE TABLE conteneur(id int PRIMARY KEY, id_type_container int);
             CREATE TABLE declaration(id int PRIMARY KEY);
-            CREATE TABLE document(id int PRIMARY KEY, id_type_document int);
+            CREATE TABLE document(id int PRIMARY KEY, id_dossier int, id_type_document int, est_actif boolean);
+            CREATE TABLE demande_interagence(id int PRIMARY KEY, id_dossier int, id_agence_demandeuse int,
+                id_agence_destinataire int, id_utilisateur_demande int, motif text, statut text,
+                date_demande timestamptz DEFAULT NOW());
             """);
         mvc = MockMvcBuilders.standaloneSetup(new DashboardController(new DashboardService(jdbc))).build();
     }
 
     @AfterEach void cleanup() {
+        SecurityContextHolder.clearContext();
         if (schema != null && schema.matches("dashboard_test_[a-f0-9]{32}")) {
             admin.execute("DROP SCHEMA " + schema + " CASCADE");
         }
+    }
+
+    private void authentifier(Integer idAgence, int niveauAutorisation) {
+        Claims claims = Jwts.claims()
+                .add("idAgence", idAgence)
+                .add("niveauAutorisation", niveauAutorisation)
+                .build();
+        var auth = new UsernamePasswordAuthenticationToken("utilisateur", null,
+                AuthorityUtils.NO_AUTHORITIES);
+        auth.setDetails(claims);
+        SecurityContextHolder.getContext().setAuthentication(auth);
     }
 
     @Test void completeDashboardLoadsWithAnEmptyDatabase() throws Exception {
@@ -143,5 +165,68 @@ class DashboardServicePostgresTest {
         mvc.perform(get("/api/dashboard/activite"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].date_mouvement").isNotEmpty());
+    }
+
+    @Test void dossierDashboardReportsKpiChartsPrioritairesAndActivities() throws Exception {
+        jdbc.execute("""
+            INSERT INTO agence VALUES(1, 'TNR'), (2, 'TMA');
+            INSERT INTO statut_dossier VALUES(1, 'Ouvert'), (2, 'Clôturé'), (3, 'Annulé');
+            INSERT INTO phase_dossier VALUES(1, 'PREPARATION'), (2, 'COMPTABILITE');
+            INSERT INTO type_production VALUES(1, 'import', NULL);
+            INSERT INTO clients VALUES(1, 'Martin', 'Anne', NULL, NULL);
+            INSERT INTO dossier(id, numero_dossier, id_client, id_statut, id_phase,
+                id_type_production, id_agence, echeance, date_creation) VALUES
+                (1, 'DOS-001', 1, 1, 1, 1, 1, NOW() - INTERVAL '2 days', NOW() - INTERVAL '1 day'),
+                (2, 'DOS-002', 1, 1, 2, 1, 2, NOW() + INTERVAL '3 days', NOW() - INTERVAL '2 days'),
+                (3, 'DOS-003', 1, 2, 2, 1, 1, NOW() - INTERVAL '30 days', NOW() - INTERVAL '3 days'),
+                (4, 'DOS-004', 1, 3, 1, 1, 1, NOW() - INTERVAL '1 hour', NOW() - INTERVAL '4 days');
+            INSERT INTO type_document VALUES(1, 'Facture', 1, NULL, true);
+            INSERT INTO document VALUES(1, 2, 1, true), (2, 3, 1, true), (3, 4, 1, true);
+            INSERT INTO demande_interagence(id, id_dossier, id_utilisateur_demande, motif, statut, date_demande) VALUES
+                (1, 2, 1, 'Docs manquants', 'EN_ATTENTE', NOW() - INTERVAL '1 hour'),
+                (2, 3, 1, 'Autre motif', 'ACCEPTEE', NOW() - INTERVAL '2 hours');
+            """);
+
+        mvc.perform(get("/api/dashboard/dossiers"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.kpi.enCours").value(2))
+                .andExpect(jsonPath("$.kpi.clotures").value(1))
+                .andExpect(jsonPath("$.kpi.documentsIncomplets").value(1))
+                .andExpect(jsonPath("$.kpi.echeancesDepassees").value(1))
+                .andExpect(jsonPath("$.kpi.demandesEnAttente").value(1))
+                .andExpect(jsonPath("$.kpi.dossiersPeriode").value(4))
+                .andExpect(jsonPath("$.parPhase.length()").value(2))
+                .andExpect(jsonPath("$.parAgence.length()").value(2))
+                .andExpect(jsonPath("$.evolution.granularite").value("MOIS"))
+                .andExpect(jsonPath("$.prioritaires[0].numero_dossier").value("DOS-001"))
+                .andExpect(jsonPath("$.prioritaires[0].echeance_depassee").value(true))
+                .andExpect(jsonPath("$.prioritaires[0].docs_manquants").value(true))
+                .andExpect(jsonPath("$.activites[0].type").value("DEMANDE"))
+                .andExpect(jsonPath("$.activites.length()").value(6));
+    }
+
+    @Test void dossierDashboardIsRestrictedToTheUserAgencyWithoutAllReadScope() throws Exception {
+        jdbc.execute("""
+            INSERT INTO agence VALUES(1, 'TNR'), (2, 'TMA');
+            INSERT INTO statut_dossier VALUES(1, 'Ouvert');
+            INSERT INTO phase_dossier VALUES(1, 'PREPARATION');
+            INSERT INTO type_production VALUES(1, 'import', NULL);
+            INSERT INTO clients VALUES(1, 'Martin', 'Anne', NULL, NULL);
+            INSERT INTO dossier(id, numero_dossier, id_client, id_statut, id_phase,
+                id_type_production, id_agence, echeance) VALUES
+                (1, 'DOS-001', 1, 1, 1, 1, 1, NOW() + INTERVAL '5 days'),
+                (2, 'DOS-002', 1, 1, 1, 1, 2, NOW() + INTERVAL '10 days');
+            INSERT INTO demande_interagence(id, id_dossier, id_utilisateur_demande, motif, statut, date_demande) VALUES
+                (1, 2, 1, 'Docs manquants', 'EN_ATTENTE', NOW() - INTERVAL '1 hour');
+            """);
+        // Niveau 110 = lecture propre sur le contexte OT : le périmètre agence est imposé (agence 2)
+        authentifier(2, 110);
+        mvc.perform(get("/api/dashboard/dossiers").param("agenceId", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.perimetre.agenceId").value(2))
+                .andExpect(jsonPath("$.kpi.enCours").value(1))
+                .andExpect(jsonPath("$.parAgence.length()").value(1))
+                .andExpect(jsonPath("$.parAgence[0].label").value("TMA"))
+                .andExpect(jsonPath("$.prioritaires[0].numero_dossier").value("DOS-002"));
     }
 }

@@ -1,5 +1,7 @@
 package com.auximad.controller;
 
+import com.auximad.security.AutorisationHelper;
+import com.auximad.security.JwtSecurityContext;
 import com.auximad.service.DashboardService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,6 +16,23 @@ public class DashboardController {
 
     public DashboardController(DashboardService dashboardService) {
         this.dashboardService = dashboardService;
+    }
+
+    /**
+     * Vue dossiers du tableau de bord : KPI, répartition par phase, évolution des créations,
+     * répartition par agence, dossiers prioritaires et activités récentes.
+     * Le périmètre agence est imposé côté serveur pour les utilisateurs sans portée toutes-lecture.
+     */
+    @GetMapping("/dossiers")
+    public ResponseEntity<Map<String, Object>> getVueDossiers(
+            @RequestParam(required = false) String dateDebut,
+            @RequestParam(required = false) String dateFin,
+            @RequestParam(required = false) Integer agenceId,
+            @RequestParam(required = false) Integer typeProductionId) {
+        boolean peutVoirToutesAgences = JwtSecurityContext.aPermission(
+                AutorisationHelper.PORTEE_TOUTES_LECTURE, AutorisationHelper.ACTION_OT);
+        Integer agenceEffective = peutVoirToutesAgences ? agenceId : JwtSecurityContext.getIdAgence();
+        return ResponseEntity.ok(dashboardService.getVueDossiers(agenceEffective, typeProductionId, dateDebut, dateFin));
     }
 
     /** Statistiques globales : compteurs de toutes les tables principales */
