@@ -191,7 +191,7 @@ function formatarDate(dt) {
                 </div>
 
 
-                <div v-if="filtresPreappliques.length" class="alert alert-info d-flex flex-wrap align-items-center gap-2 py-2 small">
+                <!-- <div v-if="filtresPreappliques.length" class="alert alert-info d-flex flex-wrap align-items-center gap-2 py-2 small">
                     <span class="fw-semibold">Filtres appliqués depuis le tableau de bord :</span>
                     <span v-for="f in filtresPreappliques" :key="f.cle"
                           class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle d-inline-flex align-items-center gap-1 py-1">
@@ -203,7 +203,7 @@ function formatarDate(dt) {
                     </span>
                     <button type="button" class="btn btn-sm btn-link text-decoration-none small ms-auto"
                             @click="retirerTousFiltresPreappliques">Retirer tous les filtres</button>
-                </div>
+                </div> -->
 
                 <div class="card border shadow-sm">
                     <div class="card-body p-3">
