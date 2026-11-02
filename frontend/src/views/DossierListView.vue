@@ -14,16 +14,84 @@ const datatableRef = ref(null)
 const dateLocale = new Date()
 const aujourdhui = `${dateLocale.getFullYear()}-${String(dateLocale.getMonth() + 1).padStart(2, '0')}-${String(dateLocale.getDate()).padStart(2, '0')}`
 
+// ── Filtres pré-appliqués depuis le tableau de bord (paramètres d'URL)
+const PARAMS_BINAIRES = ['documentsIncomplets', 'estActif', 'statutCloture', 'echeanceDepassee', 'demandeEnAttente']
+const LIBELLES_BINAIRES = {
+    documentsIncomplets: 'Documents obligatoires manquants',
+    estActif: 'Dossiers en cours (actifs)',
+    statutCloture: 'Dossiers clôturés',
+    echeanceDepassee: 'Échéance dépassée',
+    demandeEnAttente: 'Demandes inter-agences en attente'
+}
+
+function lireParametresUrl() {
+    const params = route.query
+    const filtreSpecial = PARAMS_BINAIRES.some(cle => params[cle] === 'true')
+    return {
+        dateMin: params.dateMin || (filtreSpecial ? '' : aujourdhui),
+        dateMax: params.dateMax || (filtreSpecial ? '' : aujourdhui),
+        phaseId: params.phaseId || '',
+        statutId: params.statutId || '',
+        typeProductionId: params.typeProductionId || '',
+        agenceId: params.agenceId || '',
+        documentsIncomplets: params.documentsIncomplets === 'true' ? 'true' : '',
+        estActif: params.estActif === 'true' ? 'true' : '',
+        statutCloture: params.statutCloture === 'true' ? 'true' : '',
+        echeanceDepassee: params.echeanceDepassee === 'true' ? 'true' : '',
+        demandeEnAttente: params.demandeEnAttente === 'true' ? 'true' : '',
+        typeDossier: params.typeDossier || ''
+    }
+}
+
+const parametresInit = lireParametresUrl()
+
 const filters = reactive({
-    agenceId: '', numeroDossier: '', clientNom: '', cpClient: '', numeroOt: '',
+    agenceId: parametresInit.agenceId, numeroDossier: '', clientNom: '', cpClient: '', numeroOt: '',
     paysOrigineId: '', paysDestinationId: '', incontermeId: '', pourCompte: '',
     depart: '', adresseLivraison: '', lieuPaiementFret: '',
     estPrepaye: '', estProvisionne: '', provisionMin: '', provisionMax: '',
     echeanceMin: '', echeanceMax: '', dateLivraisonMin: '', dateLivraisonMax: '',
-    query: '', phaseId: '', statutId: '', clientId: '',
-    typeProductionId: '', otId: '', estGroupage: '', dateMin: aujourdhui, dateMax: aujourdhui,
-    typeDossier: route.query.typeDossier || '',
+    query: '', phaseId: parametresInit.phaseId, statutId: parametresInit.statutId, clientId: '',
+    typeProductionId: parametresInit.typeProductionId, otId: '', estGroupage: '',
+    dateMin: parametresInit.dateMin, dateMax: parametresInit.dateMax,
+    documentsIncomplets: parametresInit.documentsIncomplets,
+    estActif: parametresInit.estActif,
+    statutCloture: parametresInit.statutCloture,
+    echeanceDepassee: parametresInit.echeanceDepassee,
+    demandeEnAttente: parametresInit.demandeEnAttente,
+    typeDossier: parametresInit.typeDossier,
 })
+
+// ── Alertes de filtres pré-appliqués (supprimables par l'utilisateur)
+const filtresPreappliques = computed(() => {
+    const liste = []
+    PARAMS_BINAIRES.forEach(cle => {
+        if (filters[cle] === 'true') liste.push({ cle, libelle: LIBELLES_BINAIRES[cle], valeur: 'true' })
+    })
+    if (filters.phaseId) liste.push({ cle: 'phaseId', libelle: 'Phase', valeur: (phases.value.find(ph => String(ph.id) === String(filters.phaseId)) || {}).nom || filters.phaseId })
+    if (filters.statutId) liste.push({ cle: 'statutId', libelle: 'Statut', valeur: (statuts.value.find(s => String(s.id) === String(filters.statutId)) || {}).nom || filters.statutId })
+    if (filters.agenceId) liste.push({ cle: 'agenceId', libelle: 'Agence', valeur: (agences.value.find(a => String(a.id) === String(filters.agenceId)) || {}).nom || filters.agenceId })
+    if (filters.typeProductionId) liste.push({ cle: 'typeProductionId', libelle: 'Type de production', valeur: (typeProductions.value.find(t => String(t.id) === String(filters.typeProductionId)) || {}).nom || filters.typeProductionId })
+    if (filters.dateMin) liste.push({ cle: 'dateMin', libelle: 'Date création du', valeur: filters.dateMin })
+    if (filters.dateMax) liste.push({ cle: 'dateMax', libelle: 'Date création au', valeur: filters.dateMax })
+    return liste
+})
+
+function retirerFiltrePreapplique(cle) {
+    filters[cle] = ''
+    datatableRef.value?.refresh(true)
+}
+
+function retirerTousFiltresPreappliques() {
+    PARAMS_BINAIRES.forEach(cle => { filters[cle] = '' })
+    filters.phaseId = ''
+    filters.statutId = ''
+    filters.agenceId = ''
+    filters.typeProductionId = ''
+    filters.dateMin = aujourdhui
+    filters.dateMax = aujourdhui
+    datatableRef.value?.refresh(true)
+}
 
 const phases = ref([])
 const statuts = ref([])
@@ -54,10 +122,10 @@ const filtresDates = [
 
 const peutCreer = computed(() => PermissionService.verifierPermission(PORTEE_PROPRE_ECRITURE, ACTION_OT))
 
-watch(() => route.query.typeDossier, (newVal) => {
-    filters.typeDossier = newVal || ''
+watch(() => route.query, () => {
+    Object.assign(filters, lireParametresUrl())
     datatableRef.value?.refresh(true)
-})
+}, { deep: true })
 
 onMounted(async () => {
     try {
@@ -122,6 +190,20 @@ function formatarDate(dt) {
                     </router-link>
                 </div>
 
+
+                <!-- <div v-if="filtresPreappliques.length" class="alert alert-info d-flex flex-wrap align-items-center gap-2 py-2 small">
+                    <span class="fw-semibold">Filtres appliqués depuis le tableau de bord :</span>
+                    <span v-for="f in filtresPreappliques" :key="f.cle"
+                          class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle d-inline-flex align-items-center gap-1 py-1">
+                        {{ f.libelle }} : {{ f.valeur }}
+                        <button type="button" class="btn-close btn-close-white p-0 ms-1"
+                                style="width: 0.6em; height: 0.6em; color: currentColor;"
+                                :aria-label="`Retirer le filtre ${f.libelle}`"
+                                @click="retirerFiltrePreapplique(f.cle)"></button>
+                    </span>
+                    <button type="button" class="btn btn-sm btn-link text-decoration-none small ms-auto"
+                            @click="retirerTousFiltresPreappliques">Retirer tous les filtres</button>
+                </div> -->
 
                 <div class="card border shadow-sm">
                     <div class="card-body p-3">
@@ -195,6 +277,14 @@ function formatarDate(dt) {
                                         <select v-model="slotFilters.statutId" class="form-select form-select-sm">
                                             <option value="">Tous</option>
                                             <option v-for="s in statuts" :key="s.id" :value="s.id">{{ s.nom }}</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small fw-semibold text-secondary">Documents</label>
+                                        <select v-model="slotFilters.documentsIncomplets"
+                                                class="form-select form-select-sm">
+                                            <option value="">Tous les dossiers</option>
+                                            <option value="true">Documents obligatoires manquants</option>
                                         </select>
                                     </div>
                                     <div class="col-md-3">

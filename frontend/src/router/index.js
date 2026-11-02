@@ -12,7 +12,8 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
-      component: () => import('../views/Home.vue'),
+      alias: '/tableau-de-bord',
+      component: () => import('../views/DashboardView.vue'),
       meta: { requiresAuth: true }
     },
     {

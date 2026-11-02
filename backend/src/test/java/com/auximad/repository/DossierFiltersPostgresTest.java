@@ -44,6 +44,7 @@ class DossierFiltersPostgresTest {
             CREATE TABLE statut_dossier(id int, nom text);
             CREATE TABLE ordre_transit(id int, numero_ordre_transit int, id_nature_marchandise int);
             CREATE TABLE dossier_interagence(id_dossier_mere int, id_sous_dossier int);
+            CREATE TABLE demande_interagence(id int, id_dossier int, statut text);
             CREATE TABLE type_document(id int, nom text, id_type_production int, id_nature_marchandise int, est_obligatoire boolean);
             CREATE TABLE document(id int, id_dossier int, id_type_document int, est_actif boolean);
             CREATE TABLE dossier(id int, numero_dossier text, id_client int, id_agence int,
@@ -65,6 +66,8 @@ class DossierFiltersPostgresTest {
                 (3, 'DOS-003', 2, 1, 2, 2, 2, 2, false, '2026-10-02 10:00', 2, 1, 2,
                  NULL, NULL, NULL, NULL, false, false, 0, NULL, NULL);
             INSERT INTO dossier_interagence VALUES(1, 2);
+            INSERT INTO demande_interagence VALUES(1, 2, 'EN_ATTENTE'), (2, 1, 'ACCEPTEE');
+            INSERT INTO statut_dossier VALUES(1, 'Ouvert'), (2, 'Clôturé'), (3, 'Annulé');
             INSERT INTO type_document VALUES(1, 'Facture', 1, NULL, true), (2, 'Liste', 1, NULL, false),
                 (3, 'Certificat', 2, NULL, true);
             INSERT INTO document VALUES(1, 1, 1, true), (2, 3, 3, true), (3, 1, 2, false);
@@ -99,10 +102,10 @@ class DossierFiltersPostgresTest {
         expect(List.of(), Map.of("clientNom", "Martin", "cpClient", "002"));
     }
 
-    @Test void incompleteDocumentsFilterIncludesMissingOptionalAndRequiredTypes() throws Exception {
-        expect(List.of(1, 2), Map.of("documentsIncomplets", true));
+    @Test void incompleteDocumentsFilterRequiresMissingRequiredTypes() throws Exception {
+        expect(List.of(2), Map.of("documentsIncomplets", true));
         expect(List.of(1, 2, 3), Map.of());
-        expect(List.of(1, 2), Map.of("documentsIncomplets", true, "clientNom", "Martin"));
+        expect(List.of(2), Map.of("documentsIncomplets", true, "clientNom", "Martin"));
 
         var method = DossierRepository.class.getMethod("findEtatsDocuments", List.class);
         var sql = method.getAnnotation(Query.class).value();
@@ -115,7 +118,7 @@ class DossierFiltersPostgresTest {
 
     @Test void missingDocumentMustMatchTheOtNature() throws Exception {
         raw.update("INSERT INTO type_document VALUES(4, 'Nature 2', 1, 2, true)");
-        expect(List.of(1, 2), Map.of("documentsIncomplets", true));
+        expect(List.of(2), Map.of("documentsIncomplets", true));
 
         raw.update("INSERT INTO type_document VALUES(5, 'Nature 1', 1, 1, true)");
         var typesSql = TypeDocumentRepository.class.getMethod("findApplicables", Integer.class, Integer.class)
@@ -203,5 +206,16 @@ class DossierFiltersPostgresTest {
         expect(List.of(1), Map.of("typeDossier", "MERE", "cpClient", "001"));
         expect(List.of(2), Map.of("typeDossier", "SOUS_DOSSIER", "agenceId", 2));
         expect(List.of(1), Map.of("phaseId", 1, "statutId", 1, "estGroupage", false, "cpClient", "001"));
+    }
+
+    @Test void activeStatusOverdueDeadlinesAndPendingRequestsFilters() throws Exception {
+        raw.update("UPDATE dossier SET echeance = NOW() - INTERVAL '1 day' WHERE id = 1");
+        raw.update("UPDATE dossier SET echeance = NOW() + INTERVAL '3 days' WHERE id = 2");
+        expect(List.of(1, 2), Map.of("estActif", true));
+        expect(List.of(3), Map.of("statutCloture", true));
+        expect(List.of(1), Map.of("echeanceDepassee", true));
+        expect(List.of(2), Map.of("demandeEnAttente", true));
+        expect(List.of(2), Map.of("estActif", true, "demandeEnAttente", true));
+        expect(List.of(1, 2, 3), Map.of());
     }
 }

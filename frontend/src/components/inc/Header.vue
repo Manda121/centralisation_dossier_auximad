@@ -15,10 +15,9 @@
 
     <!-- Navigation -->
     <nav v-if="isLoggedIn" class="sidebar__nav">
-      <router-link to="/" class="sidebar__nav-link" active-class="sidebar__nav-link--active">
+      <router-link to="/tableau-de-bord" class="sidebar__nav-link" active-class="sidebar__nav-link--active">
         <svg viewBox="0 0 16 16" fill="currentColor" class="sidebar__icon">
-          <path
-            d="M8.707 1.5a1 1 0 0 0-1.414 0L.646 8.146a.5.5 0 0 0 .708.708L2 8.207V13.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V8.207l.646.647a.5.5 0 0 0 .708-.708L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293zM13 7.207V13.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V7.207l5-5z" />
+          <path d="M1 11a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1zm5-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zm5-5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1z"/>
         </svg>
         Tableau de bord
       </router-link>
