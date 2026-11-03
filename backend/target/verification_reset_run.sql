@@ -1,6 +1,6 @@
 \set ON_ERROR_STOP on
-CREATE SCHEMA seed_reset_verification_ffe7829909d04976bbe34fa22d91e975;
-SET search_path TO seed_reset_verification_ffe7829909d04976bbe34fa22d91e975;
+CREATE SCHEMA seed_reset_verification_d57b4945b3c545568021ad8661795666;
+SET search_path TO seed_reset_verification_d57b4945b3c545568021ad8661795666;
 CREATE TABLE agence(
     id SERIAL PRIMARY KEY,
     code INTEGER  UNIQUE CHECK (code BETWEEN 0 AND 99), -- 2 chiffres, cf. nomenclature numero_dossier
@@ -1246,17 +1246,16 @@ DECLARE
     v_productions INT[] := ARRAY(SELECT id FROM type_production ORDER BY id);
     v_clients INT[];
     v_utilisateurs INT[];
+    v_ots_valides INT[];
     v_ots INT[] := '{}';
     v_dossiers INT[] := '{}';
     v_operations INT[];
     v_pays INT[] := ARRAY(SELECT id FROM pays ORDER BY id);
     v_types_clients INT[] := ARRAY(SELECT id FROM type_client ORDER BY id);
-    v_regimes INT[] := ARRAY(SELECT id FROM type_regime ORDER BY id);
     v_bureaux INT[] := ARRAY(SELECT id FROM bureau ORDER BY id);
     v_unites INT[] := ARRAY(SELECT id FROM unite_mesure ORDER BY id);
     v_natures INT[] := ARRAY(SELECT id FROM nature_marchandise ORDER BY id);
     v_containers INT[] := ARRAY(SELECT id FROM type_container ORDER BY id);
-    v_acheminements INT[] := ARRAY(SELECT id FROM mode_acheminement ORDER BY id);
     v_fob INT := (SELECT id FROM inconterme WHERE abreviation = 'FOB');
     v_preparation INT := (SELECT id FROM phase_dossier WHERE nom = 'PREPARATION');
     v_ouvert INT := (SELECT id FROM statut_dossier WHERE nom = 'Ouvert');
@@ -1266,6 +1265,9 @@ DECLARE
     v_type INT;
     v_agence INT;
     v_role INT;
+    v_regime INT;
+    v_agence_destinataire INT;
+    v_user_reponse INT;
     v_statut_ot INT;
     v_statut INT;
     v_phase INT;
@@ -1286,6 +1288,8 @@ DECLARE
     v_date_depart TIMESTAMPTZ;
     v_date_prevue TIMESTAMPTZ;
     v_date_arrivee TIMESTAMPTZ;
+    v_date_demande TIMESTAMPTZ;
+    v_date_reponse TIMESTAMPTZ;
     v_numero TEXT;
     v_compteur INT := 0;
     i INT;
@@ -1367,6 +1371,13 @@ BEGIN
         v_agence := CASE WHEN i <= 300 THEN v_agences_dossiers[i]
             ELSE v_agences_dossiers[1 + floor(random() * 300)::int] END;
         v_type := v_productions[1 + (i - 1) % array_length(v_productions, 1)];
+        -- Permutation de deux productions : garder les mêmes volumes, avec
+        -- un exemple maritime sur le dernier dossier créé aujourd'hui.
+        IF i = 295 THEN v_type := v_productions[6]; END IF;
+        IF i = 300 THEN v_type := v_productions[1]; END IF;
+        SELECT r.id INTO v_regime FROM type_regime r
+        WHERE r.code = (SELECT CASE tp.nom WHEN 'import' THEN 'MCI' WHEN 'export' THEN 'EXP' ELSE 'TRS' END
+                        FROM type_production tp WHERE tp.id = v_type);
         SELECT id INTO v_user FROM utilisateur WHERE id_agence = v_agence ORDER BY id LIMIT 1;
         SELECT id INTO v_statut_ot FROM statut_ot
         WHERE nom = CASE WHEN i <= 300 THEN 'Valide'
@@ -1378,7 +1389,7 @@ BEGIN
         VALUES (10000 + i, v_agence, v_clients[1 + (i - 1) % 100], v_type,
                 v_natures[1 + (i - 1) % array_length(v_natures, 1)],
                 'CMD-' || lpad(i::text, 6, '0'), v_user,
-                v_regimes[1 + (i - 1) % array_length(v_regimes, 1)], 'Destination finale ' || i,
+                v_regime, 'Destination finale ' || i,
                 v_clients[1 + i % 100], v_clients[1 + (i + 1) % 100],
                 v_bureaux[1 + (i - 1) % array_length(v_bureaux, 1)], random() < 0.3,
                 v_clients[1 + (i - 1) % 100], v_statut_ot,
@@ -1386,6 +1397,8 @@ BEGIN
         RETURNING id INTO v_ot;
         v_ots := array_append(v_ots, v_ot);
     END LOOP;
+    v_ots_valides := ARRAY(SELECT ot.id FROM ordre_transit ot JOIN statut_ot st ON st.id = ot.id_statut_ot
+                          WHERE st.nom = 'Valide' ORDER BY ot.id);
 
     FOR i IN 1..400 LOOP
         INSERT INTO instruction (id_ordre_transit, instruction)
@@ -1398,8 +1411,9 @@ BEGIN
             v_compteur := j;
             v_creation := v_debut + (CURRENT_TIMESTAMP - v_debut) * ((j - 1 + random()) / 300);
             IF j = 300 THEN
-                -- Couvrir le mois courant même si le script est lancé le premier jour.
-                v_creation := GREATEST(v_creation, date_trunc('month', CURRENT_TIMESTAMP));
+                -- Un dossier maritime du jour pour les parcours d'assignation,
+                -- même si le script est lancé le premier jour du mois.
+                v_creation := GREATEST(v_creation, date_trunc('day', CURRENT_TIMESTAMP));
             END IF;
             SELECT ot.*, tp.code AS code_production, a.code AS code_agence INTO ligne
             FROM ordre_transit ot JOIN type_production tp ON tp.id = ot.id_type_production
@@ -1450,6 +1464,19 @@ BEGIN
         WHERE id = enfant.id;
         INSERT INTO dossier_interagence (id_dossier_mere, id_sous_dossier, motif, date_creation)
         VALUES (parent.id, enfant.id, 'Prise en charge par une autre agence', enfant.date_creation);
+
+        -- Une demande acceptée est la cause du sous-dossier : réponse et
+        -- création du sous-dossier ont la même date, par un utilisateur de l'agence sollicitée.
+        SELECT id INTO v_user FROM utilisateur WHERE id_agence = parent.id_agence ORDER BY id LIMIT 1;
+        SELECT id INTO v_user_reponse FROM utilisateur WHERE id_agence = enfant.id_agence ORDER BY id LIMIT 1;
+        v_date_demande := parent.date_creation + (enfant.date_creation - parent.date_creation) * 0.5;
+        INSERT INTO demande_interagence (id_dossier, id_agence_demandeuse, id_agence_destinataire,
+            id_utilisateur_demande, id_utilisateur_reponse, motif, reponse_motif,
+            statut, est_vue, date_demande, date_reponse)
+        VALUES (parent.id, parent.id_agence, enfant.id_agence, v_user, v_user_reponse,
+            'Prise en charge du dossier par l''agence ' || (SELECT nom FROM agence WHERE id = enfant.id_agence),
+            'Demande acceptée ; sous-dossier créé pour le suivi local.', 'ACCEPTEE', TRUE,
+            v_date_demande, enfant.date_creation);
     END LOOP;
 
     -- L'OT précède toujours le premier dossier qui lui est rattaché.
@@ -1538,17 +1565,25 @@ BEGIN
     FROM mvt_dossier m WHERE m.id % 3 = 0;
 
     -- Expéditions maritimes/aériennes : dates déduites de l'OT et stations distinctes.
-    FOR ligne IN SELECT ot.*, tp.id_mode_transport, mt.nom AS transport
+    -- Les OT encore en brouillon ou non validés n'ont ni expédition ni marchandise affectée.
+    FOR ligne IN SELECT ot.*, tp.id_mode_transport, tp.nom AS sens, mt.nom AS transport
         FROM ordre_transit ot JOIN type_production tp ON tp.id = ot.id_type_production
         JOIN mode_transport mt ON mt.id = tp.id_mode_transport
-        WHERE mt.nom IN ('Maritime', 'Aerien') ORDER BY ot.id LOOP
+        JOIN statut_ot st ON st.id = ot.id_statut_ot
+        WHERE mt.nom IN ('Maritime', 'Aerien') AND st.nom = 'Valide' ORDER BY ot.id LOOP
         SELECT id INTO v_dossier FROM dossier WHERE id_ordre_transit = ligne.id ORDER BY id LIMIT 1;
         SELECT id INTO v_compagnie FROM compagnie WHERE id_mode_transport = ligne.id_mode_transport ORDER BY random() LIMIT 1;
         SELECT id INTO v_navire FROM navire WHERE id_compagnie = v_compagnie ORDER BY random() LIMIT 1;
-        SELECT id INTO v_station_depart FROM station WHERE id_mode_transport = ligne.id_mode_transport ORDER BY random() LIMIT 1;
+        -- Import : départ étranger / arrivée Madagascar. Export : sens inverse.
+        SELECT id INTO v_station_depart FROM station WHERE id_mode_transport = ligne.id_mode_transport
+            AND ((code IN ('PTOM', 'PDAN', 'PMAH', 'PTOL', 'TNR', 'NOS', 'TMM')) = (ligne.sens = 'export'))
+            ORDER BY random() LIMIT 1;
         SELECT id INTO v_station_arrivee FROM station
-            WHERE id_mode_transport = ligne.id_mode_transport AND id <> v_station_depart ORDER BY random() LIMIT 1;
-        v_acheminement := v_acheminements[1 + ligne.id % array_length(v_acheminements, 1)];
+            WHERE id_mode_transport = ligne.id_mode_transport
+              AND ((code IN ('PTOM', 'PDAN', 'PMAH', 'PTOL', 'TNR', 'NOS', 'TMM')) = (ligne.sens = 'import'))
+            ORDER BY random() LIMIT 1;
+        SELECT id INTO v_acheminement FROM mode_acheminement
+        WHERE nom = CASE WHEN ligne.transport = 'Aerien' THEN 'Par Avion' ELSE 'Par Camion' END;
         v_date_depart := ligne.date_creation + INTERVAL '1 day';
         v_date_prevue := v_date_depart + CASE WHEN ligne.transport = 'Maritime' THEN INTERVAL '18 days' ELSE INTERVAL '2 days' END;
         v_date_arrivee := v_date_prevue + (ligne.id % 4) * INTERVAL '1 day';
@@ -1562,17 +1597,38 @@ BEGIN
             v_acheminement, v_compagnie, CASE WHEN ligne.transport = 'Maritime' THEN v_navire END,
             CASE WHEN ligne.transport = 'Maritime' THEN 'BL-' || lpad(ligne.id::text, 6, '0') END,
             CASE WHEN ligne.transport = 'Maritime' THEN v_date_depart END,
-            CASE WHEN ligne.transport = 'Maritime' THEN 'Port de Toamasina' END,
+            CASE WHEN ligne.transport = 'Maritime' THEN (SELECT nom FROM station WHERE id = v_station_depart) END,
             CASE WHEN ligne.transport = 'Maritime' THEN v_station_depart END,
             CASE WHEN ligne.transport = 'Maritime' THEN v_station_arrivee END,
             CASE WHEN ligne.transport = 'Aerien' THEN 'VOL-' || lpad(ligne.id::text, 6, '0') END,
             CASE WHEN ligne.transport = 'Aerien' THEN 'LTA-' || lpad(ligne.id::text, 6, '0') END,
             CASE WHEN ligne.transport = 'Aerien' THEN v_date_depart END,
-            CASE WHEN ligne.transport = 'Aerien' THEN 'Aeroport Ivato' END,
+            CASE WHEN ligne.transport = 'Aerien' THEN (SELECT nom FROM station WHERE id = v_station_depart) END,
             CASE WHEN ligne.transport = 'Aerien' THEN v_station_depart END,
             CASE WHEN ligne.transport = 'Aerien' THEN v_station_arrivee END,
             'Scan OT ' || ligne.id, v_date_depart, v_date_prevue, v_date_arrivee);
     END LOOP;
+
+    -- Les pays et lieux des dossiers suivent les stations de leur expédition.
+    WITH pays_stations(code_station, code_pays) AS (VALUES
+        ('PTOM', 'MDG'), ('PDAN', 'MDG'), ('PMAH', 'MDG'), ('PTOL', 'MDG'),
+        ('TNR', 'MDG'), ('NOS', 'MDG'), ('TMM', 'MDG'),
+        ('PMRS', 'FRA'), ('PHAV', 'FRA'), ('CDG', 'FRA'), ('ORY', 'FRA'),
+        ('PANV', 'BEL'), ('BRU', 'BEL'), ('PRTM', 'NLD'), ('AMS', 'NLD'),
+        ('PHAM', 'DEU'), ('FRA', 'DEU'), ('PSHA', 'CHN'), ('PSIN', 'SGP'),
+        ('PBUS', 'KOR'), ('PJEA', 'ARE'), ('DXB', 'ARE'), ('PDUR', 'ZAF'),
+        ('PMOM', 'KEN'), ('NBO', 'KEN'), ('LHR', 'GBR'), ('GVA', 'CHE'),
+        ('DOH', 'QAT'), ('IST', 'TUR'), ('ADD', 'ETH')
+    )
+    UPDATE dossier d SET id_pays_origine = po.id, id_pays_destination = pd.id,
+        depart = sd.lieu, adresse_livraison = 'Livraison à ' || sa.lieu
+    FROM expedition e
+    JOIN station sd ON sd.id = COALESCE(e.id_port_embarquement, e.id_aeroport_embarquement)
+    JOIN station sa ON sa.id = COALESCE(e.id_port_debarquement, e.id_aeroport_debarquement)
+    JOIN pays_stations origine ON origine.code_station = sd.code
+    JOIN pays_stations destination ON destination.code_station = sa.code
+    JOIN pays po ON po.code = origine.code_pays JOIN pays pd ON pd.code = destination.code_pays
+    WHERE d.id_ordre_transit = e.id_ordre_transit;
 
     FOR i IN 1..50 LOOP
         SELECT * INTO ligne FROM dossier WHERE id = v_dossiers[1 + (i * 7) % 300];
@@ -1584,17 +1640,52 @@ BEGIN
 
     FOR i IN 1..600 LOOP
         INSERT INTO marchandise (id_ordre_transit, id_unite_mesure, marque, modele, description, poids, volume, quantite)
-        VALUES (v_ots[1 + (i - 1) % 320], v_unites[1 + (i - 1) % array_length(v_unites, 1)],
+        VALUES (v_ots_valides[1 + (i - 1) % array_length(v_ots_valides, 1)],
+            v_unites[1 + (i - 1) % array_length(v_unites, 1)],
             'Marque' || i % 20, 'Modele' || i % 30, 'Description marchandise ' || i,
             (random() * 5000)::numeric(10, 2), (random() * 100)::numeric(10, 2), 1 + (i % 100));
     END LOOP;
 
-    FOR i IN 1..300 LOOP
-        v_dossier := v_dossiers[i];
+    -- Un conteneur pour chaque dossier maritime ; aucun sur un dossier aérien ou terrestre.
+    FOR ligne IN SELECT d.id FROM dossier d
+        JOIN type_production tp ON tp.id = d.id_type_production
+        JOIN mode_transport mt ON mt.id = tp.id_mode_transport
+        WHERE mt.nom = 'Maritime' ORDER BY d.id LOOP
+        v_dossier := ligne.id;
         INSERT INTO conteneur (id_dossier, id_type_container, numero_container, description)
-        VALUES (v_dossier, v_containers[1 + (i - 1) % array_length(v_containers, 1)],
-            'CONT-' || lpad(i::text, 7, '0'), 'Conteneur ' || i) RETURNING id INTO v_doc;
+        VALUES (v_dossier, v_containers[1 + (v_dossier - 1) % array_length(v_containers, 1)],
+            'CONT-' || lpad(v_dossier::text, 7, '0'), 'Conteneur du dossier ' || v_dossier) RETURNING id INTO v_doc;
         INSERT INTO dossier_conteneur (id_dossier, id_conteneur) VALUES (v_dossier, v_doc);
+    END LOOP;
+
+    -- 20 demandes en attente et 20 refusées, sur des dossiers encore actifs
+    -- sans autre demande. Les dates suivent l'ouverture et chaque auteur appartient
+    -- à l'agence qui demande ou répond. Ce jeu n'expédie aucun email.
+    v_compteur := 0;
+    FOR ligne IN SELECT d.* FROM dossier d
+        JOIN statut_dossier st ON st.id = d.id_statut
+        WHERE st.nom NOT IN ('Clôturé', 'Annulé')
+          AND NOT EXISTS (SELECT 1 FROM demande_interagence di WHERE di.id_dossier = d.id)
+          AND NOT EXISTS (SELECT 1 FROM dossier_interagence di WHERE di.id_sous_dossier = d.id)
+        ORDER BY d.date_creation DESC, d.id DESC LIMIT 40 LOOP
+        v_compteur := v_compteur + 1;
+        SELECT id INTO v_agence_destinataire FROM agence WHERE id <> ligne.id_agence
+            ORDER BY (code + ligne.id) % 100, id LIMIT 1;
+        SELECT id INTO v_user FROM utilisateur WHERE id_agence = ligne.id_agence ORDER BY id LIMIT 1;
+        SELECT id INTO v_user_reponse FROM utilisateur WHERE id_agence = v_agence_destinataire ORDER BY id LIMIT 1;
+        v_date_demande := ligne.date_creation + (CURRENT_TIMESTAMP - ligne.date_creation) * 0.2;
+        v_date_reponse := v_date_demande + (CURRENT_TIMESTAMP - v_date_demande) * 0.5;
+        INSERT INTO demande_interagence (id_dossier, id_agence_demandeuse, id_agence_destinataire,
+            id_utilisateur_demande, id_utilisateur_reponse, motif, reponse_motif,
+            statut, est_vue, date_demande, date_reponse)
+        VALUES (ligne.id, ligne.id_agence, v_agence_destinataire, v_user,
+            CASE WHEN v_compteur > 20 THEN v_user_reponse END,
+            CASE WHEN v_compteur <= 20 THEN 'Demande de prise en charge locale en attente de confirmation.'
+                 ELSE 'Demande de prise en charge locale examinée par l''agence sollicitée.' END,
+            CASE WHEN v_compteur > 20 THEN 'Prise en charge indisponible ; le dossier reste suivi par son agence d''origine.' END,
+            CASE WHEN v_compteur <= 20 THEN 'EN_ATTENTE' ELSE 'REFUSEE' END,
+            CASE WHEN v_compteur <= 20 THEN v_compteur % 3 = 0 ELSE TRUE END,
+            v_date_demande, CASE WHEN v_compteur > 20 THEN v_date_reponse END);
     END LOOP;
 
     FOR ligne IN SELECT d.id, d.date_creation, e.id AS expedition FROM dossier d
@@ -1656,7 +1747,9 @@ BEGIN
         'type_production', 'mode_transport', 'operation_dossier', 'ordre_transit',
         'dossier', 'mvt_dossier', 'document', 'type_document', 'document_mvt',
         'document_obligatoire_mvt', 'remise', 'utilisateur', 'clients',
-        'declaration', 'dossier_interagence'
+        'declaration', 'dossier_interagence', 'demande_interagence', 'conteneur',
+        'dossier_conteneur', 'expedition', 'compagnie', 'navire', 'station', 'groupage',
+        'marchandise', 'type_regime', 'statut_ot', 'pays', 'historique_mail'
     ] LOOP
         IF NOT EXISTS (
             SELECT 1 FROM information_schema.tables
@@ -1850,6 +1943,166 @@ BEGIN
         RAISE EXCEPTION 'Les quarante sous-dossiers doivent partager OT, client et production de leur dossier mère, dans une autre agence, sans antériorité.';
     END IF;
 
+    IF EXISTS (
+        SELECT 1 FROM ordre_transit ot
+        JOIN type_production tp ON tp.id = ot.id_type_production
+        JOIN type_regime r ON r.id = ot.id_type_regime
+        WHERE (tp.nom = 'import' AND r.code <> 'MCI') OR (tp.nom = 'export' AND r.code <> 'EXP')
+    ) THEN
+        RAISE EXCEPTION 'Les régimes des OT import et export doivent correspondre au sens de la production.';
+    END IF;
+
+    IF (SELECT count(*) FROM conteneur) <> (
+        SELECT count(*) FROM dossier d JOIN type_production tp ON tp.id = d.id_type_production
+        JOIN mode_transport mt ON mt.id = tp.id_mode_transport WHERE mt.nom = 'Maritime'
+    ) OR EXISTS (
+        SELECT 1 FROM conteneur c
+        JOIN dossier d ON d.id = c.id_dossier
+        JOIN type_production tp ON tp.id = d.id_type_production
+        JOIN mode_transport mt ON mt.id = tp.id_mode_transport
+        WHERE mt.nom <> 'Maritime' OR NOT EXISTS (
+            SELECT 1 FROM dossier_conteneur dc WHERE dc.id_conteneur = c.id AND dc.id_dossier = d.id
+        )
+    ) OR EXISTS (
+        SELECT 1 FROM dossier_conteneur dc JOIN dossier d ON d.id = dc.id_dossier
+        JOIN type_production tp ON tp.id = d.id_type_production
+        JOIN mode_transport mt ON mt.id = tp.id_mode_transport WHERE mt.nom <> 'Maritime'
+    ) THEN
+        RAISE EXCEPTION 'Seuls les dossiers maritimes doivent recevoir un conteneur et une association cohérente.';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM dossier d JOIN type_production tp ON tp.id = d.id_type_production
+        JOIN mode_transport mt ON mt.id = tp.id_mode_transport
+        WHERE mt.nom = 'Maritime' AND d.date_creation::date = CURRENT_DATE
+    ) THEN
+        RAISE EXCEPTION 'Un dossier maritime créé aujourd''hui doit permettre de tester les assignations du jour.';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM ordre_transit ot JOIN statut_ot st ON st.id = ot.id_statut_ot
+        WHERE st.nom <> 'Valide' AND (
+            EXISTS (SELECT 1 FROM expedition e WHERE e.id_ordre_transit = ot.id)
+            OR EXISTS (SELECT 1 FROM marchandise m WHERE m.id_ordre_transit = ot.id)
+        )
+    ) THEN
+        RAISE EXCEPTION 'Les OT encore en brouillon ou non validés ne doivent pas avoir de marchandise ni d''expédition affectée.';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM ordre_transit ot
+        JOIN type_production tp ON tp.id = ot.id_type_production
+        JOIN mode_transport mt ON mt.id = tp.id_mode_transport
+        JOIN statut_ot st ON st.id = ot.id_statut_ot
+        WHERE st.nom = 'Valide' AND mt.nom IN ('Maritime', 'Aerien')
+          AND NOT EXISTS (SELECT 1 FROM expedition e WHERE e.id_ordre_transit = ot.id)
+    ) OR EXISTS (
+        SELECT 1 FROM expedition e
+        JOIN ordre_transit ot ON ot.id = e.id_ordre_transit
+        JOIN type_production tp ON tp.id = ot.id_type_production
+        JOIN mode_transport mt ON mt.id = tp.id_mode_transport
+        JOIN compagnie c ON c.id = e.id_compagnie
+        LEFT JOIN navire n ON n.id = e.id_navire
+        LEFT JOIN dossier d ON d.id = e.id_dossier
+        LEFT JOIN station depart ON depart.id = coalesce(e.id_port_embarquement, e.id_aeroport_embarquement)
+        LEFT JOIN station arrivee ON arrivee.id = coalesce(e.id_port_debarquement, e.id_aeroport_debarquement)
+        WHERE e.id_mode_transport IS DISTINCT FROM tp.id_mode_transport
+           OR c.id_mode_transport IS DISTINCT FROM e.id_mode_transport
+           OR (n.id IS NOT NULL AND n.id_compagnie IS DISTINCT FROM c.id)
+           OR (d.id IS NOT NULL AND d.id_ordre_transit IS DISTINCT FROM ot.id)
+           OR depart.id IS NULL OR arrivee.id IS NULL OR depart.id = arrivee.id
+           OR depart.id_mode_transport IS DISTINCT FROM e.id_mode_transport
+           OR arrivee.id_mode_transport IS DISTINCT FROM e.id_mode_transport
+           OR (mt.nom = 'Maritime' AND (n.id IS NULL OR e.numero_bl IS NULL
+               OR e.id_port_embarquement IS NULL OR e.id_port_debarquement IS NULL
+               OR e.numero_lta IS NOT NULL OR e.numero_vol IS NOT NULL OR e.date_lta IS NOT NULL
+               OR e.lieu_lta IS NOT NULL OR e.id_aeroport_embarquement IS NOT NULL
+               OR e.id_aeroport_debarquement IS NOT NULL OR e.lieu_bl IS DISTINCT FROM depart.nom))
+           OR (mt.nom = 'Aerien' AND (e.numero_lta IS NULL OR e.numero_vol IS NULL
+               OR e.id_aeroport_embarquement IS NULL OR e.id_aeroport_debarquement IS NULL
+               OR e.id_navire IS NOT NULL OR e.numero_bl IS NOT NULL OR e.date_bl IS NOT NULL
+               OR e.lieu_bl IS NOT NULL OR e.id_port_embarquement IS NOT NULL
+               OR e.id_port_debarquement IS NOT NULL OR e.lieu_lta IS DISTINCT FROM depart.nom))
+           OR e.date_depart < ot.date_creation OR e.date_depart > NOW()
+           OR e.date_prevu < e.date_depart OR e.date_arrivee < e.date_depart OR e.date_arrivee > NOW()
+           OR e.est_achemine IS DISTINCT FROM (e.date_arrivee IS NOT NULL)
+    ) THEN
+        RAISE EXCEPTION 'Les expéditions doivent utiliser le transport, la compagnie, le navire, les stations et les dates cohérents avec leur OT.';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM dossier d JOIN type_production tp ON tp.id = d.id_type_production
+        JOIN pays origine ON origine.id = d.id_pays_origine
+        JOIN pays destination ON destination.id = d.id_pays_destination
+        WHERE (tp.nom = 'import' AND (origine.code = 'MDG' OR destination.code <> 'MDG'))
+           OR (tp.nom = 'export' AND (origine.code <> 'MDG' OR destination.code = 'MDG'))
+    ) OR EXISTS (
+        SELECT 1 FROM expedition e
+        JOIN ordre_transit ot ON ot.id = e.id_ordre_transit
+        JOIN type_production tp ON tp.id = ot.id_type_production
+        JOIN station depart ON depart.id = coalesce(e.id_port_embarquement, e.id_aeroport_embarquement)
+        JOIN station arrivee ON arrivee.id = coalesce(e.id_port_debarquement, e.id_aeroport_debarquement)
+        WHERE (depart.code IN ('PTOM', 'PDAN', 'PMAH', 'PTOL', 'TNR', 'NOS', 'TMM'))
+                   IS DISTINCT FROM (tp.nom = 'export')
+           OR (arrivee.code IN ('PTOM', 'PDAN', 'PMAH', 'PTOL', 'TNR', 'NOS', 'TMM'))
+                   IS DISTINCT FROM (tp.nom = 'import')
+    ) THEN
+        RAISE EXCEPTION 'Les trajets et pays doivent respecter import vers Madagascar / export depuis Madagascar.';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM groupage g JOIN dossier d ON d.id = g.id_dossier
+        JOIN expedition e ON e.id = g.id_expedition
+        WHERE e.id_ordre_transit IS DISTINCT FROM d.id_ordre_transit
+           OR d.est_groupage IS DISTINCT FROM TRUE
+           OR g.date_creation < d.date_creation OR g.date_creation > NOW()
+    ) THEN
+        RAISE EXCEPTION 'Les groupages doivent relier un dossier à l''expédition de son propre OT.';
+    END IF;
+
+    IF (SELECT count(*) FROM demande_interagence) <> 80
+       OR (SELECT count(*) FROM demande_interagence WHERE statut = 'ACCEPTEE') <> 40
+       OR (SELECT count(*) FROM demande_interagence WHERE statut = 'EN_ATTENTE') <> 20
+       OR (SELECT count(*) FROM demande_interagence WHERE statut = 'REFUSEE') <> 20
+       OR EXISTS (SELECT id_dossier FROM demande_interagence WHERE statut = 'EN_ATTENTE'
+                  GROUP BY id_dossier HAVING count(*) > 1) THEN
+        RAISE EXCEPTION '80 demandes sont attendues : 40 acceptées, 20 en attente, 20 refusées, sans doublon en attente.';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM demande_interagence di
+        JOIN dossier d ON d.id = di.id_dossier
+        JOIN utilisateur auteur ON auteur.id = di.id_utilisateur_demande
+        LEFT JOIN utilisateur repondant ON repondant.id = di.id_utilisateur_reponse
+        WHERE di.id_agence_demandeuse = di.id_agence_destinataire
+           OR di.id_agence_demandeuse IS DISTINCT FROM d.id_agence
+           OR auteur.id_agence IS DISTINCT FROM di.id_agence_demandeuse
+           OR di.date_demande < d.date_creation OR di.date_demande > NOW()
+           OR (di.statut = 'EN_ATTENTE' AND (di.date_reponse IS NOT NULL
+               OR di.id_utilisateur_reponse IS NOT NULL OR di.reponse_motif IS NOT NULL))
+           OR (di.statut IN ('ACCEPTEE', 'REFUSEE') AND (di.date_reponse IS NULL
+               OR di.date_reponse < di.date_demande OR di.date_reponse > NOW()
+               OR repondant.id_agence IS DISTINCT FROM di.id_agence_destinataire
+               OR di.est_vue IS DISTINCT FROM TRUE))
+    ) THEN
+        RAISE EXCEPTION 'Les agences, auteurs, réponses et dates des demandes interagences doivent être cohérents.';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM demande_interagence di WHERE di.statut = 'ACCEPTEE' AND NOT EXISTS (
+            SELECT 1 FROM dossier_interagence lien JOIN dossier sous ON sous.id = lien.id_sous_dossier
+            WHERE lien.id_dossier_mere = di.id_dossier AND sous.id_agence = di.id_agence_destinataire
+              AND sous.date_creation = di.date_reponse AND lien.date_creation = di.date_reponse
+        )
+    ) OR EXISTS (
+        SELECT 1 FROM dossier_interagence lien JOIN dossier sous ON sous.id = lien.id_sous_dossier
+        WHERE NOT EXISTS (SELECT 1 FROM demande_interagence di
+            WHERE di.statut = 'ACCEPTEE' AND di.id_dossier = lien.id_dossier_mere
+              AND di.id_agence_destinataire = sous.id_agence AND di.date_reponse = sous.date_creation)
+    ) OR EXISTS (SELECT 1 FROM historique_mail) THEN
+        RAISE EXCEPTION 'Chaque sous-dossier doit provenir d''une demande acceptée ; aucun email fictif ne doit être mis en file.';
+    END IF;
+
     IF NOT EXISTS (SELECT 1 FROM mvt_dossier) OR EXISTS (
         SELECT 1 FROM mvt_dossier m
         JOIN dossier d ON d.id = m.id_dossier
@@ -1964,6 +2217,14 @@ SELECT ph.nom AS phase, s.nom AS statut, count(*) AS dossiers
 FROM dossier d JOIN phase_dossier ph ON ph.id = d.id_phase
 JOIN statut_dossier s ON s.id = d.id_statut
 GROUP BY ph.nom, s.nom ORDER BY ph.nom, s.nom;
+
+SELECT mt.nom AS transport, count(d.id) AS dossiers, count(c.id) AS conteneurs
+FROM dossier d JOIN type_production tp ON tp.id = d.id_type_production
+JOIN mode_transport mt ON mt.id = tp.id_mode_transport
+LEFT JOIN conteneur c ON c.id_dossier = d.id
+GROUP BY mt.nom ORDER BY mt.nom;
+
+SELECT statut, count(*) AS demandes FROM demande_interagence GROUP BY statut ORDER BY statut;
 
 -- Réinitialise les données du schéma courant en conservant la base, les tables,
 -- les contraintes, les index, les fonctions et les déclencheurs.
@@ -2545,17 +2806,16 @@ DECLARE
     v_productions INT[] := ARRAY(SELECT id FROM type_production ORDER BY id);
     v_clients INT[];
     v_utilisateurs INT[];
+    v_ots_valides INT[];
     v_ots INT[] := '{}';
     v_dossiers INT[] := '{}';
     v_operations INT[];
     v_pays INT[] := ARRAY(SELECT id FROM pays ORDER BY id);
     v_types_clients INT[] := ARRAY(SELECT id FROM type_client ORDER BY id);
-    v_regimes INT[] := ARRAY(SELECT id FROM type_regime ORDER BY id);
     v_bureaux INT[] := ARRAY(SELECT id FROM bureau ORDER BY id);
     v_unites INT[] := ARRAY(SELECT id FROM unite_mesure ORDER BY id);
     v_natures INT[] := ARRAY(SELECT id FROM nature_marchandise ORDER BY id);
     v_containers INT[] := ARRAY(SELECT id FROM type_container ORDER BY id);
-    v_acheminements INT[] := ARRAY(SELECT id FROM mode_acheminement ORDER BY id);
     v_fob INT := (SELECT id FROM inconterme WHERE abreviation = 'FOB');
     v_preparation INT := (SELECT id FROM phase_dossier WHERE nom = 'PREPARATION');
     v_ouvert INT := (SELECT id FROM statut_dossier WHERE nom = 'Ouvert');
@@ -2565,6 +2825,9 @@ DECLARE
     v_type INT;
     v_agence INT;
     v_role INT;
+    v_regime INT;
+    v_agence_destinataire INT;
+    v_user_reponse INT;
     v_statut_ot INT;
     v_statut INT;
     v_phase INT;
@@ -2585,6 +2848,8 @@ DECLARE
     v_date_depart TIMESTAMPTZ;
     v_date_prevue TIMESTAMPTZ;
     v_date_arrivee TIMESTAMPTZ;
+    v_date_demande TIMESTAMPTZ;
+    v_date_reponse TIMESTAMPTZ;
     v_numero TEXT;
     v_compteur INT := 0;
     i INT;
@@ -2666,6 +2931,13 @@ BEGIN
         v_agence := CASE WHEN i <= 300 THEN v_agences_dossiers[i]
             ELSE v_agences_dossiers[1 + floor(random() * 300)::int] END;
         v_type := v_productions[1 + (i - 1) % array_length(v_productions, 1)];
+        -- Permutation de deux productions : garder les mêmes volumes, avec
+        -- un exemple maritime sur le dernier dossier créé aujourd'hui.
+        IF i = 295 THEN v_type := v_productions[6]; END IF;
+        IF i = 300 THEN v_type := v_productions[1]; END IF;
+        SELECT r.id INTO v_regime FROM type_regime r
+        WHERE r.code = (SELECT CASE tp.nom WHEN 'import' THEN 'MCI' WHEN 'export' THEN 'EXP' ELSE 'TRS' END
+                        FROM type_production tp WHERE tp.id = v_type);
         SELECT id INTO v_user FROM utilisateur WHERE id_agence = v_agence ORDER BY id LIMIT 1;
         SELECT id INTO v_statut_ot FROM statut_ot
         WHERE nom = CASE WHEN i <= 300 THEN 'Valide'
@@ -2677,7 +2949,7 @@ BEGIN
         VALUES (10000 + i, v_agence, v_clients[1 + (i - 1) % 100], v_type,
                 v_natures[1 + (i - 1) % array_length(v_natures, 1)],
                 'CMD-' || lpad(i::text, 6, '0'), v_user,
-                v_regimes[1 + (i - 1) % array_length(v_regimes, 1)], 'Destination finale ' || i,
+                v_regime, 'Destination finale ' || i,
                 v_clients[1 + i % 100], v_clients[1 + (i + 1) % 100],
                 v_bureaux[1 + (i - 1) % array_length(v_bureaux, 1)], random() < 0.3,
                 v_clients[1 + (i - 1) % 100], v_statut_ot,
@@ -2685,6 +2957,8 @@ BEGIN
         RETURNING id INTO v_ot;
         v_ots := array_append(v_ots, v_ot);
     END LOOP;
+    v_ots_valides := ARRAY(SELECT ot.id FROM ordre_transit ot JOIN statut_ot st ON st.id = ot.id_statut_ot
+                          WHERE st.nom = 'Valide' ORDER BY ot.id);
 
     FOR i IN 1..400 LOOP
         INSERT INTO instruction (id_ordre_transit, instruction)
@@ -2697,8 +2971,9 @@ BEGIN
             v_compteur := j;
             v_creation := v_debut + (CURRENT_TIMESTAMP - v_debut) * ((j - 1 + random()) / 300);
             IF j = 300 THEN
-                -- Couvrir le mois courant même si le script est lancé le premier jour.
-                v_creation := GREATEST(v_creation, date_trunc('month', CURRENT_TIMESTAMP));
+                -- Un dossier maritime du jour pour les parcours d'assignation,
+                -- même si le script est lancé le premier jour du mois.
+                v_creation := GREATEST(v_creation, date_trunc('day', CURRENT_TIMESTAMP));
             END IF;
             SELECT ot.*, tp.code AS code_production, a.code AS code_agence INTO ligne
             FROM ordre_transit ot JOIN type_production tp ON tp.id = ot.id_type_production
@@ -2749,6 +3024,19 @@ BEGIN
         WHERE id = enfant.id;
         INSERT INTO dossier_interagence (id_dossier_mere, id_sous_dossier, motif, date_creation)
         VALUES (parent.id, enfant.id, 'Prise en charge par une autre agence', enfant.date_creation);
+
+        -- Une demande acceptée est la cause du sous-dossier : réponse et
+        -- création du sous-dossier ont la même date, par un utilisateur de l'agence sollicitée.
+        SELECT id INTO v_user FROM utilisateur WHERE id_agence = parent.id_agence ORDER BY id LIMIT 1;
+        SELECT id INTO v_user_reponse FROM utilisateur WHERE id_agence = enfant.id_agence ORDER BY id LIMIT 1;
+        v_date_demande := parent.date_creation + (enfant.date_creation - parent.date_creation) * 0.5;
+        INSERT INTO demande_interagence (id_dossier, id_agence_demandeuse, id_agence_destinataire,
+            id_utilisateur_demande, id_utilisateur_reponse, motif, reponse_motif,
+            statut, est_vue, date_demande, date_reponse)
+        VALUES (parent.id, parent.id_agence, enfant.id_agence, v_user, v_user_reponse,
+            'Prise en charge du dossier par l''agence ' || (SELECT nom FROM agence WHERE id = enfant.id_agence),
+            'Demande acceptée ; sous-dossier créé pour le suivi local.', 'ACCEPTEE', TRUE,
+            v_date_demande, enfant.date_creation);
     END LOOP;
 
     -- L'OT précède toujours le premier dossier qui lui est rattaché.
@@ -2837,17 +3125,25 @@ BEGIN
     FROM mvt_dossier m WHERE m.id % 3 = 0;
 
     -- Expéditions maritimes/aériennes : dates déduites de l'OT et stations distinctes.
-    FOR ligne IN SELECT ot.*, tp.id_mode_transport, mt.nom AS transport
+    -- Les OT encore en brouillon ou non validés n'ont ni expédition ni marchandise affectée.
+    FOR ligne IN SELECT ot.*, tp.id_mode_transport, tp.nom AS sens, mt.nom AS transport
         FROM ordre_transit ot JOIN type_production tp ON tp.id = ot.id_type_production
         JOIN mode_transport mt ON mt.id = tp.id_mode_transport
-        WHERE mt.nom IN ('Maritime', 'Aerien') ORDER BY ot.id LOOP
+        JOIN statut_ot st ON st.id = ot.id_statut_ot
+        WHERE mt.nom IN ('Maritime', 'Aerien') AND st.nom = 'Valide' ORDER BY ot.id LOOP
         SELECT id INTO v_dossier FROM dossier WHERE id_ordre_transit = ligne.id ORDER BY id LIMIT 1;
         SELECT id INTO v_compagnie FROM compagnie WHERE id_mode_transport = ligne.id_mode_transport ORDER BY random() LIMIT 1;
         SELECT id INTO v_navire FROM navire WHERE id_compagnie = v_compagnie ORDER BY random() LIMIT 1;
-        SELECT id INTO v_station_depart FROM station WHERE id_mode_transport = ligne.id_mode_transport ORDER BY random() LIMIT 1;
+        -- Import : départ étranger / arrivée Madagascar. Export : sens inverse.
+        SELECT id INTO v_station_depart FROM station WHERE id_mode_transport = ligne.id_mode_transport
+            AND ((code IN ('PTOM', 'PDAN', 'PMAH', 'PTOL', 'TNR', 'NOS', 'TMM')) = (ligne.sens = 'export'))
+            ORDER BY random() LIMIT 1;
         SELECT id INTO v_station_arrivee FROM station
-            WHERE id_mode_transport = ligne.id_mode_transport AND id <> v_station_depart ORDER BY random() LIMIT 1;
-        v_acheminement := v_acheminements[1 + ligne.id % array_length(v_acheminements, 1)];
+            WHERE id_mode_transport = ligne.id_mode_transport
+              AND ((code IN ('PTOM', 'PDAN', 'PMAH', 'PTOL', 'TNR', 'NOS', 'TMM')) = (ligne.sens = 'import'))
+            ORDER BY random() LIMIT 1;
+        SELECT id INTO v_acheminement FROM mode_acheminement
+        WHERE nom = CASE WHEN ligne.transport = 'Aerien' THEN 'Par Avion' ELSE 'Par Camion' END;
         v_date_depart := ligne.date_creation + INTERVAL '1 day';
         v_date_prevue := v_date_depart + CASE WHEN ligne.transport = 'Maritime' THEN INTERVAL '18 days' ELSE INTERVAL '2 days' END;
         v_date_arrivee := v_date_prevue + (ligne.id % 4) * INTERVAL '1 day';
@@ -2861,17 +3157,38 @@ BEGIN
             v_acheminement, v_compagnie, CASE WHEN ligne.transport = 'Maritime' THEN v_navire END,
             CASE WHEN ligne.transport = 'Maritime' THEN 'BL-' || lpad(ligne.id::text, 6, '0') END,
             CASE WHEN ligne.transport = 'Maritime' THEN v_date_depart END,
-            CASE WHEN ligne.transport = 'Maritime' THEN 'Port de Toamasina' END,
+            CASE WHEN ligne.transport = 'Maritime' THEN (SELECT nom FROM station WHERE id = v_station_depart) END,
             CASE WHEN ligne.transport = 'Maritime' THEN v_station_depart END,
             CASE WHEN ligne.transport = 'Maritime' THEN v_station_arrivee END,
             CASE WHEN ligne.transport = 'Aerien' THEN 'VOL-' || lpad(ligne.id::text, 6, '0') END,
             CASE WHEN ligne.transport = 'Aerien' THEN 'LTA-' || lpad(ligne.id::text, 6, '0') END,
             CASE WHEN ligne.transport = 'Aerien' THEN v_date_depart END,
-            CASE WHEN ligne.transport = 'Aerien' THEN 'Aeroport Ivato' END,
+            CASE WHEN ligne.transport = 'Aerien' THEN (SELECT nom FROM station WHERE id = v_station_depart) END,
             CASE WHEN ligne.transport = 'Aerien' THEN v_station_depart END,
             CASE WHEN ligne.transport = 'Aerien' THEN v_station_arrivee END,
             'Scan OT ' || ligne.id, v_date_depart, v_date_prevue, v_date_arrivee);
     END LOOP;
+
+    -- Les pays et lieux des dossiers suivent les stations de leur expédition.
+    WITH pays_stations(code_station, code_pays) AS (VALUES
+        ('PTOM', 'MDG'), ('PDAN', 'MDG'), ('PMAH', 'MDG'), ('PTOL', 'MDG'),
+        ('TNR', 'MDG'), ('NOS', 'MDG'), ('TMM', 'MDG'),
+        ('PMRS', 'FRA'), ('PHAV', 'FRA'), ('CDG', 'FRA'), ('ORY', 'FRA'),
+        ('PANV', 'BEL'), ('BRU', 'BEL'), ('PRTM', 'NLD'), ('AMS', 'NLD'),
+        ('PHAM', 'DEU'), ('FRA', 'DEU'), ('PSHA', 'CHN'), ('PSIN', 'SGP'),
+        ('PBUS', 'KOR'), ('PJEA', 'ARE'), ('DXB', 'ARE'), ('PDUR', 'ZAF'),
+        ('PMOM', 'KEN'), ('NBO', 'KEN'), ('LHR', 'GBR'), ('GVA', 'CHE'),
+        ('DOH', 'QAT'), ('IST', 'TUR'), ('ADD', 'ETH')
+    )
+    UPDATE dossier d SET id_pays_origine = po.id, id_pays_destination = pd.id,
+        depart = sd.lieu, adresse_livraison = 'Livraison à ' || sa.lieu
+    FROM expedition e
+    JOIN station sd ON sd.id = COALESCE(e.id_port_embarquement, e.id_aeroport_embarquement)
+    JOIN station sa ON sa.id = COALESCE(e.id_port_debarquement, e.id_aeroport_debarquement)
+    JOIN pays_stations origine ON origine.code_station = sd.code
+    JOIN pays_stations destination ON destination.code_station = sa.code
+    JOIN pays po ON po.code = origine.code_pays JOIN pays pd ON pd.code = destination.code_pays
+    WHERE d.id_ordre_transit = e.id_ordre_transit;
 
     FOR i IN 1..50 LOOP
         SELECT * INTO ligne FROM dossier WHERE id = v_dossiers[1 + (i * 7) % 300];
@@ -2883,17 +3200,52 @@ BEGIN
 
     FOR i IN 1..600 LOOP
         INSERT INTO marchandise (id_ordre_transit, id_unite_mesure, marque, modele, description, poids, volume, quantite)
-        VALUES (v_ots[1 + (i - 1) % 320], v_unites[1 + (i - 1) % array_length(v_unites, 1)],
+        VALUES (v_ots_valides[1 + (i - 1) % array_length(v_ots_valides, 1)],
+            v_unites[1 + (i - 1) % array_length(v_unites, 1)],
             'Marque' || i % 20, 'Modele' || i % 30, 'Description marchandise ' || i,
             (random() * 5000)::numeric(10, 2), (random() * 100)::numeric(10, 2), 1 + (i % 100));
     END LOOP;
 
-    FOR i IN 1..300 LOOP
-        v_dossier := v_dossiers[i];
+    -- Un conteneur pour chaque dossier maritime ; aucun sur un dossier aérien ou terrestre.
+    FOR ligne IN SELECT d.id FROM dossier d
+        JOIN type_production tp ON tp.id = d.id_type_production
+        JOIN mode_transport mt ON mt.id = tp.id_mode_transport
+        WHERE mt.nom = 'Maritime' ORDER BY d.id LOOP
+        v_dossier := ligne.id;
         INSERT INTO conteneur (id_dossier, id_type_container, numero_container, description)
-        VALUES (v_dossier, v_containers[1 + (i - 1) % array_length(v_containers, 1)],
-            'CONT-' || lpad(i::text, 7, '0'), 'Conteneur ' || i) RETURNING id INTO v_doc;
+        VALUES (v_dossier, v_containers[1 + (v_dossier - 1) % array_length(v_containers, 1)],
+            'CONT-' || lpad(v_dossier::text, 7, '0'), 'Conteneur du dossier ' || v_dossier) RETURNING id INTO v_doc;
         INSERT INTO dossier_conteneur (id_dossier, id_conteneur) VALUES (v_dossier, v_doc);
+    END LOOP;
+
+    -- 20 demandes en attente et 20 refusées, sur des dossiers encore actifs
+    -- sans autre demande. Les dates suivent l'ouverture et chaque auteur appartient
+    -- à l'agence qui demande ou répond. Ce jeu n'expédie aucun email.
+    v_compteur := 0;
+    FOR ligne IN SELECT d.* FROM dossier d
+        JOIN statut_dossier st ON st.id = d.id_statut
+        WHERE st.nom NOT IN ('Clôturé', 'Annulé')
+          AND NOT EXISTS (SELECT 1 FROM demande_interagence di WHERE di.id_dossier = d.id)
+          AND NOT EXISTS (SELECT 1 FROM dossier_interagence di WHERE di.id_sous_dossier = d.id)
+        ORDER BY d.date_creation DESC, d.id DESC LIMIT 40 LOOP
+        v_compteur := v_compteur + 1;
+        SELECT id INTO v_agence_destinataire FROM agence WHERE id <> ligne.id_agence
+            ORDER BY (code + ligne.id) % 100, id LIMIT 1;
+        SELECT id INTO v_user FROM utilisateur WHERE id_agence = ligne.id_agence ORDER BY id LIMIT 1;
+        SELECT id INTO v_user_reponse FROM utilisateur WHERE id_agence = v_agence_destinataire ORDER BY id LIMIT 1;
+        v_date_demande := ligne.date_creation + (CURRENT_TIMESTAMP - ligne.date_creation) * 0.2;
+        v_date_reponse := v_date_demande + (CURRENT_TIMESTAMP - v_date_demande) * 0.5;
+        INSERT INTO demande_interagence (id_dossier, id_agence_demandeuse, id_agence_destinataire,
+            id_utilisateur_demande, id_utilisateur_reponse, motif, reponse_motif,
+            statut, est_vue, date_demande, date_reponse)
+        VALUES (ligne.id, ligne.id_agence, v_agence_destinataire, v_user,
+            CASE WHEN v_compteur > 20 THEN v_user_reponse END,
+            CASE WHEN v_compteur <= 20 THEN 'Demande de prise en charge locale en attente de confirmation.'
+                 ELSE 'Demande de prise en charge locale examinée par l''agence sollicitée.' END,
+            CASE WHEN v_compteur > 20 THEN 'Prise en charge indisponible ; le dossier reste suivi par son agence d''origine.' END,
+            CASE WHEN v_compteur <= 20 THEN 'EN_ATTENTE' ELSE 'REFUSEE' END,
+            CASE WHEN v_compteur <= 20 THEN v_compteur % 3 = 0 ELSE TRUE END,
+            v_date_demande, CASE WHEN v_compteur > 20 THEN v_date_reponse END);
     END LOOP;
 
     FOR ligne IN SELECT d.id, d.date_creation, e.id AS expedition FROM dossier d
@@ -2955,7 +3307,9 @@ BEGIN
         'type_production', 'mode_transport', 'operation_dossier', 'ordre_transit',
         'dossier', 'mvt_dossier', 'document', 'type_document', 'document_mvt',
         'document_obligatoire_mvt', 'remise', 'utilisateur', 'clients',
-        'declaration', 'dossier_interagence'
+        'declaration', 'dossier_interagence', 'demande_interagence', 'conteneur',
+        'dossier_conteneur', 'expedition', 'compagnie', 'navire', 'station', 'groupage',
+        'marchandise', 'type_regime', 'statut_ot', 'pays', 'historique_mail'
     ] LOOP
         IF NOT EXISTS (
             SELECT 1 FROM information_schema.tables
@@ -3149,6 +3503,166 @@ BEGIN
         RAISE EXCEPTION 'Les quarante sous-dossiers doivent partager OT, client et production de leur dossier mère, dans une autre agence, sans antériorité.';
     END IF;
 
+    IF EXISTS (
+        SELECT 1 FROM ordre_transit ot
+        JOIN type_production tp ON tp.id = ot.id_type_production
+        JOIN type_regime r ON r.id = ot.id_type_regime
+        WHERE (tp.nom = 'import' AND r.code <> 'MCI') OR (tp.nom = 'export' AND r.code <> 'EXP')
+    ) THEN
+        RAISE EXCEPTION 'Les régimes des OT import et export doivent correspondre au sens de la production.';
+    END IF;
+
+    IF (SELECT count(*) FROM conteneur) <> (
+        SELECT count(*) FROM dossier d JOIN type_production tp ON tp.id = d.id_type_production
+        JOIN mode_transport mt ON mt.id = tp.id_mode_transport WHERE mt.nom = 'Maritime'
+    ) OR EXISTS (
+        SELECT 1 FROM conteneur c
+        JOIN dossier d ON d.id = c.id_dossier
+        JOIN type_production tp ON tp.id = d.id_type_production
+        JOIN mode_transport mt ON mt.id = tp.id_mode_transport
+        WHERE mt.nom <> 'Maritime' OR NOT EXISTS (
+            SELECT 1 FROM dossier_conteneur dc WHERE dc.id_conteneur = c.id AND dc.id_dossier = d.id
+        )
+    ) OR EXISTS (
+        SELECT 1 FROM dossier_conteneur dc JOIN dossier d ON d.id = dc.id_dossier
+        JOIN type_production tp ON tp.id = d.id_type_production
+        JOIN mode_transport mt ON mt.id = tp.id_mode_transport WHERE mt.nom <> 'Maritime'
+    ) THEN
+        RAISE EXCEPTION 'Seuls les dossiers maritimes doivent recevoir un conteneur et une association cohérente.';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM dossier d JOIN type_production tp ON tp.id = d.id_type_production
+        JOIN mode_transport mt ON mt.id = tp.id_mode_transport
+        WHERE mt.nom = 'Maritime' AND d.date_creation::date = CURRENT_DATE
+    ) THEN
+        RAISE EXCEPTION 'Un dossier maritime créé aujourd''hui doit permettre de tester les assignations du jour.';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM ordre_transit ot JOIN statut_ot st ON st.id = ot.id_statut_ot
+        WHERE st.nom <> 'Valide' AND (
+            EXISTS (SELECT 1 FROM expedition e WHERE e.id_ordre_transit = ot.id)
+            OR EXISTS (SELECT 1 FROM marchandise m WHERE m.id_ordre_transit = ot.id)
+        )
+    ) THEN
+        RAISE EXCEPTION 'Les OT encore en brouillon ou non validés ne doivent pas avoir de marchandise ni d''expédition affectée.';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM ordre_transit ot
+        JOIN type_production tp ON tp.id = ot.id_type_production
+        JOIN mode_transport mt ON mt.id = tp.id_mode_transport
+        JOIN statut_ot st ON st.id = ot.id_statut_ot
+        WHERE st.nom = 'Valide' AND mt.nom IN ('Maritime', 'Aerien')
+          AND NOT EXISTS (SELECT 1 FROM expedition e WHERE e.id_ordre_transit = ot.id)
+    ) OR EXISTS (
+        SELECT 1 FROM expedition e
+        JOIN ordre_transit ot ON ot.id = e.id_ordre_transit
+        JOIN type_production tp ON tp.id = ot.id_type_production
+        JOIN mode_transport mt ON mt.id = tp.id_mode_transport
+        JOIN compagnie c ON c.id = e.id_compagnie
+        LEFT JOIN navire n ON n.id = e.id_navire
+        LEFT JOIN dossier d ON d.id = e.id_dossier
+        LEFT JOIN station depart ON depart.id = coalesce(e.id_port_embarquement, e.id_aeroport_embarquement)
+        LEFT JOIN station arrivee ON arrivee.id = coalesce(e.id_port_debarquement, e.id_aeroport_debarquement)
+        WHERE e.id_mode_transport IS DISTINCT FROM tp.id_mode_transport
+           OR c.id_mode_transport IS DISTINCT FROM e.id_mode_transport
+           OR (n.id IS NOT NULL AND n.id_compagnie IS DISTINCT FROM c.id)
+           OR (d.id IS NOT NULL AND d.id_ordre_transit IS DISTINCT FROM ot.id)
+           OR depart.id IS NULL OR arrivee.id IS NULL OR depart.id = arrivee.id
+           OR depart.id_mode_transport IS DISTINCT FROM e.id_mode_transport
+           OR arrivee.id_mode_transport IS DISTINCT FROM e.id_mode_transport
+           OR (mt.nom = 'Maritime' AND (n.id IS NULL OR e.numero_bl IS NULL
+               OR e.id_port_embarquement IS NULL OR e.id_port_debarquement IS NULL
+               OR e.numero_lta IS NOT NULL OR e.numero_vol IS NOT NULL OR e.date_lta IS NOT NULL
+               OR e.lieu_lta IS NOT NULL OR e.id_aeroport_embarquement IS NOT NULL
+               OR e.id_aeroport_debarquement IS NOT NULL OR e.lieu_bl IS DISTINCT FROM depart.nom))
+           OR (mt.nom = 'Aerien' AND (e.numero_lta IS NULL OR e.numero_vol IS NULL
+               OR e.id_aeroport_embarquement IS NULL OR e.id_aeroport_debarquement IS NULL
+               OR e.id_navire IS NOT NULL OR e.numero_bl IS NOT NULL OR e.date_bl IS NOT NULL
+               OR e.lieu_bl IS NOT NULL OR e.id_port_embarquement IS NOT NULL
+               OR e.id_port_debarquement IS NOT NULL OR e.lieu_lta IS DISTINCT FROM depart.nom))
+           OR e.date_depart < ot.date_creation OR e.date_depart > NOW()
+           OR e.date_prevu < e.date_depart OR e.date_arrivee < e.date_depart OR e.date_arrivee > NOW()
+           OR e.est_achemine IS DISTINCT FROM (e.date_arrivee IS NOT NULL)
+    ) THEN
+        RAISE EXCEPTION 'Les expéditions doivent utiliser le transport, la compagnie, le navire, les stations et les dates cohérents avec leur OT.';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM dossier d JOIN type_production tp ON tp.id = d.id_type_production
+        JOIN pays origine ON origine.id = d.id_pays_origine
+        JOIN pays destination ON destination.id = d.id_pays_destination
+        WHERE (tp.nom = 'import' AND (origine.code = 'MDG' OR destination.code <> 'MDG'))
+           OR (tp.nom = 'export' AND (origine.code <> 'MDG' OR destination.code = 'MDG'))
+    ) OR EXISTS (
+        SELECT 1 FROM expedition e
+        JOIN ordre_transit ot ON ot.id = e.id_ordre_transit
+        JOIN type_production tp ON tp.id = ot.id_type_production
+        JOIN station depart ON depart.id = coalesce(e.id_port_embarquement, e.id_aeroport_embarquement)
+        JOIN station arrivee ON arrivee.id = coalesce(e.id_port_debarquement, e.id_aeroport_debarquement)
+        WHERE (depart.code IN ('PTOM', 'PDAN', 'PMAH', 'PTOL', 'TNR', 'NOS', 'TMM'))
+                   IS DISTINCT FROM (tp.nom = 'export')
+           OR (arrivee.code IN ('PTOM', 'PDAN', 'PMAH', 'PTOL', 'TNR', 'NOS', 'TMM'))
+                   IS DISTINCT FROM (tp.nom = 'import')
+    ) THEN
+        RAISE EXCEPTION 'Les trajets et pays doivent respecter import vers Madagascar / export depuis Madagascar.';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM groupage g JOIN dossier d ON d.id = g.id_dossier
+        JOIN expedition e ON e.id = g.id_expedition
+        WHERE e.id_ordre_transit IS DISTINCT FROM d.id_ordre_transit
+           OR d.est_groupage IS DISTINCT FROM TRUE
+           OR g.date_creation < d.date_creation OR g.date_creation > NOW()
+    ) THEN
+        RAISE EXCEPTION 'Les groupages doivent relier un dossier à l''expédition de son propre OT.';
+    END IF;
+
+    IF (SELECT count(*) FROM demande_interagence) <> 80
+       OR (SELECT count(*) FROM demande_interagence WHERE statut = 'ACCEPTEE') <> 40
+       OR (SELECT count(*) FROM demande_interagence WHERE statut = 'EN_ATTENTE') <> 20
+       OR (SELECT count(*) FROM demande_interagence WHERE statut = 'REFUSEE') <> 20
+       OR EXISTS (SELECT id_dossier FROM demande_interagence WHERE statut = 'EN_ATTENTE'
+                  GROUP BY id_dossier HAVING count(*) > 1) THEN
+        RAISE EXCEPTION '80 demandes sont attendues : 40 acceptées, 20 en attente, 20 refusées, sans doublon en attente.';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM demande_interagence di
+        JOIN dossier d ON d.id = di.id_dossier
+        JOIN utilisateur auteur ON auteur.id = di.id_utilisateur_demande
+        LEFT JOIN utilisateur repondant ON repondant.id = di.id_utilisateur_reponse
+        WHERE di.id_agence_demandeuse = di.id_agence_destinataire
+           OR di.id_agence_demandeuse IS DISTINCT FROM d.id_agence
+           OR auteur.id_agence IS DISTINCT FROM di.id_agence_demandeuse
+           OR di.date_demande < d.date_creation OR di.date_demande > NOW()
+           OR (di.statut = 'EN_ATTENTE' AND (di.date_reponse IS NOT NULL
+               OR di.id_utilisateur_reponse IS NOT NULL OR di.reponse_motif IS NOT NULL))
+           OR (di.statut IN ('ACCEPTEE', 'REFUSEE') AND (di.date_reponse IS NULL
+               OR di.date_reponse < di.date_demande OR di.date_reponse > NOW()
+               OR repondant.id_agence IS DISTINCT FROM di.id_agence_destinataire
+               OR di.est_vue IS DISTINCT FROM TRUE))
+    ) THEN
+        RAISE EXCEPTION 'Les agences, auteurs, réponses et dates des demandes interagences doivent être cohérents.';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM demande_interagence di WHERE di.statut = 'ACCEPTEE' AND NOT EXISTS (
+            SELECT 1 FROM dossier_interagence lien JOIN dossier sous ON sous.id = lien.id_sous_dossier
+            WHERE lien.id_dossier_mere = di.id_dossier AND sous.id_agence = di.id_agence_destinataire
+              AND sous.date_creation = di.date_reponse AND lien.date_creation = di.date_reponse
+        )
+    ) OR EXISTS (
+        SELECT 1 FROM dossier_interagence lien JOIN dossier sous ON sous.id = lien.id_sous_dossier
+        WHERE NOT EXISTS (SELECT 1 FROM demande_interagence di
+            WHERE di.statut = 'ACCEPTEE' AND di.id_dossier = lien.id_dossier_mere
+              AND di.id_agence_destinataire = sous.id_agence AND di.date_reponse = sous.date_creation)
+    ) OR EXISTS (SELECT 1 FROM historique_mail) THEN
+        RAISE EXCEPTION 'Chaque sous-dossier doit provenir d''une demande acceptée ; aucun email fictif ne doit être mis en file.';
+    END IF;
+
     IF NOT EXISTS (SELECT 1 FROM mvt_dossier) OR EXISTS (
         SELECT 1 FROM mvt_dossier m
         JOIN dossier d ON d.id = m.id_dossier
@@ -3263,3 +3777,11 @@ SELECT ph.nom AS phase, s.nom AS statut, count(*) AS dossiers
 FROM dossier d JOIN phase_dossier ph ON ph.id = d.id_phase
 JOIN statut_dossier s ON s.id = d.id_statut
 GROUP BY ph.nom, s.nom ORDER BY ph.nom, s.nom;
+
+SELECT mt.nom AS transport, count(d.id) AS dossiers, count(c.id) AS conteneurs
+FROM dossier d JOIN type_production tp ON tp.id = d.id_type_production
+JOIN mode_transport mt ON mt.id = tp.id_mode_transport
+LEFT JOIN conteneur c ON c.id_dossier = d.id
+GROUP BY mt.nom ORDER BY mt.nom;
+
+SELECT statut, count(*) AS demandes FROM demande_interagence GROUP BY statut ORDER BY statut;

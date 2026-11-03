@@ -17,7 +17,9 @@ BEGIN
         'type_production', 'mode_transport', 'operation_dossier', 'ordre_transit',
         'dossier', 'mvt_dossier', 'document', 'type_document', 'document_mvt',
         'document_obligatoire_mvt', 'remise', 'utilisateur', 'clients',
-        'declaration', 'dossier_interagence'
+        'declaration', 'dossier_interagence', 'demande_interagence', 'conteneur',
+        'dossier_conteneur', 'expedition', 'compagnie', 'navire', 'station', 'groupage',
+        'marchandise', 'type_regime', 'statut_ot', 'pays', 'historique_mail'
     ] LOOP
         IF NOT EXISTS (
             SELECT 1 FROM information_schema.tables
@@ -211,6 +213,166 @@ BEGIN
         RAISE EXCEPTION 'Les quarante sous-dossiers doivent partager OT, client et production de leur dossier mère, dans une autre agence, sans antériorité.';
     END IF;
 
+    IF EXISTS (
+        SELECT 1 FROM ordre_transit ot
+        JOIN type_production tp ON tp.id = ot.id_type_production
+        JOIN type_regime r ON r.id = ot.id_type_regime
+        WHERE (tp.nom = 'import' AND r.code <> 'MCI') OR (tp.nom = 'export' AND r.code <> 'EXP')
+    ) THEN
+        RAISE EXCEPTION 'Les régimes des OT import et export doivent correspondre au sens de la production.';
+    END IF;
+
+    IF (SELECT count(*) FROM conteneur) <> (
+        SELECT count(*) FROM dossier d JOIN type_production tp ON tp.id = d.id_type_production
+        JOIN mode_transport mt ON mt.id = tp.id_mode_transport WHERE mt.nom = 'Maritime'
+    ) OR EXISTS (
+        SELECT 1 FROM conteneur c
+        JOIN dossier d ON d.id = c.id_dossier
+        JOIN type_production tp ON tp.id = d.id_type_production
+        JOIN mode_transport mt ON mt.id = tp.id_mode_transport
+        WHERE mt.nom <> 'Maritime' OR NOT EXISTS (
+            SELECT 1 FROM dossier_conteneur dc WHERE dc.id_conteneur = c.id AND dc.id_dossier = d.id
+        )
+    ) OR EXISTS (
+        SELECT 1 FROM dossier_conteneur dc JOIN dossier d ON d.id = dc.id_dossier
+        JOIN type_production tp ON tp.id = d.id_type_production
+        JOIN mode_transport mt ON mt.id = tp.id_mode_transport WHERE mt.nom <> 'Maritime'
+    ) THEN
+        RAISE EXCEPTION 'Seuls les dossiers maritimes doivent recevoir un conteneur et une association cohérente.';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM dossier d JOIN type_production tp ON tp.id = d.id_type_production
+        JOIN mode_transport mt ON mt.id = tp.id_mode_transport
+        WHERE mt.nom = 'Maritime' AND d.date_creation::date = CURRENT_DATE
+    ) THEN
+        RAISE EXCEPTION 'Un dossier maritime créé aujourd''hui doit permettre de tester les assignations du jour.';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM ordre_transit ot JOIN statut_ot st ON st.id = ot.id_statut_ot
+        WHERE st.nom <> 'Valide' AND (
+            EXISTS (SELECT 1 FROM expedition e WHERE e.id_ordre_transit = ot.id)
+            OR EXISTS (SELECT 1 FROM marchandise m WHERE m.id_ordre_transit = ot.id)
+        )
+    ) THEN
+        RAISE EXCEPTION 'Les OT encore en brouillon ou non validés ne doivent pas avoir de marchandise ni d''expédition affectée.';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM ordre_transit ot
+        JOIN type_production tp ON tp.id = ot.id_type_production
+        JOIN mode_transport mt ON mt.id = tp.id_mode_transport
+        JOIN statut_ot st ON st.id = ot.id_statut_ot
+        WHERE st.nom = 'Valide' AND mt.nom IN ('Maritime', 'Aerien')
+          AND NOT EXISTS (SELECT 1 FROM expedition e WHERE e.id_ordre_transit = ot.id)
+    ) OR EXISTS (
+        SELECT 1 FROM expedition e
+        JOIN ordre_transit ot ON ot.id = e.id_ordre_transit
+        JOIN type_production tp ON tp.id = ot.id_type_production
+        JOIN mode_transport mt ON mt.id = tp.id_mode_transport
+        JOIN compagnie c ON c.id = e.id_compagnie
+        LEFT JOIN navire n ON n.id = e.id_navire
+        LEFT JOIN dossier d ON d.id = e.id_dossier
+        LEFT JOIN station depart ON depart.id = coalesce(e.id_port_embarquement, e.id_aeroport_embarquement)
+        LEFT JOIN station arrivee ON arrivee.id = coalesce(e.id_port_debarquement, e.id_aeroport_debarquement)
+        WHERE e.id_mode_transport IS DISTINCT FROM tp.id_mode_transport
+           OR c.id_mode_transport IS DISTINCT FROM e.id_mode_transport
+           OR (n.id IS NOT NULL AND n.id_compagnie IS DISTINCT FROM c.id)
+           OR (d.id IS NOT NULL AND d.id_ordre_transit IS DISTINCT FROM ot.id)
+           OR depart.id IS NULL OR arrivee.id IS NULL OR depart.id = arrivee.id
+           OR depart.id_mode_transport IS DISTINCT FROM e.id_mode_transport
+           OR arrivee.id_mode_transport IS DISTINCT FROM e.id_mode_transport
+           OR (mt.nom = 'Maritime' AND (n.id IS NULL OR e.numero_bl IS NULL
+               OR e.id_port_embarquement IS NULL OR e.id_port_debarquement IS NULL
+               OR e.numero_lta IS NOT NULL OR e.numero_vol IS NOT NULL OR e.date_lta IS NOT NULL
+               OR e.lieu_lta IS NOT NULL OR e.id_aeroport_embarquement IS NOT NULL
+               OR e.id_aeroport_debarquement IS NOT NULL OR e.lieu_bl IS DISTINCT FROM depart.nom))
+           OR (mt.nom = 'Aerien' AND (e.numero_lta IS NULL OR e.numero_vol IS NULL
+               OR e.id_aeroport_embarquement IS NULL OR e.id_aeroport_debarquement IS NULL
+               OR e.id_navire IS NOT NULL OR e.numero_bl IS NOT NULL OR e.date_bl IS NOT NULL
+               OR e.lieu_bl IS NOT NULL OR e.id_port_embarquement IS NOT NULL
+               OR e.id_port_debarquement IS NOT NULL OR e.lieu_lta IS DISTINCT FROM depart.nom))
+           OR e.date_depart < ot.date_creation OR e.date_depart > NOW()
+           OR e.date_prevu < e.date_depart OR e.date_arrivee < e.date_depart OR e.date_arrivee > NOW()
+           OR e.est_achemine IS DISTINCT FROM (e.date_arrivee IS NOT NULL)
+    ) THEN
+        RAISE EXCEPTION 'Les expéditions doivent utiliser le transport, la compagnie, le navire, les stations et les dates cohérents avec leur OT.';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM dossier d JOIN type_production tp ON tp.id = d.id_type_production
+        JOIN pays origine ON origine.id = d.id_pays_origine
+        JOIN pays destination ON destination.id = d.id_pays_destination
+        WHERE (tp.nom = 'import' AND (origine.code = 'MDG' OR destination.code <> 'MDG'))
+           OR (tp.nom = 'export' AND (origine.code <> 'MDG' OR destination.code = 'MDG'))
+    ) OR EXISTS (
+        SELECT 1 FROM expedition e
+        JOIN ordre_transit ot ON ot.id = e.id_ordre_transit
+        JOIN type_production tp ON tp.id = ot.id_type_production
+        JOIN station depart ON depart.id = coalesce(e.id_port_embarquement, e.id_aeroport_embarquement)
+        JOIN station arrivee ON arrivee.id = coalesce(e.id_port_debarquement, e.id_aeroport_debarquement)
+        WHERE (depart.code IN ('PTOM', 'PDAN', 'PMAH', 'PTOL', 'TNR', 'NOS', 'TMM'))
+                   IS DISTINCT FROM (tp.nom = 'export')
+           OR (arrivee.code IN ('PTOM', 'PDAN', 'PMAH', 'PTOL', 'TNR', 'NOS', 'TMM'))
+                   IS DISTINCT FROM (tp.nom = 'import')
+    ) THEN
+        RAISE EXCEPTION 'Les trajets et pays doivent respecter import vers Madagascar / export depuis Madagascar.';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM groupage g JOIN dossier d ON d.id = g.id_dossier
+        JOIN expedition e ON e.id = g.id_expedition
+        WHERE e.id_ordre_transit IS DISTINCT FROM d.id_ordre_transit
+           OR d.est_groupage IS DISTINCT FROM TRUE
+           OR g.date_creation < d.date_creation OR g.date_creation > NOW()
+    ) THEN
+        RAISE EXCEPTION 'Les groupages doivent relier un dossier à l''expédition de son propre OT.';
+    END IF;
+
+    IF (SELECT count(*) FROM demande_interagence) <> 80
+       OR (SELECT count(*) FROM demande_interagence WHERE statut = 'ACCEPTEE') <> 40
+       OR (SELECT count(*) FROM demande_interagence WHERE statut = 'EN_ATTENTE') <> 20
+       OR (SELECT count(*) FROM demande_interagence WHERE statut = 'REFUSEE') <> 20
+       OR EXISTS (SELECT id_dossier FROM demande_interagence WHERE statut = 'EN_ATTENTE'
+                  GROUP BY id_dossier HAVING count(*) > 1) THEN
+        RAISE EXCEPTION '80 demandes sont attendues : 40 acceptées, 20 en attente, 20 refusées, sans doublon en attente.';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM demande_interagence di
+        JOIN dossier d ON d.id = di.id_dossier
+        JOIN utilisateur auteur ON auteur.id = di.id_utilisateur_demande
+        LEFT JOIN utilisateur repondant ON repondant.id = di.id_utilisateur_reponse
+        WHERE di.id_agence_demandeuse = di.id_agence_destinataire
+           OR di.id_agence_demandeuse IS DISTINCT FROM d.id_agence
+           OR auteur.id_agence IS DISTINCT FROM di.id_agence_demandeuse
+           OR di.date_demande < d.date_creation OR di.date_demande > NOW()
+           OR (di.statut = 'EN_ATTENTE' AND (di.date_reponse IS NOT NULL
+               OR di.id_utilisateur_reponse IS NOT NULL OR di.reponse_motif IS NOT NULL))
+           OR (di.statut IN ('ACCEPTEE', 'REFUSEE') AND (di.date_reponse IS NULL
+               OR di.date_reponse < di.date_demande OR di.date_reponse > NOW()
+               OR repondant.id_agence IS DISTINCT FROM di.id_agence_destinataire
+               OR di.est_vue IS DISTINCT FROM TRUE))
+    ) THEN
+        RAISE EXCEPTION 'Les agences, auteurs, réponses et dates des demandes interagences doivent être cohérents.';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM demande_interagence di WHERE di.statut = 'ACCEPTEE' AND NOT EXISTS (
+            SELECT 1 FROM dossier_interagence lien JOIN dossier sous ON sous.id = lien.id_sous_dossier
+            WHERE lien.id_dossier_mere = di.id_dossier AND sous.id_agence = di.id_agence_destinataire
+              AND sous.date_creation = di.date_reponse AND lien.date_creation = di.date_reponse
+        )
+    ) OR EXISTS (
+        SELECT 1 FROM dossier_interagence lien JOIN dossier sous ON sous.id = lien.id_sous_dossier
+        WHERE NOT EXISTS (SELECT 1 FROM demande_interagence di
+            WHERE di.statut = 'ACCEPTEE' AND di.id_dossier = lien.id_dossier_mere
+              AND di.id_agence_destinataire = sous.id_agence AND di.date_reponse = sous.date_creation)
+    ) OR EXISTS (SELECT 1 FROM historique_mail) THEN
+        RAISE EXCEPTION 'Chaque sous-dossier doit provenir d''une demande acceptée ; aucun email fictif ne doit être mis en file.';
+    END IF;
+
     IF NOT EXISTS (SELECT 1 FROM mvt_dossier) OR EXISTS (
         SELECT 1 FROM mvt_dossier m
         JOIN dossier d ON d.id = m.id_dossier
@@ -325,3 +487,11 @@ SELECT ph.nom AS phase, s.nom AS statut, count(*) AS dossiers
 FROM dossier d JOIN phase_dossier ph ON ph.id = d.id_phase
 JOIN statut_dossier s ON s.id = d.id_statut
 GROUP BY ph.nom, s.nom ORDER BY ph.nom, s.nom;
+
+SELECT mt.nom AS transport, count(d.id) AS dossiers, count(c.id) AS conteneurs
+FROM dossier d JOIN type_production tp ON tp.id = d.id_type_production
+JOIN mode_transport mt ON mt.id = tp.id_mode_transport
+LEFT JOIN conteneur c ON c.id_dossier = d.id
+GROUP BY mt.nom ORDER BY mt.nom;
+
+SELECT statut, count(*) AS demandes FROM demande_interagence GROUP BY statut ORDER BY statut;

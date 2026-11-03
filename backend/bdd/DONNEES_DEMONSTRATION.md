@@ -4,7 +4,7 @@
 
 ## Dates
 
-Les créations occupent 300 créneaux répartis sur la période comprise entre le début du mois d'il y a onze mois et la date d'exécution du script. Chaque créneau contient une date légèrement variable. Le mois courant reçoit donc une part proportionnelle au nombre de jours déjà écoulés, au lieu d'un quota mensuel entier concentré sur les premiers jours. Les dates des mouvements, documents et expéditions restent liées à celles des dossiers et des ordres de transit.
+Les créations occupent 300 créneaux répartis sur la période comprise entre le début du mois d'il y a onze mois et la date d'exécution du script. Chaque créneau contient une date légèrement variable. Le mois courant reçoit donc une part proportionnelle au nombre de jours déjà écoulés, au lieu d'un quota mensuel entier concentré sur les premiers jours. Le dernier dossier est maritime et daté du jour pour illustrer les parcours d'assignation, avec une permutation de deux productions qui conserve leurs volumes. Les dates des mouvements, documents et expéditions restent liées à celles des dossiers et des ordres de transit.
 
 ## Agences
 
@@ -24,6 +24,12 @@ Les populations urbaines proviennent du [RGPH-3 INSTAT 2018, tome 1, tableau 4, 
 La méthode des plus forts restes arrondit les proportions à exactement 300 dossiers. Antananarivo est comptée une seule fois. Son quota est partagé entre **TNR : 137 dossiers** et **DIR : 15 dossiers** ; la clé interne 90 % / 10 % est une hypothèse de démonstration. Les affectations sont mélangées de façon reproductible pour varier les agences au fil du temps et des types de production. Les sous-dossiers gardent ces affectations.
 
 Les 20 ordres de transit supplémentaires sont tirés selon la même pondération. Les comptes utilisateurs conservent au moins un représentant dans chacune des neuf agences.
+
+## Cohérence logistique et interagences
+
+Les conteneurs sont affectés uniquement aux dossiers maritimes. Les expéditions maritimes utilisent un navire de leur compagnie et des ports ; les expéditions aériennes utilisent un vol, une LTA et des aéroports, sans navire, BL ni port. Le départ est à l'étranger et l'arrivée à Madagascar pour l'import ; le sens est inversé pour l'export. Les pays et lieux des dossiers suivent ces stations. Les régimes import/export et les dates de départ, prévision et arrivée sont cohérents avec le sens et l'OT. Les marchandises et expéditions sont affectées aux OT validés. Chaque groupage utilise l'expédition de l'OT de son dossier.
+
+Le jeu comprend **80 demandes interagences** : 40 acceptées correspondant aux 40 sous-dossiers, 20 en attente et 20 refusées. Les demandeurs et répondants appartiennent aux agences concernées ; les réponses suivent les demandes, et l'acceptation correspond à la date de création du sous-dossier. Aucun email n'est expédié ou ajouté à l'historique par le chargement des données.
 
 ## Chargement
 

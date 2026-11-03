@@ -10,6 +10,7 @@ import DemandeInteragenceService from '../services/DemandeInteragenceService'
 import { useNotification } from '../composables/useNotification'
 import ListeMarchandises from '@/components/marchandise/ListeMarchandises.vue'
 import DocumentsSection from '@/components/DocumentsSection.vue'
+import DossierChronologie from '@/components/DossierChronologie.vue'
 import ConteneurService from '../services/ConteneurService'
 import DocumentService from '../services/DocumentService'
 import MarchandiseService from '../services/MarchandiseService'
@@ -30,6 +31,7 @@ const loading = ref(true)
 const erreur = ref(null)
 const dossier = ref({})
 const operationsStatus = ref([])
+const erreurChronologie = ref(false)
 const statutsDisponibles = ref([])
 const modifierWorkflow = ref(false)
 const phaseCible = ref(null)
@@ -112,6 +114,7 @@ async function fetchDossier(id) {
     erreur.value = null
     dossier.value = {}
     operationsStatus.value = []
+    erreurChronologie.value = false
     dossierMereLien.value = null
     sousDossiers.value = []
     demandesInteragence.value = []
@@ -143,6 +146,7 @@ async function fetchDossier(id) {
             conteneurs.value = conteneursRes.value || []
         }
         operationsStatus.value = operationsRes.status === 'fulfilled' ? operationsRes.value || [] : []
+        erreurChronologie.value = operationsRes.status === 'rejected'
         statutsDisponibles.value = statutsRes.status === 'fulfilled' ? statutsRes.value || [] : []
     } catch (e) {
         erreur.value = "Impossible de récupérer ce dossier."
@@ -430,6 +434,8 @@ function formatarDate(dt) {
                                 </div>
                             </div>
 
+                            <DossierChronologie :dossier="dossier" :operations="operationsStatus" :erreur="erreurChronologie" />
+
                             <div class="card border shadow-sm">
                                 <div class="card-header bg-white border-bottom py-2">
                                     <h5 class="mb-0 fw-semibold text-dark">Provision Financière</h5>
@@ -486,7 +492,7 @@ function formatarDate(dt) {
                                 </div>
                                 <div class="card-body">
                                     <div v-if="!estEligibleConteneur" class="alert alert-light border text-muted small mb-0">
-                                        ℹ️ L'assignation de conteneurs est réservée aux dossiers de transport maritime ou nécessitant un conteneur.
+                                        ℹ️ L'assignation de conteneurs est réservée aux dossiers de transport maritime.
                                     </div>
                                     <div v-else-if="conteneurs.length === 0" class="text-secondary small py-2 text-center">
                                         Aucun conteneur assigné pour ce dossier maritime.

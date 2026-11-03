@@ -3,6 +3,7 @@ D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\controller
 D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\controller\DossierControllerFiltersTest.java
 D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\repository\DossierFiltersPostgresTest.java
 D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\ConfigurationEmailServiceTest.java
+D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\ConteneurEligibilityTest.java
 D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\DashboardServicePostgresTest.java
 D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\DemandeInteragenceEmailTest.java
 D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\DocumentObligatoireMvtServiceTest.java
