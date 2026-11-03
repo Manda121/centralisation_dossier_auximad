@@ -12,7 +12,13 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
-      alias: '/tableau-de-bord',
+      alias: '/accueil',
+      component: () => import('../views/HomeView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/tableau-de-bord',
+      name: 'dashboard',
       component: () => import('../views/DashboardView.vue'),
       meta: { requiresAuth: true }
     },
