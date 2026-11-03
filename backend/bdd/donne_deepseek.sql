@@ -1,13 +1,38 @@
+-- Jeu de démonstration : à charger après base_centralisation.sql sur une base vide.
+-- Trois phases, workflows import/export, FOB uniquement, neuf agences.
+-- Les dates couvrent les douze derniers mois avec des volumes mensuels variables.
 BEGIN;
 
 -- ============================================================
 -- 0. STATUT DOSSIER (nouvelle table)
 -- ============================================================
 INSERT INTO statut_dossier (nom, description) VALUES
-('Ouvert', 'Dossier en cours de traitement'),
-('Clôturé', 'Dossier finalisé'),
+('Ouvert', 'Dossier créé, aucune opération effectuée'),
+('Clôturé', 'Dossier finalisé après paiement et clôture'),
 ('Annulé', 'Dossier annulé'),
-('En litige', 'Dossier en litige');
+('En litige', 'Dossier suspendu pour un litige'),
+('Client avisé', 'Dernière opération effectuée : Avis d’arrivée client'),
+('Proforma envoyée', 'Dernière opération effectuée : Envoi proforma'),
+('Premier envoi effectué', 'Dernière opération effectuée : Premier envoi document'),
+('Premiers documents reçus', 'Dernière opération effectuée : Premier réception document'),
+('Expertise réalisée', 'Dernière opération effectuée : Expertise'),
+('Déclaration établie', 'Dernière opération effectuée : Déclaration'),
+('Dossier transmis au passeur', 'Dernière opération effectuée : Dispatche/Passeur'),
+('Visite/scan effectué', 'Dernière opération effectuée : Visite/Scan'),
+('Droits et taxes payés', 'Dernière opération effectuée : Paiement Droit & Taxes'),
+('Paiement des droits confirmé', 'Dernière opération effectuée : Confirmation paiement Droit & Taxes'),
+('Provision enregistrée', 'Dernière opération effectuée : Provision (pour fret et débours)'),
+('Facturé', 'Dernière opération effectuée : Facturation'),
+('Facture transmise', 'Dernière opération effectuée : Transmission'),
+('Payé', 'Dernière opération effectuée : Paiement'),
+('Préalerte envoyée', 'Dernière opération effectuée : Préalerte'),
+('Réservation confirmée', 'Dernière opération effectuée : Réservation TC/Ligne'),
+('Documents reçus', 'Dernière opération effectuée : Réception Doc'),
+('Conteneur positionné', 'Dernière opération effectuée : Position container'),
+('Déclaration déposée', 'Dernière opération effectuée : Dépôt Déclaration'),
+('PG payé', 'Dernière opération effectuée : Paiement PG'),
+('Bon à enlever obtenu', 'Dernière opération effectuée : Bon à enlever'),
+('Documents récupérés', 'Dernière opération effectuée : Récupération documents');
 
 -- ============================================================
 -- 0bis. STATUT ORDRE DE TRANSIT
@@ -28,7 +53,6 @@ INSERT INTO agence (code, nom, adresse, ville, cp_client) VALUES
 (30, 'MJG', 'Avenue de France, Majunga', 'Mahajanga', '401'),
 (70, 'DIEGO', 'Place Kabary, Rue Flacourt', 'Antsiranana', '201'),
 (50, 'TUL', 'Amorondriaka,Face Zaza club centre ville', 'Toliara', '601'),
-(40, 'Manakara', 'Avenue de l''Independance', 'Manakara', '316'),
 (21, 'A/BE', 'Villa Francois Lot 02-B-177', 'Antsirabe', '110'),
 (80, 'NOSY BE', 'Rue de Passot, Hell-Ville BP:1', 'Nosy Be', '207'),
 (93, 'FORT-Dauphin', 'Rue Marechal Foch', 'Fort-Dauphin', '614');
@@ -119,163 +143,66 @@ INSERT INTO nature_marchandise (nom, description) VALUES
 ('Bois', 'Bois et derives'),
 ('Autres', 'Autres marchandises');
 
--- PHASE DOSSIER (avec id_mode_transport = NULL par défaut, car générique)
+-- Trois phases communes aux flux import et export.
+-- PREPARATION et Ouvert conservent les noms attendus par le service Java.
 INSERT INTO phase_dossier (nom, id_mode_transport, description) VALUES
-('PREPARATION', NULL, 'Preparation du dossier'),
-('TRAITEMENT', NULL, 'Traitement du dossier'),
-('DEBARQUEMENT/LIVRAISON', NULL, 'Debarquement et livraison'),
-('COMPTABILITE', NULL, 'Comptabilite et cloture');
+('PREPARATION', NULL, 'Préparation documentaire et expertise'),
+('TRAITEMENT', NULL, 'Formalités douanières et règlements associés'),
+('COMPTABILITE', NULL, 'Provision, facturation, paiement et clôture');
 
--- Récupération des IDs pour les opérations
-DO $$
-DECLARE
-    v_statut_ouvert_id INT;
-BEGIN
-    SELECT id INTO v_statut_ouvert_id FROM statut_dossier WHERE nom = 'Ouvert';
-
-    -- =========================================================================
--- 0. CORRECTION DE phase_dossier
--- =========================================================================
--- Le script existant ne definit que 4 phases generiques, dont
--- 'DEBARQUEMENT/LIVRAISON'. Or le flux import utilise 'DEBARQUEMENT' et
--- le flux export utilise 'EMBARQUEMENT' : ce sont deux etapes physiquement
--- distinctes (arrivee vs depart de la marchandise), donc deux phases
--- distinctes, pas une approximation partagee.
-
--- 1) On renomme la phase existante pour qu'elle corresponde exactement
---    au libelle utilise par le flux import.
-UPDATE phase_dossier
-SET nom = 'DEBARQUEMENT'
-WHERE nom = 'DEBARQUEMENT/LIVRAISON';
-
--- 2) On ajoute la phase manquante pour le flux export.
-INSERT INTO phase_dossier (nom, id_mode_transport, description)
-VALUES ('EMBARQUEMENT', NULL, 'Embarquement et expedition (export)')
-ON CONFLICT (nom) DO NOTHING;
-
--- =========================================================================
--- 1. INSERT INTO operation_dossier
--- Lie chaque operation a id_type_production (import / export)
---
--- Hypotheses retenues :
---  1. "import" et "export" existent chacun 2 fois dans type_production
---     (maritime + aerien) : la jointure sur tp.nom duplique donc
---     automatiquement chaque operation pour les deux modes de transport.
---  2. id_statut = 'Ouvert' pour toutes les operations, sauf 'Cloture' qui
---     est rattachee a 'Clôturé'.
---  3. niveau_autorisation / niveau_validation / niveau_operation suivent
---     la meme logique croissante que le script existant (1 = PREPARATION,
---     2 = TRAITEMENT, 3 = DEBARQUEMENT/EMBARQUEMENT, 4 = COMPTABILITE,
---     5 = Cloture).
---  4. est_obligatoire = FALSE pour les etapes purement informatives
---     ("Information Client", "Provision"), TRUE pour le reste.
--- =========================================================================
-
+-- Première liste = import, seconde liste = export.
+-- Chaque opération est déclinée en maritime et aérien. Le niveau_operation
+-- suit strictement l'ordre des étapes, du début à la clôture de chaque flux.
+-- Le statut associé décrit le résultat de l'opération qui vient d'être faite.
 INSERT INTO operation_dossier
     (description, id_phase, id_statut, id_type_production,
-     niveau_autorisation, niveau_validation, niveau_operation,
-     est_obligatoire, est_actif)
-SELECT
-    t.description,
-    (SELECT id FROM phase_dossier WHERE nom = t.phase),
-    (SELECT id FROM statut_dossier WHERE nom = t.statut),
-    tp.id,
-    t.niveau_autorisation,
-    t.niveau_validation,
-    t.niveau_operation,
-    t.est_obligatoire,
-    TRUE
+     niveau_autorisation, niveau_validation, niveau_operation, est_obligatoire, est_actif)
+SELECT t.description, ph.id, st.id, tp.id,
+       CASE t.phase WHEN 'PREPARATION' THEN 1 WHEN 'TRAITEMENT' THEN 2 ELSE 4 END,
+       CASE WHEN t.description = 'Clôture' THEN 5
+            WHEN t.phase = 'COMPTABILITE' THEN 4 WHEN t.phase = 'TRAITEMENT' THEN 2 ELSE 1 END,
+       t.rang, TRUE, TRUE
 FROM (VALUES
-    -- sens, phase, statut, description, niv_autorisation, niv_validation, niv_operation, est_obligatoire
-
-    -- ================= IMPORT =================
-    -- PREPARATION
-    ('import', 'PREPARATION',   'Ouvert',   'Reservation TC/Ligne',     1, 1, 1, TRUE),
-    ('import', 'PREPARATION',   'Ouvert',   'Reception BL/LTA',         1, 1, 1, TRUE),
-    ('import', 'PREPARATION',   'Ouvert',   'Position Container',       1, 1, 1, TRUE),
-
-    -- TRAITEMENT
-    ('import', 'TRAITEMENT',    'Ouvert',   'Declaration',              2, 2, 2, TRUE),
-    ('import', 'TRAITEMENT',    'Ouvert',   'Dispatch/Passeur',         2, 2, 2, TRUE),
-    ('import', 'TRAITEMENT',    'Ouvert',   'Depot Declaration',        2, 2, 2, TRUE),
-    ('import', 'TRAITEMENT',    'Ouvert',   'Visite Douane',            2, 3, 2, TRUE),
-    ('import', 'TRAITEMENT',    'Ouvert',   'Empotage',                 2, 3, 2, TRUE),
-
-    -- DEBARQUEMENT
-    ('import', 'DEBARQUEMENT',  'Ouvert',   'Depart Camion',            3, 3, 3, TRUE),
-    ('import', 'DEBARQUEMENT',  'Ouvert',   'Arrivee Camion',           3, 3, 3, TRUE),
-    ('import', 'DEBARQUEMENT',  'Ouvert',   'Mise a quai',              3, 4, 3, TRUE),
-    ('import', 'DEBARQUEMENT',  'Ouvert',   'Taxation BAE',             3, 4, 3, TRUE),
-    ('import', 'DEBARQUEMENT',  'Ouvert',   'Closing date',             3, 4, 3, TRUE),
-    ('import', 'DEBARQUEMENT',  'Ouvert',   'Information Client',       3, 4, 3, FALSE),
-
-    -- COMPTABILITE
-    ('import', 'COMPTABILITE',  'Ouvert',   'Provision',                4, 4, 4, FALSE),
-    ('import', 'COMPTABILITE',  'Ouvert',   'Facturation',              4, 5, 4, TRUE),
-    ('import', 'COMPTABILITE',  'Ouvert',   'Transmission',             4, 5, 4, TRUE),
-    ('import', 'COMPTABILITE',  'Ouvert',   'Paiement',                 4, 5, 5, TRUE),
-    ('import', 'COMPTABILITE',  'Clôturé',  'Cloture',                  5, 5, 5, TRUE),
-
-    -- ================= EXPORT =================
-    -- PREPARATION
-    ('export', 'PREPARATION',   'Ouvert',   'Avis d''arrivee client',   1, 1, 1, TRUE),
-    ('export', 'PREPARATION',   'Ouvert',   'Premier reception Doc',    1, 1, 1, TRUE),
-    ('export', 'PREPARATION',   'Ouvert',   'Premier envoi Doc',        1, 1, 1, TRUE),
-    ('export', 'PREPARATION',   'Ouvert',   'Expediee',                 1, 1, 1, TRUE),
-
-    -- TRAITEMENT
-    ('export', 'TRAITEMENT',    'Ouvert',   'Declaration',              2, 2, 2, TRUE),
-    ('export', 'TRAITEMENT',    'Ouvert',   'Dispatch/Passeur',         2, 2, 2, TRUE),
-    ('export', 'TRAITEMENT',    'Ouvert',   'Depot Declaration',        2, 2, 2, TRUE),
-    ('export', 'TRAITEMENT',    'Ouvert',   'Visite Douane',            2, 3, 2, TRUE),
-    ('export', 'TRAITEMENT',    'Ouvert',   'Depotage',                 2, 3, 2, TRUE),
-
-    -- EMBARQUEMENT
-    ('export', 'EMBARQUEMENT',  'Ouvert',   'Bon a enlever',            3, 3, 3, TRUE),
-    ('export', 'EMBARQUEMENT',  'Ouvert',   'Sortie Aero/Port',         3, 3, 3, TRUE),
-    ('export', 'EMBARQUEMENT',  'Ouvert',   'Taxation',                 3, 4, 3, TRUE),
-    ('export', 'EMBARQUEMENT',  'Ouvert',   'Information Client',       3, 4, 3, FALSE),
-    ('export', 'EMBARQUEMENT',  'Ouvert',   'Livraison',                3, 4, 3, TRUE),
-
-    -- COMPTABILITE
-    ('export', 'COMPTABILITE',  'Ouvert',   'Provision',                4, 4, 4, FALSE),
-    ('export', 'COMPTABILITE',  'Ouvert',   'Facturation',              4, 5, 4, TRUE),
-    ('export', 'COMPTABILITE',  'Ouvert',   'Transmission',             4, 5, 4, TRUE),
-    ('export', 'COMPTABILITE',  'Ouvert',   'Paiement',                 4, 5, 5, TRUE),
-    ('export', 'COMPTABILITE',  'Clôturé',  'Cloture',                  5, 5, 5, TRUE)
-
-) AS t(sens, phase, statut, description, niveau_autorisation, niveau_validation, niveau_operation, est_obligatoire)
-JOIN type_production tp ON tp.nom = t.sens;
-END $$;
-
--- ============================================================
--- DOCUMENTS OBLIGATOIRES PAR OPERATION POUR UN MOUVEMENT DE DOSSIER
--- (table document_obligatoire_mvt)
--- Chaque ligne lie un type de document a une operation : le document doit
--- avoir un document actif remis sur le dossier avant de pouvoir enregistrer
--- le mouvement de CETTE operation. Les operations non listees ici
--- n'exigent aucun document et restent realizables normalement.
--- ============================================================
-INSERT INTO document_obligatoire_mvt (id_operation, id_type_document, description)
-SELECT op.id, td.id, 'Document obligatoire pour l''operation ' || op.description || ' : ' || td.nom
-FROM operation_dossier op
-JOIN type_document td ON td.id_type_production = op.id_type_production
-WHERE (op.description = 'Reception BL/LTA' AND td.nom IN ('Connaissement maritime', 'Lettre de transport aerien'))
-   OR (op.description = 'Declaration' AND td.nom = 'Declaration en douane')
-   OR (op.description = 'Facturation' AND td.nom = 'Facture commerciale');
+    ('import', 'PREPARATION', 'Avis d’arrivée client', 'Client avisé', 1),
+    ('import', 'PREPARATION', 'Envoi proforma', 'Proforma envoyée', 2),
+    ('import', 'PREPARATION', 'Premier envoi document', 'Premier envoi effectué', 3),
+    ('import', 'PREPARATION', 'Premier réception document', 'Premiers documents reçus', 4),
+    ('import', 'PREPARATION', 'Expertise', 'Expertise réalisée', 5),
+    ('import', 'TRAITEMENT', 'Déclaration', 'Déclaration établie', 6),
+    ('import', 'TRAITEMENT', 'Dispatche/Passeur', 'Dossier transmis au passeur', 7),
+    ('import', 'TRAITEMENT', 'Visite/Scan', 'Visite/scan effectué', 8),
+    ('import', 'TRAITEMENT', 'Paiement Droit & Taxes', 'Droits et taxes payés', 9),
+    ('import', 'TRAITEMENT', 'Confirmation paiement Droit & Taxes', 'Paiement des droits confirmé', 10),
+    ('import', 'COMPTABILITE', 'Provision (pour fret et débours)', 'Provision enregistrée', 11),
+    ('import', 'COMPTABILITE', 'Facturation', 'Facturé', 12),
+    ('import', 'COMPTABILITE', 'Transmission', 'Facture transmise', 13),
+    ('import', 'COMPTABILITE', 'Paiement', 'Payé', 14),
+    ('import', 'COMPTABILITE', 'Clôture', 'Clôturé', 15),
+    ('export', 'PREPARATION', 'Préalerte', 'Préalerte envoyée', 1),
+    ('export', 'PREPARATION', 'Réservation TC/Ligne', 'Réservation confirmée', 2),
+    ('export', 'PREPARATION', 'Réception Doc', 'Documents reçus', 3),
+    ('export', 'PREPARATION', 'Envoi proforma', 'Proforma envoyée', 4),
+    ('export', 'PREPARATION', 'Position container', 'Conteneur positionné', 5),
+    ('export', 'PREPARATION', 'Expertise', 'Expertise réalisée', 6),
+    ('export', 'TRAITEMENT', 'Déclaration', 'Déclaration établie', 7),
+    ('export', 'TRAITEMENT', 'Dispatche/Passeur', 'Dossier transmis au passeur', 8),
+    ('export', 'TRAITEMENT', 'Dépôt Déclaration', 'Déclaration déposée', 9),
+    ('export', 'TRAITEMENT', 'Paiement PG', 'PG payé', 10),
+    ('export', 'TRAITEMENT', 'Bon à enlever', 'Bon à enlever obtenu', 11),
+    ('export', 'TRAITEMENT', 'Récupération documents', 'Documents récupérés', 12),
+    ('export', 'COMPTABILITE', 'Provision', 'Provision enregistrée', 13),
+    ('export', 'COMPTABILITE', 'Facturation', 'Facturé', 14),
+    ('export', 'COMPTABILITE', 'Transmission', 'Facture transmise', 15),
+    ('export', 'COMPTABILITE', 'Paiement', 'Payé', 16),
+    ('export', 'COMPTABILITE', 'Clôture', 'Clôturé', 17)
+) AS t(sens, phase, description, statut, rang)
+JOIN type_production tp ON tp.nom = t.sens
+JOIN phase_dossier ph ON ph.nom = t.phase
+JOIN statut_dossier st ON st.nom = t.statut
+ORDER BY tp.id, t.rang;
 
 INSERT INTO inconterme (nom, abreviation, description) VALUES
-('Ex Works', 'EXW', 'Depart usine'),
-('Free Carrier', 'FCA', 'Franco transporteur'),
-('Free Alongside Ship', 'FAS', 'Franco le long du navire'),
-('Free On Board', 'FOB', 'Franco a bord'),
-('Cost and Freight', 'CFR', 'Cout et fret'),
-('Cost, Insurance and Freight', 'CIF', 'Cout, assurance et fret'),
-('Carriage Paid To', 'CPT', 'Port paye jusqu''a'),
-('Carriage and Insurance Paid To', 'CIP', 'Port paye, assurance comprise'),
-('Delivered At Place', 'DAP', 'Rendu au lieu de destination'),
-('Delivered At Place Unloaded', 'DPU', 'Rendu au lieu de destination decharge'),
-('Delivered Duty Paid', 'DDP', 'Rendu droits acquittes');
+('Free On Board', 'FOB', 'Franco à bord');
 
 INSERT INTO type_constat (nom, description) VALUES
 ('constat ...', 'Constat systematique a chaque transfert de responsabilite'),
@@ -392,6 +319,39 @@ INSERT INTO type_document (nom, id_type_production, id_nature_marchandise, est_o
 ('Attestation de non-radioactivite', (SELECT id FROM type_production WHERE nom = 'import' AND id_mode_transport = (SELECT id FROM mode_transport WHERE nom = 'Maritime')), NULL, FALSE, 'Attestation de non-radioactivite'),
 ('Certificat de conformite', (SELECT id FROM type_production WHERE nom = 'import' AND id_mode_transport = (SELECT id FROM mode_transport WHERE nom = 'Maritime')), (SELECT id FROM nature_marchandise WHERE nom = 'Electronique'), TRUE, 'Certificat de conformite');
 
+-- Les noms de types documentaires sont uniques dans le schéma. Conserver
+-- leur production pour les listes documentaires et les indicateurs du tableau
+-- de bord ; suffixer les noms ajoutés avec le flux et le mode de transport.
+INSERT INTO type_document (nom, id_type_production, est_obligatoire, description)
+SELECT t.nom || ' - ' || tp.description, tp.id, t.obligatoire, t.description
+FROM type_production tp
+CROSS JOIN (VALUES
+    ('Declaration en douane', TRUE, 'Déclaration douanière du dossier'),
+    ('Facture commerciale', TRUE, 'Facture commerciale du dossier'),
+    ('Facture proforma', FALSE, 'Proforma envoyée au client')
+) AS t(nom, obligatoire, description)
+WHERE tp.nom IN ('import', 'export')
+  AND NOT EXISTS (SELECT 1 FROM type_document td WHERE td.nom = t.nom AND td.id_type_production = tp.id);
+
+INSERT INTO type_document (nom, id_type_production, est_obligatoire, description)
+SELECT CASE mt.nom WHEN 'Maritime' THEN 'Connaissement maritime export' ELSE 'Lettre de transport aerien export' END,
+       tp.id, TRUE, 'Document de transport reçu pour le flux export'
+FROM type_production tp JOIN mode_transport mt ON mt.id = tp.id_mode_transport
+WHERE tp.nom = 'export';
+
+INSERT INTO document_obligatoire_mvt (id_operation, id_type_document, description)
+SELECT op.id, td.id, 'Document requis pour ' || op.description || ' : ' || td.nom
+FROM operation_dossier op
+JOIN type_production tp ON tp.id = op.id_type_production
+JOIN mode_transport mt ON mt.id = tp.id_mode_transport
+JOIN type_document td ON td.id_type_production = op.id_type_production
+WHERE (op.description IN ('Premier réception document', 'Réception Doc')
+       AND ((mt.nom = 'Maritime' AND td.nom LIKE 'Connaissement maritime%')
+         OR (mt.nom = 'Aerien' AND td.nom LIKE 'Lettre de transport aerien%')))
+   OR (op.description IN ('Déclaration', 'Dépôt Déclaration') AND td.nom LIKE 'Declaration en douane%')
+   OR (op.description = 'Envoi proforma' AND td.nom LIKE 'Facture proforma%')
+   OR (op.description = 'Facturation' AND td.nom LIKE 'Facture commerciale%');
+
 SELECT setval(pg_get_serial_sequence('type_document', 'id'), coalesce(max(id), 1)) FROM type_document;
 
 INSERT INTO type_container (nom, description, volume, poids_max, longueur, largeur, hauteur) VALUES
@@ -498,462 +458,363 @@ INSERT INTO action (nom, description) VALUES
 ON CONFLICT (nom) DO NOTHING;
 
 -- ============================================================
--- 2. GENERATION DE DONNEES EN MASSE
+-- 2. GENERATION DE DONNEES DE DEMONSTRATION
 -- ============================================================
+-- À charger sur une base vide après le schéma. Ce script ne supprime aucune
+-- donnée existante et n'est pas destiné à être rejoué sur une base déjà remplie.
+-- Dates relatives à l'exécution : les douze derniers mois calendaires, avec
+-- des volumes mensuels différents et plusieurs jours dans la période récente.
+-- Toutes les dates réelles restent dans le passé ; seules les dates prévues,
+-- les échéances et les limites de remise peuvent se situer dans le futur.
 
 DO $$
 DECLARE
-    v_agence_ids INT[];
-    v_role_ids INT[];
-    v_type_production_ids INT[];
-    v_type_client_ids INT[];
-    v_type_regime_ids INT[];
-    v_bureau_ids INT[];
-    v_mode_acheminement_ids INT[];
-    v_nature_marchandise_ids INT[];
-    v_phase_ids INT[];
-    v_inconterme_ids INT[];
-    v_type_constat_ids INT[];
-    v_expert_constat_ids INT[];
-    v_pays_ids INT[];
-    v_type_document_ids INT[];
-    v_type_declaration_ids INT[];
-    v_type_container_ids INT[];
-    v_compagnie_ids INT[];
-    v_compagnie_maritime_ids INT[];
-    v_compagnie_aerienne_ids INT[];
-    v_navire_ids INT[];
-    v_port_ids INT[];
-    v_aeroport_ids INT[];
-    v_unite_mesure_ids INT[];
-    v_operation_ids INT[];
-    v_statut_ids INT[];
-    v_statut_ouvert_id INT;
-    v_statut_ot_ids INT[];
-    v_statut_ot_creer_id INT;
-
-    v_client_ids INT[];
-    v_utilisateur_ids INT[];
-    v_ot_ids INT[] := '{}';
-    v_dossier_ids INT[] := '{}';
-    v_expedition_ids INT[] := '{}';
-    v_document_ids INT[] := '{}';
-
+    v_debut TIMESTAMPTZ := date_trunc('month', CURRENT_TIMESTAMP) - INTERVAL '11 months';
+    v_volumes INT[] := ARRAY[10, 13, 17, 12, 22, 18, 28, 24, 34, 30, 40, 52];
+    v_agences INT[] := ARRAY(SELECT id FROM agence ORDER BY id);
+    v_roles INT[] := ARRAY(SELECT id FROM role ORDER BY id);
+    v_productions INT[] := ARRAY(SELECT id FROM type_production ORDER BY id);
+    v_clients INT[];
+    v_utilisateurs INT[];
+    v_ots INT[] := '{}';
+    v_dossiers INT[] := '{}';
+    v_operations INT[];
+    v_pays INT[] := ARRAY(SELECT id FROM pays ORDER BY id);
+    v_types_clients INT[] := ARRAY(SELECT id FROM type_client ORDER BY id);
+    v_regimes INT[] := ARRAY(SELECT id FROM type_regime ORDER BY id);
+    v_bureaux INT[] := ARRAY(SELECT id FROM bureau ORDER BY id);
+    v_unites INT[] := ARRAY(SELECT id FROM unite_mesure ORDER BY id);
+    v_natures INT[] := ARRAY(SELECT id FROM nature_marchandise ORDER BY id);
+    v_containers INT[] := ARRAY(SELECT id FROM type_container ORDER BY id);
+    v_acheminements INT[] := ARRAY(SELECT id FROM mode_acheminement ORDER BY id);
+    v_fob INT := (SELECT id FROM inconterme WHERE abreviation = 'FOB');
+    v_preparation INT := (SELECT id FROM phase_dossier WHERE nom = 'PREPARATION');
+    v_ouvert INT := (SELECT id FROM statut_dossier WHERE nom = 'Ouvert');
+    v_user INT;
+    v_ot INT;
+    v_dossier INT;
+    v_type INT;
+    v_agence INT;
+    v_role INT;
+    v_statut_ot INT;
+    v_statut INT;
+    v_phase INT;
+    v_phase_suivante INT;
+    v_doc INT;
+    v_expedition INT;
+    v_compagnie INT;
+    v_navire INT;
+    v_station_depart INT;
+    v_station_arrivee INT;
+    v_acheminement INT;
+    v_nb_operations INT;
+    v_nb_effectuees INT;
+    v_creation TIMESTAMPTZ;
+    v_mois TIMESTAMPTZ;
+    v_fin_mois TIMESTAMPTZ;
+    v_fin_flux TIMESTAMPTZ;
+    v_date_mvt TIMESTAMPTZ;
+    v_date_doc TIMESTAMPTZ;
+    v_date_depart TIMESTAMPTZ;
+    v_date_prevue TIMESTAMPTZ;
+    v_date_arrivee TIMESTAMPTZ;
+    v_numero TEXT;
+    v_compteur INT := 0;
     i INT;
-    v_user_id INT;
-    v_ot_id INT;
-    v_dossier_id INT;
-    v_expedition_id INT;
-    v_agence_id INT;
-    v_client_id INT;
-    v_type_production_id INT;
-    v_type_regime_id INT;
-    v_bureau_id INT;
-    v_phase_id INT;
-    v_pays_origine INT;
-    v_pays_destination INT;
-    v_inconterme_id INT;
-    v_mode_acheminement_id INT;
-    v_type_document_id INT;
-    v_operation_id INT;
-    v_type_container_id INT;
-    v_expert_constat_id INT;
-    v_type_constat_id INT;
-    v_unite_mesure_id INT;
-    v_nature_marchandise_id INT;
-    v_compagnie_id INT;
-    v_navire_id INT;
-    v_port_emb INT;
-    v_port_deb INT;
-    v_aeroport_emb INT;
-    v_aeroport_deb INT;
-    v_dossier_mere INT;
-    v_sous_dossier INT;
-    v_mode_transport_maritime_id INT;
-    v_mode_transport_aerien_id INT;
-    v_expedition_mode_transport_id INT;
-    v_doc_id INT;
-    v_mvt_id INT;
-    v_est_remis BOOLEAN;
-    v_rand_statut_ot_id INT;
+    j INT;
+    mois INT;
+    ligne RECORD;
+    op RECORD;
+    type_doc RECORD;
+    parent RECORD;
+    enfant RECORD;
 BEGIN
-    -- Récupération des IDs des tables de référence
-    v_agence_ids := ARRAY(SELECT id FROM agence);
-    v_role_ids := ARRAY(SELECT id FROM role);
-    v_type_production_ids := ARRAY(SELECT id FROM type_production);
-    v_type_client_ids := ARRAY(SELECT id FROM type_client);
-    v_type_regime_ids := ARRAY(SELECT id FROM type_regime);
-    v_bureau_ids := ARRAY(SELECT id FROM bureau);
-    v_mode_acheminement_ids := ARRAY(SELECT id FROM mode_acheminement);
-    v_nature_marchandise_ids := ARRAY(SELECT id FROM nature_marchandise);
-    v_phase_ids := ARRAY(SELECT id FROM phase_dossier);
-    v_inconterme_ids := ARRAY(SELECT id FROM inconterme);
-    v_type_constat_ids := ARRAY(SELECT id FROM type_constat);
-    v_expert_constat_ids := ARRAY(SELECT id FROM expert_constat);
-    v_pays_ids := ARRAY(SELECT id FROM pays);
-    v_type_document_ids := ARRAY(SELECT id FROM type_document);
-    v_type_declaration_ids := ARRAY(SELECT id FROM type_declaration);
-    v_type_container_ids := ARRAY(SELECT id FROM type_container);
-    v_compagnie_ids := ARRAY(SELECT id FROM compagnie);
-    v_compagnie_maritime_ids := ARRAY(SELECT id FROM compagnie WHERE id_mode_transport = (SELECT id FROM mode_transport WHERE nom = 'Maritime'));
-    v_compagnie_aerienne_ids := ARRAY(SELECT id FROM compagnie WHERE id_mode_transport = (SELECT id FROM mode_transport WHERE nom = 'Aerien'));
-    v_navire_ids := ARRAY(SELECT id FROM navire);
-    v_port_ids := ARRAY(SELECT id FROM station WHERE id_mode_transport = (SELECT id FROM mode_transport WHERE nom = 'Maritime'));
-    v_aeroport_ids := ARRAY(SELECT id FROM station WHERE id_mode_transport = (SELECT id FROM mode_transport WHERE nom = 'Aerien'));
-    v_unite_mesure_ids := ARRAY(SELECT id FROM unite_mesure);
-    v_operation_ids := ARRAY(SELECT id FROM operation_dossier);
-    v_statut_ids := ARRAY(SELECT id FROM statut_dossier);
-    v_statut_ouvert_id := (SELECT id FROM statut_dossier WHERE nom = 'Ouvert');
-    v_mode_transport_maritime_id := (SELECT id FROM mode_transport WHERE nom = 'Maritime');
-    v_mode_transport_aerien_id := (SELECT id FROM mode_transport WHERE nom = 'Aerien');
+    -- Tirage reproductible ; les dates suivent la date d'exécution du script.
+    PERFORM setseed(0.2718);
+    UPDATE agence SET date_creation = v_debut - INTERVAL '4 months' + id * INTERVAL '1 day';
 
-    -- Récupération des statuts OT
-    v_statut_ot_ids := ARRAY(SELECT id FROM statut_ot);
-
-    -- CLIENTS (100) avec cp_client unique de 6 caractères
+    -- 100 clients et 30 comptes de démonstration, créés avant leur activité.
     FOR i IN 1..100 LOOP
-        INSERT INTO clients (nom, prenom, email, telephone, adresse, id_type_client, nif, stat, fax, id_pays, cp_client)
-        VALUES (
-            'ClientNom' || i,
-            'Prenom' || i,
-            'client' || i || '@mail.com',
-            '032' || lpad(i::text, 7, '0'),
-            'Adresse ' || i,
-            v_type_client_ids[1 + floor(random() * array_length(v_type_client_ids, 1))::int],
-            'NIF' || lpad(i::text, 10, '0'),
-            'STAT' || lpad(i::text, 10, '0'),
-            'Fax' || i,
-            v_pays_ids[1 + floor(random() * array_length(v_pays_ids, 1))::int],
-            'CLI' || lpad(i::text, 3, '0')   -- 6 caractères, unique de CLI001 à CLI100
-        );
+        INSERT INTO clients (nom, prenom, email, telephone, adresse, id_type_client,
+                             nif, stat, fax, id_pays, cp_client, date_creation)
+        VALUES ('ClientNom' || i, 'Prenom' || i, 'client' || i || '@mail.com',
+                '032' || lpad(i::text, 7, '0'), 'Adresse ' || i,
+                v_types_clients[1 + (i - 1) % array_length(v_types_clients, 1)],
+                'NIF' || lpad(i::text, 10, '0'), 'STAT' || lpad(i::text, 10, '0'), 'Fax' || i,
+                v_pays[1 + (i - 1) % array_length(v_pays, 1)], 'CLI' || lpad(i::text, 3, '0'),
+                v_debut - INTERVAL '3 months' + random() * INTERVAL '20 days');
     END LOOP;
 
-    -- UTILISATEURS (30) + AUTORISATIONS
     FOR i IN 1..30 LOOP
-        v_agence_id := v_agence_ids[1 + floor(random() * array_length(v_agence_ids, 1))::int];
-        INSERT INTO utilisateur (nom_utilisateur, nom, prenom, email, mot_de_passe, id_role, id_agence)
-        VALUES (
-            'user' || i,
-            'NomUser' || i,
-            'PrenomUser' || i,
-            'user' || i || '@transit.mg',
-            '$2a$12$KovwAzSOJPTaWqYJ2UgE/.sztG.CGSEgGa/QfoV.qlNK8qBtXzMna',
-            v_role_ids[1 + floor(random() * array_length(v_role_ids, 1))::int],
-            v_agence_id
-        ) RETURNING id INTO v_user_id;
-
-        INSERT INTO autorisation (id_utilisateur, niveau_autorisation)
-        VALUES (v_user_id, 1 + floor(random() * 5)::int);
+        v_agence := v_agences[1 + (i - 1) % array_length(v_agences, 1)];
+        v_role := v_roles[1 + (i - 1) % array_length(v_roles, 1)];
+        v_creation := v_debut - INTERVAL '2 months' + i * INTERVAL '1 day';
+        INSERT INTO utilisateur (nom_utilisateur, nom, prenom, email, mot_de_passe,
+                                 id_role, id_agence, date_creation, date_modification)
+        VALUES ('user' || i, 'NomUser' || i, 'PrenomUser' || i, 'user' || i || '@transit.mg',
+                '$2a$12$KovwAzSOJPTaWqYJ2UgE/.sztG.CGSEgGa/QfoV.qlNK8qBtXzMna',
+                v_role, v_agence, v_creation, v_creation) RETURNING id INTO v_user;
+        -- Même accès administrateur que le jeu de démonstration précédent,
+        -- limité aux comptes insérés ici, sans modifier d'autres utilisateurs.
+        INSERT INTO autorisation (id_utilisateur, niveau_autorisation) VALUES (v_user, 10000);
     END LOOP;
+    v_clients := ARRAY(SELECT id FROM clients ORDER BY id);
+    v_utilisateurs := ARRAY(SELECT id FROM utilisateur ORDER BY id);
 
-    v_client_ids := ARRAY(SELECT id FROM clients);
-    v_utilisateur_ids := ARRAY(SELECT id FROM utilisateur);
-
-    -- ORDRES DE TRANSIT (200) avec statut OT aléatoire
-    FOR i IN 1..200 LOOP
-        v_agence_id := v_agence_ids[1 + floor(random() * array_length(v_agence_ids, 1))::int];
-        v_client_id := v_client_ids[1 + floor(random() * array_length(v_client_ids, 1))::int];
-        v_type_production_id := v_type_production_ids[1 + floor(random() * array_length(v_type_production_ids, 1))::int];
-        v_type_regime_id := v_type_regime_ids[1 + floor(random() * array_length(v_type_regime_ids, 1))::int];
-        v_bureau_id := v_bureau_ids[1 + floor(random() * array_length(v_bureau_ids, 1))::int];
-        -- Choix aléatoire du statut OT
-        v_rand_statut_ot_id := v_statut_ot_ids[1 + floor(random() * array_length(v_statut_ot_ids, 1))::int];
-
-        INSERT INTO ordre_transit (
-            numero_ordre_transit, id_agence, id_client, id_type_production, id_nature_marchandise,
-            numero_commande, id_utilisateur, id_type_regime, destination_finale,
+    -- 320 OT : suffisamment pour 300 dossiers et au moins 20 OT autonomes.
+    FOR i IN 1..320 LOOP
+        v_agence := v_agences[1 + (i - 1) % array_length(v_agences, 1)];
+        v_type := v_productions[1 + (i - 1) % array_length(v_productions, 1)];
+        SELECT id INTO v_user FROM utilisateur WHERE id_agence = v_agence ORDER BY id LIMIT 1;
+        SELECT id INTO v_statut_ot FROM statut_ot
+        WHERE nom = CASE WHEN i <= 300 THEN 'Valide'
+                         WHEN i % 2 = 0 THEN 'Brouillon' ELSE 'Non valide' END;
+        INSERT INTO ordre_transit (numero_ordre_transit, id_agence, id_client, id_type_production,
+            id_nature_marchandise, numero_commande, id_utilisateur, id_type_regime, destination_finale,
             id_expediteur, id_destinataire, id_bureau_dedou, est_assure, id_destination_facture,
-            id_statut_ot
-        ) VALUES (
-            10000 + i,
-            v_agence_id,
-            v_client_id,
-            v_type_production_id,
-            v_nature_marchandise_ids[1 + floor(random() * array_length(v_nature_marchandise_ids, 1))::int],
-            'CMD-' || lpad(i::text, 6, '0'),
-            v_utilisateur_ids[1 + floor(random() * array_length(v_utilisateur_ids, 1))::int],
-            v_type_regime_id,
-            'Destination finale ' || i,
-            v_client_ids[1 + floor(random() * array_length(v_client_ids, 1))::int],
-            v_client_ids[1 + floor(random() * array_length(v_client_ids, 1))::int],
-            v_bureau_id,
-            (random() < 0.3),
-            v_client_ids[1 + floor(random() * array_length(v_client_ids, 1))::int],
-            v_rand_statut_ot_id
-        ) RETURNING id INTO v_ot_id;
-
-        v_ot_ids := array_append(v_ot_ids, v_ot_id);
+            id_statut_ot, date_creation)
+        VALUES (10000 + i, v_agence, v_clients[1 + (i - 1) % 100], v_type,
+                v_natures[1 + (i - 1) % array_length(v_natures, 1)],
+                'CMD-' || lpad(i::text, 6, '0'), v_user,
+                v_regimes[1 + (i - 1) % array_length(v_regimes, 1)], 'Destination finale ' || i,
+                v_clients[1 + i % 100], v_clients[1 + (i + 1) % 100],
+                v_bureaux[1 + (i - 1) % array_length(v_bureaux, 1)], random() < 0.3,
+                v_clients[1 + (i - 1) % 100], v_statut_ot,
+                v_debut + random() * (CURRENT_TIMESTAMP - INTERVAL '3 days' - v_debut))
+        RETURNING id INTO v_ot;
+        v_ots := array_append(v_ots, v_ot);
     END LOOP;
 
-    -- INSTRUCTIONS (400)
     FOR i IN 1..400 LOOP
         INSERT INTO instruction (id_ordre_transit, instruction)
-        VALUES (
-            v_ot_ids[1 + floor(random() * array_length(v_ot_ids, 1))::int],
-            'Instruction ' || i || ' : suivi du dossier.'
-        );
+        VALUES (v_ots[1 + (i - 1) % 320], 'Instruction ' || i || ' : suivi du dossier.');
     END LOOP;
 
-    -- DOSSIERS (300)
-    FOR i IN 1..300 LOOP
-        v_agence_id := v_agence_ids[1 + floor(random() * array_length(v_agence_ids, 1))::int];
-        v_client_id := v_client_ids[1 + floor(random() * array_length(v_client_ids, 1))::int];
-        -- Les 20 derniers OT restent sans dossier pour tester la saisie autonome.
-        v_ot_id := v_ot_ids[1 + floor(random() * (array_length(v_ot_ids, 1) - 20))::int];
-        v_phase_id := v_phase_ids[1 + floor(random() * array_length(v_phase_ids, 1))::int];
-        v_pays_origine := v_pays_ids[1 + floor(random() * array_length(v_pays_ids, 1))::int];
-        v_pays_destination := v_pays_ids[1 + floor(random() * array_length(v_pays_ids, 1))::int];
-        v_inconterme_id := v_inconterme_ids[1 + floor(random() * array_length(v_inconterme_ids, 1))::int];
-        v_type_production_id := v_type_production_ids[1 + floor(random() * array_length(v_type_production_ids, 1))::int];
-
-        INSERT INTO dossier (
-            id_agence, id_utilisateur, id_client, id_type_production, numero_dossier, id_ordre_transit,
-            est_groupage, id_phase, id_statut, echeance, pour_compte, id_pays_origine, id_pays_destination,
-            est_prepaye, est_provisionne, provision_demandee, lieu_paiement_fret,
-            depart, date_livraison, adresse_livraison, id_inconterme
-        ) VALUES (
-            v_agence_id,
-            v_utilisateur_ids[1 + floor(random() * array_length(v_utilisateur_ids, 1))::int],
-            v_client_id,
-            v_type_production_id,
-            (20260100000 + i)::text,
-            v_ot_id,
-            (random() < 0.4),
-            v_phase_id,
-            v_statut_ouvert_id,
-            '2025-06-01'::timestamp + ((i % 60) || ' days')::interval,
-            'Pour compte de ' || i,
-            v_pays_origine,
-            v_pays_destination,
-            (random() < 0.5),
-            (random() < 0.5),
-            (random() * 1000000)::numeric(10, 2),
-            'Antananarivo',
-            'Port/Aeroport ' || i,
-            '2025-06-01'::timestamp + (((i % 120) + 30) || ' days')::interval,
-            'Adresse livraison ' || i,
-            v_inconterme_id
-        ) RETURNING id INTO v_dossier_id;
-
-        v_dossier_ids := array_append(v_dossier_ids, v_dossier_id);
+    -- 300 créations mensuelles : 10,13,17,12,22,18,28,24,34,30,40,52.
+    FOR mois IN 1..12 LOOP
+        v_mois := v_debut + (mois - 1) * INTERVAL '1 month';
+        v_fin_mois := LEAST(v_mois + INTERVAL '1 month', CURRENT_TIMESTAMP);
+        FOR j IN 1..v_volumes[mois] LOOP
+            v_compteur := v_compteur + 1;
+            -- Répartition stratifiée : plusieurs jours par mois, sans création future.
+            v_creation := v_mois + (v_fin_mois - v_mois) * ((j - 1 + random()) / v_volumes[mois]);
+            SELECT ot.*, tp.code AS code_production, a.code AS code_agence INTO ligne
+            FROM ordre_transit ot JOIN type_production tp ON tp.id = ot.id_type_production
+            JOIN agence a ON a.id = ot.id_agence WHERE ot.id = v_ots[v_compteur];
+            v_numero := ligne.code_production::text || lpad(ligne.code_agence::text, 2, '0')
+                     || to_char(v_creation, 'MM') || (EXTRACT(YEAR FROM v_creation)::int % 10)::text
+                     || lpad(v_compteur::text, 4, '0');
+            INSERT INTO dossier (id_agence, id_utilisateur, id_client, id_type_production,
+                numero_dossier, id_ordre_transit, est_groupage, id_phase, id_statut, echeance,
+                pour_compte, id_pays_origine, id_pays_destination, est_prepaye, est_provisionne,
+                provision_demandee, lieu_paiement_fret, depart, adresse_livraison, id_inconterme,
+                date_limite_remise, date_creation)
+            VALUES (ligne.id_agence, ligne.id_utilisateur, ligne.id_client, ligne.id_type_production,
+                v_numero, ligne.id, FALSE, v_preparation, v_ouvert,
+                v_creation + (20 + v_compteur % 35) * INTERVAL '1 day',
+                'Pour compte de ' || v_compteur,
+                v_pays[1 + (v_compteur - 1) % array_length(v_pays, 1)],
+                v_pays[1 + v_compteur % array_length(v_pays, 1)], random() < 0.5, FALSE,
+                (50000 + random() * 950000)::numeric(10, 2), 'Antananarivo',
+                'Port/Aeroport ' || v_compteur, 'Adresse livraison ' || v_compteur, v_fob,
+                v_creation + (5 + v_compteur % 8) * INTERVAL '1 day', v_creation)
+            RETURNING id INTO v_dossier;
+            v_dossiers := array_append(v_dossiers, v_dossier);
+        END LOOP;
     END LOOP;
 
-    -- CONSTATS (50)
-    FOR i IN 1..50 LOOP
-        INSERT INTO constat (id_dossier, id_expert_constat, id_type_constat, description)
-        VALUES (
-            v_dossier_ids[1 + floor(random() * array_length(v_dossier_ids, 1))::int],
-            v_expert_constat_ids[1 + floor(random() * array_length(v_expert_constat_ids, 1))::int],
-            v_type_constat_ids[1 + floor(random() * array_length(v_type_constat_ids, 1))::int],
-            'Constat ' || i || ' : description du constat.'
-        );
-    END LOOP;
-
-    -- DOCUMENTS
-    FOR i IN 1..600 LOOP
-        INSERT INTO document (id_dossier, id_type_document, nombre, chemin_fichier)
-        VALUES (
-            v_dossier_ids[1 + floor(random() * array_length(v_dossier_ids, 1))::int],
-            v_type_document_ids[1 + floor(random() * array_length(v_type_document_ids, 1))::int],
-            1,
-            '/documents/doc_' || i || '.pdf'
-        ) RETURNING id INTO v_doc_id;
-
-        v_document_ids := array_append(v_document_ids, v_doc_id);
-    END LOOP;
-
-    -- REMISES (100)
-    FOR i IN 1..100 LOOP
-        INSERT INTO remise (id_dossier, id_type_document, date_remise)
-        SELECT
-            d.id_dossier,
-            d.id_type_document,
-            '2026-08-15'::timestamp - ((i % 30) || ' days')::interval
-        FROM document d
-        WHERE d.id = v_document_ids[1 + floor(random() * array_length(v_document_ids, 1))::int]
-        LIMIT 1;
-    END LOOP;
-
-    -- EXPEDITIONS : une par OT maritime/aerien, y compris sans dossier.
-    FOR i IN 1..array_length(v_ot_ids, 1) LOOP
-        v_ot_id := v_ot_ids[i];
-        SELECT tp.id_mode_transport INTO v_expedition_mode_transport_id
-        FROM ordre_transit ot JOIN type_production tp ON tp.id = ot.id_type_production
-        WHERE ot.id = v_ot_id;
-        IF v_expedition_mode_transport_id NOT IN (v_mode_transport_maritime_id, v_mode_transport_aerien_id) THEN
-            CONTINUE;
-        END IF;
-        SELECT id INTO v_dossier_id FROM dossier WHERE id_ordre_transit = v_ot_id ORDER BY id LIMIT 1;
-        v_mode_acheminement_id := v_mode_acheminement_ids[1 + floor(random() * array_length(v_mode_acheminement_ids, 1))::int];
-
-        IF v_expedition_mode_transport_id = v_mode_transport_maritime_id THEN
-            -- Maritime
-            v_compagnie_id := v_compagnie_maritime_ids[1 + floor(random() * array_length(v_compagnie_maritime_ids, 1))::int];
-            SELECT id INTO v_navire_id FROM navire WHERE id_compagnie = v_compagnie_id ORDER BY random() LIMIT 1;
-            v_port_emb := v_port_ids[1 + floor(random() * array_length(v_port_ids, 1))::int];
-            v_port_deb := v_port_ids[1 + floor(random() * array_length(v_port_ids, 1))::int];
-
-            INSERT INTO expedition (
-                id_ordre_transit, id_dossier, est_achemine, id_mode_transport, id_mode_acheminement,
-                id_compagnie, numero_bl, id_navire, date_bl, lieu_bl,
-                id_port_embarquement, id_port_debarquement,
-                lib_scan, date_depart, date_prevu, date_arrivee
-            ) VALUES (
-                v_ot_id, v_dossier_id,
-                (random() < 0.8),
-                v_mode_transport_maritime_id,
-                v_mode_acheminement_id,
-                v_compagnie_id,
-                'BL-' || lpad(i::text, 6, '0'),
-                v_navire_id,
-                '2026-07-20'::timestamp - ((i % 20) || ' days')::interval,
-                'Port de Toamasina',
-                v_port_emb,
-                v_port_deb,
-                'Scan ' || i,
-                '2026-07-20'::timestamp - ((i % 20) || ' days')::interval,
-                '2026-08-01'::timestamp + ((i % 20) || ' days')::interval,
-                '2026-08-10'::timestamp + ((i % 25) || ' days')::interval
-            ) RETURNING id INTO v_expedition_id;
-        ELSE
-            -- Aérien
-            v_compagnie_id := v_compagnie_aerienne_ids[1 + floor(random() * array_length(v_compagnie_aerienne_ids, 1))::int];
-            v_aeroport_emb := v_aeroport_ids[1 + floor(random() * array_length(v_aeroport_ids, 1))::int];
-            v_aeroport_deb := v_aeroport_ids[1 + floor(random() * array_length(v_aeroport_ids, 1))::int];
-
-            INSERT INTO expedition (
-                id_ordre_transit, id_dossier, est_achemine, id_mode_transport, id_mode_acheminement,
-                id_compagnie, numero_vol, numero_lta, date_lta, lieu_lta,
-                id_aeroport_embarquement, id_aeroport_debarquement,
-                lib_scan, date_depart, date_prevu, date_arrivee
-            ) VALUES (
-                v_ot_id, v_dossier_id,
-                (random() < 0.8),
-                v_mode_transport_aerien_id,
-                v_mode_acheminement_id,
-                v_compagnie_id,
-                'VOL-' || lpad(i::text, 6, '0'),
-                'LTA-' || lpad(i::text, 6, '0'),
-                '2026-07-25'::timestamp - ((i % 15) || ' days')::interval,
-                'Aeroport Ivato',
-                v_aeroport_emb,
-                v_aeroport_deb,
-                'Scan ' || i,
-                '2026-07-25'::timestamp - ((i % 20) || ' days')::interval,
-                '2026-08-05'::timestamp + ((i % 20) || ' days')::interval,
-                '2026-08-15'::timestamp + ((i % 25) || ' days')::interval
-            ) RETURNING id INTO v_expedition_id;
-        END IF;
-
-        v_expedition_ids := array_append(v_expedition_ids, v_expedition_id);
-    END LOOP;
-
-    -- MARCHANDISES (600) - la nature est portée par l'ordre de transit
-    FOR i IN 1..600 LOOP
-        INSERT INTO marchandise (
-            id_ordre_transit, id_unite_mesure,
-            marque, modele, description, poids, volume, quantite
-        ) VALUES (
-            v_ot_ids[1 + floor(random() * array_length(v_ot_ids, 1))::int],
-            v_unite_mesure_ids[1 + floor(random() * array_length(v_unite_mesure_ids, 1))::int],
-            'Marque' || (i % 20),
-            'Modele' || (i % 30),
-            'Description marchandise ' || i,
-            (random() * 5000)::numeric(10, 2),
-            (random() * 100)::numeric(10, 2),
-            1 + floor(random() * 100)::int
-        );
-    END LOOP;
-
-    -- CONTENEURS (300)
-    FOR i IN 1..300 LOOP
-        v_dossier_id := v_dossier_ids[1 + floor(random() * array_length(v_dossier_ids, 1))::int];
-        INSERT INTO conteneur (id_dossier, id_type_container, numero_container, description)
-        VALUES (
-            v_dossier_id,
-            v_type_container_ids[1 + floor(random() * array_length(v_type_container_ids, 1))::int],
-            'CONT-' || lpad(i::text, 7, '0'),
-            'Conteneur ' || i
-        ) RETURNING id INTO v_doc_id;
-
-        INSERT INTO dossier_conteneur (id_dossier, id_conteneur)
-        VALUES (v_dossier_id, v_doc_id)
-        ON CONFLICT DO NOTHING;
-    END LOOP;
-
-    -- GROUPAGE (100)
-    FOR i IN 1..100 LOOP
-        INSERT INTO groupage (id_dossier, id_expedition, numero_groupage, partie_notifier)
-        VALUES (
-            v_dossier_ids[1 + floor(random() * array_length(v_dossier_ids, 1))::int],
-            v_expedition_ids[1 + floor(random() * array_length(v_expedition_ids, 1))::int],
-            'GRP-' || lpad(i::text, 7, '0'),
-            'Partie notifier ' || i
-        );
-    END LOOP;
-
-    -- DOSSIERS INTERAGENCE (40)
+    -- 40 sous-dossiers plus récents : même OT, même client et même production
+    -- que leur dossier mère, avec une agence différente, sans boucle ni doublon.
     FOR i IN 1..40 LOOP
-        v_dossier_mere := v_dossier_ids[1 + floor(random() * array_length(v_dossier_ids, 1))::int];
-        v_sous_dossier := v_dossier_ids[1 + floor(random() * array_length(v_dossier_ids, 1))::int];
-
-        INSERT INTO dossier_interagence (id_dossier_mere, id_sous_dossier, motif)
-        VALUES (
-            v_dossier_mere,
-            v_sous_dossier,
-            'Motif interagence ' || i
-        );
+        SELECT * INTO parent FROM dossier WHERE id = v_dossiers[i];
+        SELECT d.* INTO enfant FROM dossier d
+        WHERE d.id = ANY(v_dossiers[181:300]) AND d.id_agence <> parent.id_agence
+          AND d.id_type_production = parent.id_type_production
+          AND NOT EXISTS (SELECT 1 FROM dossier_interagence di WHERE di.id_sous_dossier = d.id)
+        ORDER BY d.id LIMIT 1;
+        IF enfant.id IS NULL THEN RAISE EXCEPTION 'Sous-dossier compatible introuvable'; END IF;
+        UPDATE dossier SET id_ordre_transit = parent.id_ordre_transit, id_client = parent.id_client
+        WHERE id = enfant.id;
+        INSERT INTO dossier_interagence (id_dossier_mere, id_sous_dossier, motif, date_creation)
+        VALUES (parent.id, enfant.id, 'Prise en charge par une autre agence', enfant.date_creation);
     END LOOP;
 
-    -- MOUVEMENTS DE DOSSIER (1000)
-    FOR i IN 1..1000 LOOP
-        INSERT INTO mvt_dossier (
-            id_dossier, id_utilisateur, id_operation,
-            commentaire
-        ) VALUES (
-            v_dossier_ids[1 + floor(random() * array_length(v_dossier_ids, 1))::int],
-            v_utilisateur_ids[1 + floor(random() * array_length(v_utilisateur_ids, 1))::int],
-            v_operation_ids[1 + floor(random() * array_length(v_operation_ids, 1))::int],
-            'Mouvement ' || i
-        ) RETURNING id INTO v_mvt_id;
+    -- L'OT précède toujours le premier dossier qui lui est rattaché.
+    UPDATE ordre_transit ot SET date_creation = LEAST(ot.date_creation,
+        (SELECT min(d.date_creation) - INTERVAL '1 day' FROM dossier d WHERE d.id_ordre_transit = ot.id))
+    WHERE EXISTS (SELECT 1 FROM dossier d WHERE d.id_ordre_transit = ot.id);
 
-        IF (i % 3 = 0) THEN
-            v_doc_id := v_document_ids[1 + floor(random() * array_length(v_document_ids, 1))::int];
-            INSERT INTO document_mvt (id_mvt_dossier, id_document)
-            VALUES (v_mvt_id, v_doc_id);
+    -- Parcours réels : préfixe ordonné du workflow du type de production.
+    -- Les types divers/colis, sans workflow défini, restent ouverts en préparation.
+    FOR ligne IN SELECT * FROM dossier ORDER BY id LOOP
+        v_operations := ARRAY(SELECT id FROM operation_dossier
+            WHERE id_type_production = ligne.id_type_production ORDER BY niveau_operation, id);
+        v_nb_operations := COALESCE(array_length(v_operations, 1), 0);
+        IF v_nb_operations = 0 THEN CONTINUE; END IF;
+        IF ligne.date_creation > CURRENT_TIMESTAMP - INTERVAL '3 days' THEN
+            v_nb_effectuees := ligne.id % 5;
+        ELSIF ligne.id % 17 = 0 THEN
+            v_nb_effectuees := 0;
+        ELSIF ligne.id % 5 IN (0, 1) THEN
+            v_nb_effectuees := v_nb_operations;
+        ELSE
+            v_nb_effectuees := 1 + (ligne.id * 7) % v_nb_operations;
         END IF;
+        v_phase := v_preparation;
+        v_statut := v_ouvert;
+        v_fin_flux := LEAST(ligne.date_creation + INTERVAL '45 days', CURRENT_TIMESTAMP);
+        v_date_mvt := ligne.date_creation;
+        FOR j IN 1..v_nb_effectuees LOOP
+            SELECT * INTO op FROM operation_dossier WHERE id = v_operations[j];
+            -- Après la dernière opération obligatoire d'une phase, avancer
+            -- à la phase de l'opération suivante, comme le service Java.
+            SELECT id_phase INTO v_phase_suivante FROM operation_dossier
+            WHERE id_type_production = ligne.id_type_production AND niveau_operation > op.niveau_operation
+            ORDER BY niveau_operation, id LIMIT 1;
+            v_phase_suivante := COALESCE(v_phase_suivante, op.id_phase);
+            v_date_mvt := ligne.date_creation + (v_fin_flux - ligne.date_creation) * (j::numeric / (v_nb_effectuees + 1));
+            INSERT INTO mvt_dossier (id_dossier, id_utilisateur, id_operation,
+                id_ancienne_phase, id_nouvelle_phase, id_ancien_statut, id_nouveau_statut,
+                commentaire, date_mvt, origine)
+            VALUES (ligne.id, ligne.id_utilisateur, op.id, v_phase, v_phase_suivante,
+                v_statut, op.id_statut, 'Opération effectuée : ' || op.description, v_date_mvt, 'SAISIE');
+            v_phase := v_phase_suivante;
+            v_statut := op.id_statut;
+        END LOOP;
+        UPDATE dossier SET id_phase = v_phase, id_statut = v_statut,
+            est_provisionne = EXISTS (SELECT 1 FROM mvt_dossier m JOIN operation_dossier o ON o.id = m.id_operation
+                WHERE m.id_dossier = ligne.id AND o.description IN ('Provision', 'Provision (pour fret et débours)')),
+            date_livraison = CASE WHEN v_phase = (SELECT id FROM phase_dossier WHERE nom = 'COMPTABILITE')
+                THEN LEAST(ligne.date_creation + INTERVAL '25 days', v_date_mvt) ELSE NULL END
+        WHERE id = ligne.id;
     END LOOP;
 
-    -- DECLARATIONS (200)
-    FOR i IN 1..200 LOOP
-        INSERT INTO declaration (id_dossier, numero_declaration, date_declaration, id_bureau, id_type_declaration, description)
-        VALUES (
-            v_dossier_ids[1 + floor(random() * array_length(v_dossier_ids, 1))::int],
-            'DEC-' || lpad(i::text, 8, '0'),
-            '2026-09-01'::timestamp - ((i % 30) || ' days')::interval,
-            v_bureau_ids[1 + floor(random() * array_length(v_bureau_ids, 1))::int],
-            v_type_declaration_ids[1 + floor(random() * array_length(v_type_declaration_ids, 1))::int],
-            'Declaration ' || i
-        );
+    -- Documents actifs du même flux et de la même nature que le dossier.
+    -- Les documents requis par une opération réalisée sont toujours présents
+    -- et remis AVANT cette opération. Quelques dossiers non clôturés restent
+    -- volontairement incomplets pour les indicateurs de pièces manquantes.
+    FOR ligne IN SELECT d.*, ot.id_nature_marchandise FROM dossier d
+                 JOIN ordre_transit ot ON ot.id = d.id_ordre_transit ORDER BY d.id LOOP
+        INSERT INTO document (id_dossier, id_type_document, nombre, chemin_fichier, nom_fichier, date_ajout)
+        VALUES (ligne.id, (SELECT id FROM type_document WHERE nom = 'Document d''attachement'),
+                1, '/documents/dossier_' || ligne.id || '.pdf', 'dossier_' || ligne.id || '.pdf', ligne.date_creation);
+        FOR type_doc IN
+            SELECT td.*, (SELECT min(m.date_mvt) FROM mvt_dossier m
+                JOIN document_obligatoire_mvt dom ON dom.id_operation = m.id_operation
+                WHERE m.id_dossier = ligne.id AND dom.id_type_document = td.id) AS premiere_utilisation
+            FROM type_document td
+            WHERE (td.id_type_production = ligne.id_type_production OR td.id_type_production IS NULL)
+              AND td.nom <> 'Document d''attachement'
+              AND (td.id_nature_marchandise IS NULL OR td.id_nature_marchandise = ligne.id_nature_marchandise)
+        LOOP
+            IF type_doc.premiere_utilisation IS NULL AND ligne.id % 5 = 0 THEN CONTINUE; END IF;
+            IF NOT type_doc.est_obligatoire AND type_doc.premiere_utilisation IS NULL AND ligne.id % 3 <> 0 THEN CONTINUE; END IF;
+            v_date_doc := ligne.date_creation +
+                (COALESCE(type_doc.premiere_utilisation, LEAST(ligne.date_creation + INTERVAL '2 days', CURRENT_TIMESTAMP))
+                    - ligne.date_creation) * 0.1;
+            INSERT INTO document (id_dossier, id_type_document, nombre, chemin_fichier, nom_fichier, date_ajout)
+            VALUES (ligne.id, type_doc.id, 1, '/documents/doc_' || ligne.id || '_' || type_doc.id || '.pdf',
+                    type_doc.nom || '.pdf', v_date_doc);
+            INSERT INTO remise (id_dossier, id_type_document, date_remise)
+            VALUES (ligne.id, type_doc.id,
+                LEAST(v_date_doc + INTERVAL '1 second', COALESCE(type_doc.premiere_utilisation, CURRENT_TIMESTAMP)));
+        END LOOP;
+    END LOOP;
+    INSERT INTO document_mvt (id_mvt_dossier, id_document)
+    SELECT m.id, (SELECT doc.id FROM document doc WHERE doc.id_dossier = m.id_dossier ORDER BY doc.id LIMIT 1)
+    FROM mvt_dossier m WHERE m.id % 3 = 0;
+
+    -- Expéditions maritimes/aériennes : dates déduites de l'OT et stations distinctes.
+    FOR ligne IN SELECT ot.*, tp.id_mode_transport, mt.nom AS transport
+        FROM ordre_transit ot JOIN type_production tp ON tp.id = ot.id_type_production
+        JOIN mode_transport mt ON mt.id = tp.id_mode_transport
+        WHERE mt.nom IN ('Maritime', 'Aerien') ORDER BY ot.id LOOP
+        SELECT id INTO v_dossier FROM dossier WHERE id_ordre_transit = ligne.id ORDER BY id LIMIT 1;
+        SELECT id INTO v_compagnie FROM compagnie WHERE id_mode_transport = ligne.id_mode_transport ORDER BY random() LIMIT 1;
+        SELECT id INTO v_navire FROM navire WHERE id_compagnie = v_compagnie ORDER BY random() LIMIT 1;
+        SELECT id INTO v_station_depart FROM station WHERE id_mode_transport = ligne.id_mode_transport ORDER BY random() LIMIT 1;
+        SELECT id INTO v_station_arrivee FROM station
+            WHERE id_mode_transport = ligne.id_mode_transport AND id <> v_station_depart ORDER BY random() LIMIT 1;
+        v_acheminement := v_acheminements[1 + ligne.id % array_length(v_acheminements, 1)];
+        v_date_depart := ligne.date_creation + INTERVAL '1 day';
+        v_date_prevue := v_date_depart + CASE WHEN ligne.transport = 'Maritime' THEN INTERVAL '18 days' ELSE INTERVAL '2 days' END;
+        v_date_arrivee := v_date_prevue + (ligne.id % 4) * INTERVAL '1 day';
+        IF v_date_arrivee > CURRENT_TIMESTAMP THEN v_date_arrivee := NULL; END IF;
+        IF v_date_depart > CURRENT_TIMESTAMP THEN v_date_depart := NULL; END IF;
+        INSERT INTO expedition (id_ordre_transit, id_dossier, est_achemine, id_mode_transport,
+            id_mode_acheminement, id_compagnie, id_navire, numero_bl, date_bl, lieu_bl,
+            id_port_embarquement, id_port_debarquement, numero_vol, numero_lta, date_lta, lieu_lta,
+            id_aeroport_embarquement, id_aeroport_debarquement, lib_scan, date_depart, date_prevu, date_arrivee)
+        VALUES (ligne.id, v_dossier, v_date_arrivee IS NOT NULL, ligne.id_mode_transport,
+            v_acheminement, v_compagnie, CASE WHEN ligne.transport = 'Maritime' THEN v_navire END,
+            CASE WHEN ligne.transport = 'Maritime' THEN 'BL-' || lpad(ligne.id::text, 6, '0') END,
+            CASE WHEN ligne.transport = 'Maritime' THEN v_date_depart END,
+            CASE WHEN ligne.transport = 'Maritime' THEN 'Port de Toamasina' END,
+            CASE WHEN ligne.transport = 'Maritime' THEN v_station_depart END,
+            CASE WHEN ligne.transport = 'Maritime' THEN v_station_arrivee END,
+            CASE WHEN ligne.transport = 'Aerien' THEN 'VOL-' || lpad(ligne.id::text, 6, '0') END,
+            CASE WHEN ligne.transport = 'Aerien' THEN 'LTA-' || lpad(ligne.id::text, 6, '0') END,
+            CASE WHEN ligne.transport = 'Aerien' THEN v_date_depart END,
+            CASE WHEN ligne.transport = 'Aerien' THEN 'Aeroport Ivato' END,
+            CASE WHEN ligne.transport = 'Aerien' THEN v_station_depart END,
+            CASE WHEN ligne.transport = 'Aerien' THEN v_station_arrivee END,
+            'Scan OT ' || ligne.id, v_date_depart, v_date_prevue, v_date_arrivee);
     END LOOP;
 
-    -- SUSPENSIONS DE CONNEXION (5)
+    FOR i IN 1..50 LOOP
+        SELECT * INTO ligne FROM dossier WHERE id = v_dossiers[1 + (i * 7) % 300];
+        INSERT INTO constat (id_dossier, id_expert_constat, id_type_constat, description, date_creation)
+        VALUES (ligne.id, (SELECT id FROM expert_constat ORDER BY id OFFSET (i % 10) LIMIT 1),
+            (SELECT id FROM type_constat ORDER BY id OFFSET (i % 3) LIMIT 1), 'Constat ' || i,
+            LEAST(ligne.date_creation + INTERVAL '1 hour', CURRENT_TIMESTAMP));
+    END LOOP;
+
+    FOR i IN 1..600 LOOP
+        INSERT INTO marchandise (id_ordre_transit, id_unite_mesure, marque, modele, description, poids, volume, quantite)
+        VALUES (v_ots[1 + (i - 1) % 320], v_unites[1 + (i - 1) % array_length(v_unites, 1)],
+            'Marque' || i % 20, 'Modele' || i % 30, 'Description marchandise ' || i,
+            (random() * 5000)::numeric(10, 2), (random() * 100)::numeric(10, 2), 1 + (i % 100));
+    END LOOP;
+
+    FOR i IN 1..300 LOOP
+        v_dossier := v_dossiers[i];
+        INSERT INTO conteneur (id_dossier, id_type_container, numero_container, description)
+        VALUES (v_dossier, v_containers[1 + (i - 1) % array_length(v_containers, 1)],
+            'CONT-' || lpad(i::text, 7, '0'), 'Conteneur ' || i) RETURNING id INTO v_doc;
+        INSERT INTO dossier_conteneur (id_dossier, id_conteneur) VALUES (v_dossier, v_doc);
+    END LOOP;
+
+    FOR ligne IN SELECT d.id, d.date_creation, e.id AS expedition FROM dossier d
+        JOIN expedition e ON e.id_ordre_transit = d.id_ordre_transit ORDER BY d.id LIMIT 100 LOOP
+        INSERT INTO groupage (id_dossier, id_expedition, numero_groupage, partie_notifier, date_creation)
+        VALUES (ligne.id, ligne.expedition, 'GRP-' || lpad(ligne.id::text, 7, '0'),
+            'Partie notifier ' || ligne.id, LEAST(ligne.date_creation + INTERVAL '1 hour', CURRENT_TIMESTAMP));
+        UPDATE dossier SET est_groupage = TRUE WHERE id = ligne.id;
+    END LOOP;
+
+    -- Une déclaration par dossier ayant réellement effectué cette opération.
+    FOR ligne IN SELECT d.id, d.id_type_production, d.id_ordre_transit, m.date_mvt, tp.nom AS sens,
+                        ot.id_bureau_dedou
+        FROM dossier d JOIN mvt_dossier m ON m.id_dossier = d.id
+        JOIN operation_dossier o ON o.id = m.id_operation AND o.description = 'Déclaration'
+        JOIN type_production tp ON tp.id = d.id_type_production
+        JOIN ordre_transit ot ON ot.id = d.id_ordre_transit ORDER BY d.id LOOP
+        SELECT doc.id INTO v_doc FROM document doc JOIN type_document td ON td.id = doc.id_type_document
+        WHERE doc.id_dossier = ligne.id AND td.nom LIKE 'Declaration en douane%' ORDER BY doc.id LIMIT 1;
+        INSERT INTO declaration (id_dossier, numero_declaration, date_declaration, id_bureau,
+            id_type_declaration, id_document, description, date_ajout)
+        VALUES (ligne.id, 'DEC-' || lpad(ligne.id::text, 8, '0'), ligne.date_mvt, ligne.id_bureau_dedou,
+            (SELECT id FROM type_declaration WHERE nom = CASE WHEN ligne.sens = 'import'
+                THEN 'Mise à la consommation (IM4)' ELSE 'Exportation définitive (EX1)' END),
+            v_doc, 'Déclaration du dossier ' || ligne.id, ligne.date_mvt);
+    END LOOP;
+
     FOR i IN 1..5 LOOP
-        INSERT INTO suspension_connexion (id_utilisateur, tentatives_echouees, date_suspension, duree_suspension_minutes)
-        VALUES (
-            (SELECT id FROM utilisateur WHERE nom_utilisateur = 'user' || i),
-            i,
-            '2026-09-15'::timestamp - ((i || ' days')::interval),
-            15
-        )
-        ON CONFLICT (id_utilisateur) DO NOTHING;
+        INSERT INTO suspension_connexion (id_utilisateur, tentatives_echouees, date_suspension,
+            duree_suspension_minutes, date_creation)
+        VALUES (v_utilisateurs[i], i, CURRENT_TIMESTAMP - i * INTERVAL '1 day',
+                15, CURRENT_TIMESTAMP - i * INTERVAL '1 day');
     END LOOP;
-
 END $$;
 
 COMMIT;
-
-update autorisation set niveau_autorisation = 10000;
-commit;
-
-SELECT code from agence join utilisateur on agence.id = utilisateur.id_agence where utilisateur.id = 7;
