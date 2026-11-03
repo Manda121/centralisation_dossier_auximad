@@ -50,12 +50,18 @@ public class InterAgenceService {
         );
 
         // 2. Charger le dossier mère
-        Dossier mere = dossierRepository.findById(idDossierMere)
+        Dossier mere = dossierRepository.verrouillerInteragence(idDossierMere)
                 .orElseThrow(() -> new IllegalArgumentException("Dossier mère introuvable : " + idDossierMere));
 
         // 3. Charger l'agence cible
         Agence agenceCible = agenceRepository.findById(request.getIdAgence())
                 .orElseThrow(() -> new IllegalArgumentException("Agence introuvable : " + request.getIdAgence()));
+        if (mere.getAgence() != null && mere.getAgence().getId().equals(agenceCible.getId())) {
+            throw new IllegalArgumentException("L'agence destinataire doit être différente de celle du dossier.");
+        }
+        if (agenceDejaAssociee(idDossierMere, agenceCible.getId())) {
+            throw new IllegalArgumentException("Un sous-dossier existe déjà dans cette agence.");
+        }
 
         // 4. Récupérer l'utilisateur connecté
         Integer idUtilisateur = JwtSecurityContext.getIdUtilisateur();
@@ -107,6 +113,11 @@ public class InterAgenceService {
     @Transactional(readOnly = true)
     public List<DossierInteragence> getSousDossiers(Integer idDossierMere) {
         return interagenceRepository.findByDossierMereId(idDossierMere);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean agenceDejaAssociee(Integer dossierId, Integer agenceId) {
+        return interagenceRepository.existsByDossierMereIdAndSousDossierAgenceId(dossierId, agenceId);
     }
 
     /**

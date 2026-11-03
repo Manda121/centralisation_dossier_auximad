@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.auximad.service.DemandeInteragenceEmailTest
 -------------------------------------------------------------------------------
-Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.589 s -- in com.auximad.service.DemandeInteragenceEmailTest
+Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.222 s -- in com.auximad.service.DemandeInteragenceEmailTest

@@ -31,6 +31,12 @@ Les conteneurs sont affectés uniquement aux dossiers maritimes. Les expédition
 
 Le jeu comprend **80 demandes interagences** : 40 acceptées correspondant aux 40 sous-dossiers, 20 en attente et 20 refusées. Les demandeurs et répondants appartiennent aux agences concernées ; les réponses suivent les demandes, et l'acceptation correspond à la date de création du sous-dossier. Aucun email n'est expédié ou ajouté à l'historique par le chargement des données.
 
+Un même dossier mère peut posséder des sous-dossiers dans plusieurs agences. Le jeu illustre ces prises en charge multiples avec une seule association par agence et par dossier mère. Une clôture intervient après les acceptations interagences du dossier concerné. Le dernier dossier est maritime et créé le jour du chargement pour permettre de vérifier les écrans d'assignation du jour.
+
 ## Chargement
+
+Les régimes sont `IM4 / 4000 / definitif`, `IM5 / 5000 / economique`, `IM7 / 7000 / economique`, `IM8 / 8900 / transitoire`, `IM8 / 8000 / ordinaire`, `EX1 / 1000 / definitif` et `EX2 / 2000 / temporaire`. Le code est unique ; le nom peut se répéter. Les OT import utilisent un régime IM, les OT export un régime EX, et les autres productions le régime transitoire IM8 8900. Les déclarations de démonstration reprennent la famille de régime de leur OT.
+
+Pour mettre à jour uniquement les régimes d'une base existante, appliquer `migrations/20261103_regimes_douaniers.sql`. Cette migration conserve les identifiants des anciens régimes quand c'est possible et préserve les relations avec les OT. Elle peut être rejouée.
 
 Sur une base déjà remplie, `reinitialiser_donnees.sql` vide toutes les données en conservant les tables. Le chargement de `donne_deepseek.sql` recrée ensuite le jeu de démonstration. La vérification `tests/verification_donne_deepseek.sql` est réservée à un schéma de test isolé.

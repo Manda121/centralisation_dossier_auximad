@@ -78,11 +78,13 @@ INSERT INTO type_client (nom, description) VALUES
 ('Institution', 'Client institutionnel');
 
 INSERT INTO type_regime (nom, code, description) VALUES
-('Mise a la consommation', 'MCI', 'Importation definitive'),
-('Exportation', 'EXP', 'Exportation simple'),
-('Transit', 'TRS', 'Transit international'),
-('Entrepot', 'ENT', 'Regime d''entrepot douanier'),
-('Admission temporaire', 'ADT', 'Admission temporaire');
+('IM4', '4000', 'definitif'),
+('IM5', '5000', 'economique'),
+('IM7', '7000', 'economique'),
+('IM8', '8900', 'transitoire'),
+('IM8', '8000', 'ordinaire'),
+('EX1', '1000', 'definitif'),
+('EX2', '2000', 'temporaire');
 
 -- type_bureau
 INSERT INTO type_bureau (nom, description) VALUES
@@ -269,10 +271,11 @@ INSERT INTO pays (nom, code) VALUES
 -- ============================================================
 INSERT INTO type_declaration (nom, description) VALUES
 ('Mise à la consommation (IM4)', 'Déclaration pour mise à la consommation directe'),
+('Régime économique (IM5)', 'Déclaration liée au régime économique IM5'),
+('Régime économique (IM7)', 'Déclaration liée au régime économique IM7'),
+('Régime transitoire ou ordinaire (IM8)', 'Déclaration liée aux régimes IM8 8900 ou 8000'),
 ('Exportation définitive (EX1)', 'Déclaration d''exportation définitive'),
-('Transit international (TR)', 'Déclaration de transit international'),
-('Admission temporaire (AT)', 'Déclaration pour régime d''admission temporaire'),
-('Entrepôt douanier (E2)', 'Déclaration pour mise en entrepôt douanier');
+('Exportation temporaire (EX2)', 'Déclaration liée au régime temporaire EX2');
 
 -- ============================================================
 -- TYPE_DOCUMENT : id=1 pour attachement mvt, id=2 pour déclaration
@@ -518,6 +521,7 @@ DECLARE
     v_date_arrivee TIMESTAMPTZ;
     v_date_demande TIMESTAMPTZ;
     v_date_reponse TIMESTAMPTZ;
+    v_derniere_acceptation TIMESTAMPTZ;
     v_numero TEXT;
     v_compteur INT := 0;
     i INT;
@@ -603,9 +607,13 @@ BEGIN
         -- un exemple maritime sur le dernier dossier créé aujourd'hui.
         IF i = 295 THEN v_type := v_productions[6]; END IF;
         IF i = 300 THEN v_type := v_productions[1]; END IF;
+        -- Varier les regimes parmi ceux compatibles avec le sens de production.
         SELECT r.id INTO v_regime FROM type_regime r
-        WHERE r.code = (SELECT CASE tp.nom WHEN 'import' THEN 'MCI' WHEN 'export' THEN 'EXP' ELSE 'TRS' END
-                        FROM type_production tp WHERE tp.id = v_type);
+        JOIN type_production tp ON tp.id = v_type
+        WHERE (tp.nom = 'import' AND r.nom LIKE 'IM%')
+           OR (tp.nom = 'export' AND r.nom LIKE 'EX%')
+           OR (tp.nom NOT IN ('import', 'export') AND r.code = '8900')
+        ORDER BY md5(r.code || ':' || i::text) LIMIT 1;
         SELECT id INTO v_user FROM utilisateur WHERE id_agence = v_agence ORDER BY id LIMIT 1;
         SELECT id INTO v_statut_ot FROM statut_ot
         WHERE nom = CASE WHEN i <= 300 THEN 'Valide'
@@ -674,11 +682,13 @@ BEGIN
         -- préserve les quotas même lorsque la plupart des dossiers sont à TNR.
         SELECT p.* INTO parent FROM dossier p
         WHERE p.id = ANY(v_dossiers[1:180])
-          AND NOT EXISTS (SELECT 1 FROM dossier_interagence di WHERE di.id_dossier_mere = p.id)
           AND EXISTS (
               SELECT 1 FROM dossier d WHERE d.id = ANY(v_dossiers[181:300])
                 AND d.id_agence <> p.id_agence AND d.id_type_production = p.id_type_production
                 AND NOT EXISTS (SELECT 1 FROM dossier_interagence di WHERE di.id_sous_dossier = d.id)
+                AND NOT EXISTS (SELECT 1 FROM dossier_interagence di
+                    JOIN dossier associe ON associe.id = di.id_sous_dossier
+                    WHERE di.id_dossier_mere = p.id AND associe.id_agence = d.id_agence)
           )
         ORDER BY p.id LIMIT 1;
         IF parent.id IS NULL THEN RAISE EXCEPTION 'Dossier mère compatible introuvable'; END IF;
@@ -686,6 +696,9 @@ BEGIN
         WHERE d.id = ANY(v_dossiers[181:300]) AND d.id_agence <> parent.id_agence
           AND d.id_type_production = parent.id_type_production
           AND NOT EXISTS (SELECT 1 FROM dossier_interagence di WHERE di.id_sous_dossier = d.id)
+          AND NOT EXISTS (SELECT 1 FROM dossier_interagence di
+              JOIN dossier associe ON associe.id = di.id_sous_dossier
+              WHERE di.id_dossier_mere = parent.id AND associe.id_agence = d.id_agence)
         ORDER BY d.id LIMIT 1;
         IF enfant.id IS NULL THEN RAISE EXCEPTION 'Sous-dossier compatible introuvable'; END IF;
         UPDATE dossier SET id_ordre_transit = parent.id_ordre_transit, id_client = parent.id_client
@@ -730,6 +743,8 @@ BEGIN
         END IF;
         v_phase := v_preparation;
         v_statut := v_ouvert;
+        SELECT max(date_reponse) INTO v_derniere_acceptation FROM demande_interagence
+        WHERE id_dossier = ligne.id AND statut = 'ACCEPTEE';
         v_fin_flux := LEAST(ligne.date_creation + INTERVAL '45 days', CURRENT_TIMESTAMP);
         v_date_mvt := ligne.date_creation;
         FOR j IN 1..v_nb_effectuees LOOP
@@ -741,6 +756,9 @@ BEGIN
             ORDER BY niveau_operation, id LIMIT 1;
             v_phase_suivante := COALESCE(v_phase_suivante, op.id_phase);
             v_date_mvt := ligne.date_creation + (v_fin_flux - ligne.date_creation) * (j::numeric / (v_nb_effectuees + 1));
+            IF op.description = 'Clôture' AND v_derniere_acceptation IS NOT NULL THEN
+                v_date_mvt := GREATEST(v_date_mvt, LEAST(CURRENT_TIMESTAMP, v_derniere_acceptation + INTERVAL '1 hour'));
+            END IF;
             INSERT INTO mvt_dossier (id_dossier, id_utilisateur, id_operation,
                 id_ancienne_phase, id_nouvelle_phase, id_ancien_statut, id_nouveau_statut,
                 commentaire, date_mvt, origine)
@@ -926,18 +944,19 @@ BEGIN
 
     -- Une déclaration par dossier ayant réellement effectué cette opération.
     FOR ligne IN SELECT d.id, d.id_type_production, d.id_ordre_transit, m.date_mvt, tp.nom AS sens,
+                        regime.nom AS regime_nom,
                         ot.id_bureau_dedou
         FROM dossier d JOIN mvt_dossier m ON m.id_dossier = d.id
         JOIN operation_dossier o ON o.id = m.id_operation AND o.description = 'Déclaration'
         JOIN type_production tp ON tp.id = d.id_type_production
-        JOIN ordre_transit ot ON ot.id = d.id_ordre_transit ORDER BY d.id LOOP
+        JOIN ordre_transit ot ON ot.id = d.id_ordre_transit
+        JOIN type_regime regime ON regime.id = ot.id_type_regime ORDER BY d.id LOOP
         SELECT doc.id INTO v_doc FROM document doc JOIN type_document td ON td.id = doc.id_type_document
         WHERE doc.id_dossier = ligne.id AND td.nom LIKE 'Declaration en douane%' ORDER BY doc.id LIMIT 1;
         INSERT INTO declaration (id_dossier, numero_declaration, date_declaration, id_bureau,
             id_type_declaration, id_document, description, date_ajout)
         VALUES (ligne.id, 'DEC-' || lpad(ligne.id::text, 8, '0'), ligne.date_mvt, ligne.id_bureau_dedou,
-            (SELECT id FROM type_declaration WHERE nom = CASE WHEN ligne.sens = 'import'
-                THEN 'Mise à la consommation (IM4)' ELSE 'Exportation définitive (EX1)' END),
+            (SELECT id FROM type_declaration WHERE nom LIKE '%(' || ligne.regime_nom || ')'),
             v_doc, 'Déclaration du dossier ' || ligne.id, ligne.date_mvt);
     END LOOP;
 

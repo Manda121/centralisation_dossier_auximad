@@ -14,7 +14,11 @@ Le fichier `bdd/base_centralisation.sql` contient également les nouvelles table
 
 ## Serveur SMTP
 
-Définir les variables d'environnement du processus Java, puis redémarrer le backend :
+La configuration locale peut être enregistrée dans `backend/config/mail-local.properties`, exclu de Git et chargé automatiquement au démarrage. Un modèle sans identifiants est disponible dans `backend/config/mail-local.properties.example`. Le backend trouve ce fichier lorsqu'il est démarré depuis le répertoire `backend` ou depuis la racine du projet. Ce fichier externe n'est pas inclus dans le JAR.
+
+Pour Gmail, renseigner le mot de passe d'application sans les espaces de présentation. Le compte d'envoi et l'adresse `MAIL_FROM` peuvent être identiques.
+
+Les variables d'environnement du processus Java permettent aussi de définir ces paramètres et sont prioritaires sur les valeurs du fichier local. Redémarrer le backend après modification :
 
 | Variable | Description | Valeur par défaut |
 | --- | --- | --- |
@@ -27,7 +31,7 @@ Définir les variables d'environnement du processus Java, puis redémarrer le ba
 | `MAIL_STARTTLS` | Activer et exiger STARTTLS | `true` |
 | `MAIL_SSL` | TLS implicite (habituellement port 465) | `false` |
 
-Pour un serveur sur le port 465, utiliser `MAIL_SSL=true` et `MAIL_STARTTLS=false`. Pour un serveur de test local sans authentification ni TLS, utiliser `MAIL_SMTP_AUTH=false` et `MAIL_STARTTLS=false`. Les délais de connexion, lecture et écriture sont limités à 5 secondes chacun. Les secrets SMTP restent dans l'environnement du serveur et ne sont jamais renvoyés à l'interface.
+Pour un serveur sur le port 465, utiliser `MAIL_SSL=true` et `MAIL_STARTTLS=false`. Pour un serveur de test local sans authentification ni TLS, utiliser `MAIL_SMTP_AUTH=false` et `MAIL_STARTTLS=false`. Les délais de connexion, lecture et écriture sont limités à 5 secondes chacun. Les secrets SMTP restent dans le fichier local ou dans l'environnement du serveur et ne sont jamais renvoyés à l'interface.
 
 ## Utilisation
 

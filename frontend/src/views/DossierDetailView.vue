@@ -10,7 +10,6 @@ import DemandeInteragenceService from '../services/DemandeInteragenceService'
 import { useNotification } from '../composables/useNotification'
 import ListeMarchandises from '@/components/marchandise/ListeMarchandises.vue'
 import DocumentsSection from '@/components/DocumentsSection.vue'
-import DossierChronologie from '@/components/DossierChronologie.vue'
 import ConteneurService from '../services/ConteneurService'
 import DocumentService from '../services/DocumentService'
 import MarchandiseService from '../services/MarchandiseService'
@@ -37,6 +36,11 @@ const modifierWorkflow = ref(false)
 const phaseCible = ref(null)
 const statutCible = ref(null)
 const enregistrementWorkflow = ref(false)
+function basculerModificationWorkflow() {
+    phaseCible.value = dossier.value.phaseDossier?.id || null
+    statutCible.value = dossier.value.statutDossier?.id || null
+    modifierWorkflow.value = !modifierWorkflow.value
+}
 const phasesDisponibles = computed(() => {
     const uniques = new Map()
     operationsStatus.value.forEach(item => {
@@ -96,6 +100,16 @@ const formDemande = reactive({
     idAgenceDestinataire: '',
     motif: ''
 })
+const agencesDejaSollicitees = computed(() => new Set([
+    ...demandesInteragence.value.filter(d => ['EN_ATTENTE', 'ACCEPTEE'].includes(d.statut))
+        .map(d => d.agenceDestinataire?.id),
+    ...sousDossiers.value.map(lien => lien.sousDossier?.agence?.id),
+]))
+function libelleDisponibiliteAgence(agence) {
+    const demande = demandesInteragence.value.find(d => d.agenceDestinataire?.id === agence.id
+        && ['EN_ATTENTE', 'ACCEPTEE'].includes(d.statut))
+    return demande?.statut === 'EN_ATTENTE' ? ' — demande en attente' : ' — agence déjà associée'
+}
 
 const peutSupprimer = computed(() => PermissionService.verifierPermission(PORTEE_PROPRE_SUPPRESSION, ACTION_OT))
 const peutModifierWorkflow = computed(() => PermissionService.verifierPermission(PORTEE_PROPRE_ECRITURE, ACTION_OT))
@@ -324,19 +338,39 @@ function formatarDate(dt) {
                 <PageSkeleton v-if="loading" variant="detail" :with-layout="false" />
                 <div v-else-if="erreur" class="alert alert-danger">{{ erreur }}</div>
                 <div v-else>
-                    <div class="d-flex justify-content-between align-items-start mb-4">
+                    <div class="dossier-heading mb-4">
                         <div>
                             <h1 class="h4 fw-bold text-dark mb-1">{{ dossier.numeroDossier }}</h1>
                             <p class="text-secondary mb-0 small">Créé le {{ formatarDate(dossier.dateCreation) }} · Agence : {{ dossier.agence?.nom || '—' }}</p>
                         </div>
-                        <div class="d-flex gap-2">
+                        <div class="dossier-heading__actions">
+                            <div class="dossier-heading__field">
+                                <span class="dossier-heading__label">Phase</span>
+                                <template v-if="peutModifierWorkflow && modifierWorkflow">
+                                    <select v-model="phaseCible" aria-label="Phase du dossier" class="form-select form-select-sm" :disabled="enregistrementWorkflow">
+                                        <option v-for="phase in phasesDisponibles" :key="phase.id" :value="phase.id">{{ phase.nom }}</option>
+                                    </select>
+                                    <button type="button" class="btn btn-outline-primary btn-sm" aria-label="Appliquer la phase"
+                                        :disabled="enregistrementWorkflow || !phaseCible || phaseCible === dossier.phaseDossier?.id" @click="enregistrerPhase">Appliquer</button>
+                                </template>
+                                <strong v-else class="badge bg-info-subtle text-info-emphasis border">{{ dossier.phaseDossier?.nom || '—' }}</strong>
+                            </div>
+                            <div class="dossier-heading__field">
+                                <span class="dossier-heading__label">Statut</span>
+                                <template v-if="peutModifierWorkflow && modifierWorkflow">
+                                    <select v-model="statutCible" aria-label="Statut du dossier" class="form-select form-select-sm" :disabled="enregistrementWorkflow">
+                                        <option v-for="statut in statutsDisponibles" :key="statut.id" :value="statut.id">{{ statut.nom }}</option>
+                                    </select>
+                                    <button type="button" class="btn btn-outline-primary btn-sm" aria-label="Appliquer le statut"
+                                        :disabled="enregistrementWorkflow || !statutCible || statutCible === dossier.statutDossier?.id" @click="enregistrerStatut">Appliquer</button>
+                                </template>
+                                <strong v-else class="badge bg-success-subtle text-success-emphasis border">{{ dossier.statutDossier?.nom || '—' }}</strong>
+                            </div>
+                            <button v-if="peutModifierWorkflow" type="button" class="btn btn-outline-primary btn-sm" :disabled="enregistrementWorkflow"
+                                :aria-expanded="modifierWorkflow" @click="basculerModificationWorkflow">{{ modifierWorkflow ? 'Terminer' : 'Modifier' }}</button>
                             <button type="button" class="btn btn-outline-primary btn-sm" :disabled="exportEnCours" @click="produireFicheDossier(false)">Exporter PDF</button>
                             <button type="button" class="btn btn-outline-secondary btn-sm" :disabled="exportEnCours" @click="produireFicheDossier(true)">Imprimer</button>
-                            <router-link v-if="dossier.ordreTransit" :to="`/ordres-transit/${dossier.ordreTransit.id}`"
-                                class="btn btn-outline-primary btn-sm">
-                                Voir l'OT associé OT-{{ dossier.ordreTransit.numeroOrdreTransit }}
-                            </router-link>
-                            <button v-if="!dossierMereLien" class="btn btn-outline-primary btn-sm"
+                            <button v-if="peutCreerSousDossier" class="btn btn-outline-primary btn-sm"
                                 @click="ouvrirDemandeModal">
                                 ✉ Demander un inter-agence
                             </button>
@@ -363,16 +397,8 @@ function formatarDate(dt) {
                                             <div class="fw-semibold">{{ dossier.pourCompte || '—' }}</div>
                                         </div>
                                         <div class="col-md-4">
-                                            <div class="text-secondary">PHASE</div>
-                                            <div class="fw-semibold">{{ dossier.phaseDossier?.nom || '—' }}</div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="text-secondary">STATUT</div>
-                                            <div class="fw-semibold">{{ dossier.statutDossier?.nom || '—' }}</div>
-                                        </div>
-                                        <div class="col-md-4">
                                             <div class="text-secondary">PROCHAINE OPÉRATION</div>
-                                            <div class="fw-semibold">{{ prochaineOperation?.operation?.description || 'Aucune' }}</div>
+                                            <router-link class="fw-semibold" :to="{ path: '/mouvements-dossier/creer', query: { dossierId: dossier.id } }">{{ prochaineOperation?.operation?.description || 'Consulter les mouvements' }}</router-link>
                                         </div>
                                         <div class="col-md-4">
                                             <div class="text-secondary">INCOTERM</div>
@@ -405,36 +431,8 @@ function formatarDate(dt) {
                                             <div class="fw-semibold">{{ dossier.adresseLivraison || '—' }}</div>
                                         </div>
                                     </div>
-                                    <div v-if="peutModifierWorkflow" class="border-top mt-3 pt-3">
-                                        <button type="button" class="btn btn-outline-primary btn-sm"
-                                            @click="modifierWorkflow = !modifierWorkflow">
-                                            {{ modifierWorkflow ? 'Fermer' : 'Modifier la phase ou le statut' }}
-                                        </button>
-                                        <div v-if="modifierWorkflow" class="row g-2 mt-1 align-items-end">
-                                            <div class="col-md-5">
-                                                <label class="form-label small">Phase</label>
-                                                <select v-model="phaseCible" class="form-select form-select-sm">
-                                                    <option v-for="phase in phasesDisponibles" :key="phase.id" :value="phase.id">{{ phase.nom }}</option>
-                                                </select>
-                                                <button type="button" class="btn btn-primary btn-sm mt-2"
-                                                    :disabled="enregistrementWorkflow || phaseCible === dossier.phaseDossier?.id"
-                                                    @click="enregistrerPhase">Appliquer la phase</button>
-                                            </div>
-                                            <div class="col-md-5">
-                                                <label class="form-label small">Statut</label>
-                                                <select v-model="statutCible" class="form-select form-select-sm">
-                                                    <option v-for="statut in statutsDisponibles" :key="statut.id" :value="statut.id">{{ statut.nom }}</option>
-                                                </select>
-                                                <button type="button" class="btn btn-primary btn-sm mt-2"
-                                                    :disabled="enregistrementWorkflow || statutCible === dossier.statutDossier?.id"
-                                                    @click="enregistrerStatut">Appliquer le statut</button>
-                                            </div>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
-
-                            <DossierChronologie :dossier="dossier" :operations="operationsStatus" :erreur="erreurChronologie" />
 
                             <div class="card border shadow-sm">
                                 <div class="card-header bg-white border-bottom py-2">
@@ -590,8 +588,7 @@ function formatarDate(dt) {
                                 <div class="card-body small">
                                     <div v-if="!dossier.ordreTransit" class="text-secondary">Aucun OT lié</div>
                                     <div v-else>
-                                        <div class="fw-bold text-dark mb-1">{{ dossier.ordreTransit.numeroOrdreTransit
-                                        }}</div>
+                                        <router-link :to="`/ordres-transit/${dossier.ordreTransit.id}`" class="fw-bold d-inline-block mb-1">OT-{{ dossier.ordreTransit.numeroOrdreTransit }}</router-link>
                                         <div><strong>Expéditeur :</strong> {{ dossier.ordreTransit.expediteur?.nom }}
                                         </div>
                                         <div><strong>Destinataire :</strong> {{ dossier.ordreTransit.destinataire?.nom
@@ -638,7 +635,7 @@ function formatarDate(dt) {
                                 <div
                                     class="card-header bg-white border-bottom py-2 d-flex justify-content-between align-items-center">
                                     <h5 class="mb-0 fw-semibold text-dark">Demandes Inter-Agences</h5>
-                                    <button v-if="!dossierMereLien" class="btn btn-sm btn-link p-0 text-decoration-none"
+                                    <button v-if="peutCreerSousDossier" class="btn btn-sm btn-link p-0 text-decoration-none"
                                         @click="ouvrirDemandeModal">
                                         + Demander
                                     </button>
@@ -695,10 +692,11 @@ function formatarDate(dt) {
                                 </label>
                                 <select v-model="formDemande.idAgenceDestinataire" class="form-select" required>
                                     <option value="">— Choisir l'agence —</option>
-                                    <option v-for="a in agencesDisponibles" :key="a.id" :value="a.id">
-                                        {{ a.nom }} ({{ a.ville }})
+                                    <option v-for="a in agencesDisponibles" :key="a.id" :value="a.id" :disabled="agencesDejaSollicitees.has(a.id)">
+                                        {{ a.nom }} ({{ a.ville }}){{ agencesDejaSollicitees.has(a.id) ? libelleDisponibiliteAgence(a) : '' }}
                                     </option>
                                 </select>
+                                <p class="small text-secondary mt-2 mb-0">Vous pouvez solliciter plusieurs agences pour ce dossier, avec une demande distincte par agence.</p>
                             </div>
 
                             <div class="mb-3">
@@ -732,4 +730,10 @@ function formatarDate(dt) {
     </div>
 </template>
 
-<style scoped></style>
+<style scoped>
+.dossier-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.25rem; flex-wrap: wrap; }
+.dossier-heading__actions { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.dossier-heading__field { display: inline-flex; align-items: center; gap: .4rem; }
+.dossier-heading__field .form-select { width: auto; min-width: 9rem; max-width: 15rem; }
+.dossier-heading__label { color: #64748b; font-size: .65rem; text-transform: uppercase; }
+</style>

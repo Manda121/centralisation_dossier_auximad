@@ -216,10 +216,33 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM ordre_transit ot
         JOIN type_production tp ON tp.id = ot.id_type_production
-        JOIN type_regime r ON r.id = ot.id_type_regime
-        WHERE (tp.nom = 'import' AND r.code <> 'MCI') OR (tp.nom = 'export' AND r.code <> 'EXP')
+        LEFT JOIN type_regime r ON r.id = ot.id_type_regime
+        WHERE r.id IS NULL OR (tp.nom = 'import' AND r.nom NOT LIKE 'IM%')
+           OR (tp.nom = 'export' AND r.nom NOT LIKE 'EX%')
     ) THEN
         RAISE EXCEPTION 'Les régimes des OT import et export doivent correspondre au sens de la production.';
+    END IF;
+
+    IF (SELECT count(*) FROM type_regime) <> 7 OR EXISTS (
+        SELECT 1 FROM (VALUES
+            ('IM4', '4000', 'definitif'), ('IM5', '5000', 'economique'),
+            ('IM7', '7000', 'economique'), ('IM8', '8900', 'transitoire'),
+            ('IM8', '8000', 'ordinaire'), ('EX1', '1000', 'definitif'),
+            ('EX2', '2000', 'temporaire')
+        ) AS attendu(nom, code, description)
+        LEFT JOIN type_regime r ON r.code = attendu.code
+        WHERE r.nom IS DISTINCT FROM attendu.nom OR r.description IS DISTINCT FROM attendu.description
+    ) THEN
+        RAISE EXCEPTION 'Les sept régimes doivent correspondre à la liste fournie, dont deux IM8 de codes différents.';
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM declaration dec
+        JOIN dossier d ON d.id = dec.id_dossier
+        JOIN ordre_transit ot ON ot.id = d.id_ordre_transit
+        JOIN type_regime r ON r.id = ot.id_type_regime
+        LEFT JOIN type_declaration td ON td.id = dec.id_type_declaration
+        WHERE td.id IS NULL OR td.nom NOT LIKE '%(' || r.nom || ')') THEN
+        RAISE EXCEPTION 'Les déclarations de démonstration doivent correspondre au régime de leur OT.';
     END IF;
 
     IF (SELECT count(*) FROM conteneur) <> (
@@ -334,9 +357,23 @@ BEGIN
        OR (SELECT count(*) FROM demande_interagence WHERE statut = 'ACCEPTEE') <> 40
        OR (SELECT count(*) FROM demande_interagence WHERE statut = 'EN_ATTENTE') <> 20
        OR (SELECT count(*) FROM demande_interagence WHERE statut = 'REFUSEE') <> 20
-       OR EXISTS (SELECT id_dossier FROM demande_interagence WHERE statut = 'EN_ATTENTE'
-                  GROUP BY id_dossier HAVING count(*) > 1) THEN
-        RAISE EXCEPTION '80 demandes sont attendues : 40 acceptées, 20 en attente, 20 refusées, sans doublon en attente.';
+       OR EXISTS (SELECT id_dossier, id_agence_destinataire FROM demande_interagence WHERE statut = 'EN_ATTENTE'
+                  GROUP BY id_dossier, id_agence_destinataire HAVING count(*) > 1) THEN
+        RAISE EXCEPTION '80 demandes sont attendues : 40 acceptées, 20 en attente, 20 refusées, sans doublon en attente pour la même agence.';
+    END IF;
+
+    IF NOT EXISTS (SELECT id_dossier_mere FROM dossier_interagence GROUP BY id_dossier_mere HAVING count(*) >= 2)
+       OR EXISTS (SELECT lien.id_dossier_mere, enfant.id_agence FROM dossier_interagence lien
+            JOIN dossier enfant ON enfant.id = lien.id_sous_dossier
+            GROUP BY lien.id_dossier_mere, enfant.id_agence HAVING count(*) > 1) THEN
+        RAISE EXCEPTION 'Le jeu doit illustrer plusieurs agences par dossier, sans sous-dossier en double dans une agence.';
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM demande_interagence demande
+        JOIN mvt_dossier m ON m.id_dossier = demande.id_dossier
+        JOIN operation_dossier op ON op.id = m.id_operation
+        WHERE demande.statut = 'ACCEPTEE' AND op.description = 'Clôture' AND m.date_mvt < demande.date_reponse) THEN
+        RAISE EXCEPTION 'Un dossier ne doit pas être clôturé avant ses demandes interagences acceptées.';
     END IF;
 
     IF EXISTS (

@@ -40,7 +40,7 @@ CREATE TABLE type_client(
 
 CREATE TABLE type_regime(
     id SERIAL PRIMARY KEY,
-    nom VARCHAR(100)  UNIQUE,
+    nom VARCHAR(100), -- Un meme nom peut couvrir plusieurs codes (IM8 : 8900 et 8000).
     code VARCHAR(10)  UNIQUE,
     description TEXT
 );

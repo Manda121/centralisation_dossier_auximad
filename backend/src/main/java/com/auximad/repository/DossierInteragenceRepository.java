@@ -18,4 +18,5 @@ public interface DossierInteragenceRepository extends JpaRepository<DossierInter
 
     /** Vérifie si un dossier est déjà sous-dossier d'un autre */
     boolean existsBySousDossierId(Integer sousDossierId);
+    boolean existsByDossierMereIdAndSousDossierAgenceId(Integer dossierMereId, Integer agenceId);
 }

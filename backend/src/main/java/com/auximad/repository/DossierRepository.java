@@ -15,6 +15,9 @@ import java.util.Optional;
 
 @Repository
 public interface DossierRepository extends JpaRepository<Dossier, Integer> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select d from Dossier d where d.id = :id")
+    Optional<Dossier> verrouillerInteragence(@Param("id") Integer id);
 
     Optional<Dossier> findByOrdreTransitId(Integer ordreTransitId);
 

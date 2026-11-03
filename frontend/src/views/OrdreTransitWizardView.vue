@@ -36,6 +36,15 @@ const clients = ref([])
 const typeProductions = ref([])
 const naturesMarchandise = ref([])
 const typeRegimes = ref([])
+const regimesAffiches = computed(() => {
+    const famille = regime => regime.nom?.startsWith('IM') ? 0 : regime.nom?.startsWith('EX') ? 1 : 2
+    return [...typeRegimes.value].sort((a, b) => famille(a) - famille(b)
+        || (a.nom || '').localeCompare(b.nom || '', 'fr', { numeric: true })
+        || (b.code || '').localeCompare(a.code || '', 'fr', { numeric: true }))
+})
+function libelleRegime(regime) {
+    return [regime?.nom, regime?.description, regime?.code].filter(Boolean).join(' — ') || '—'
+}
 const bureaux = ref([])
 const compagnies = ref([])
 const navires = ref([])
@@ -243,7 +252,7 @@ async function creerOrdreTransit() {
                                     <label class="form-label small fw-semibold text-secondary">Régime Douanier <span class="text-danger">*</span></label>
                                     <select v-model="otModel.typeRegime" class="form-select form-select-sm" required>
                                         <option :value="null">Sélectionnez le régime</option>
-                                        <option v-for="r in typeRegimes" :key="r.id" :value="r">{{ r.code }} - {{ r.nom }}</option>
+                                        <option v-for="r in regimesAffiches" :key="r.id" :value="r">{{ libelleRegime(r) }}</option>
                                     </select>
                                 </div>
                                 <div class="col-md-6">
@@ -410,7 +419,7 @@ async function creerOrdreTransit() {
                                                 <li class="mb-1"><strong>Donneur d'ordre :</strong> {{ otModel.client?.nom }} {{ otModel.client?.prenom }}</li>
                                                 <li class="mb-1"><strong>Type de production :</strong> {{ otModel.typeProduction?.nom }}</li>
                                                 <li class="mb-1"><strong>Nature de la marchandise :</strong> {{ otModel.natureMarchandise?.nom }}</li>
-                                                <li class="mb-1"><strong>Régime douanier :</strong> {{ otModel.typeRegime?.code }} - {{ otModel.typeRegime?.nom }}</li>
+                                                <li class="mb-1"><strong>Régime douanier :</strong> {{ libelleRegime(otModel.typeRegime) }}</li>
                                                 <li class="mb-1"><strong>Numéro de commande :</strong> {{ otModel.numeroCommande || 'Non fourni' }}</li>
                                             </ul>
                                         </div>

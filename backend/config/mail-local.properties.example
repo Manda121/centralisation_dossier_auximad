@@ -1,0 +1,10 @@
+# Copier vers mail-local.properties et renseigner le compte expediteur.
+# Le fichier mail-local.properties est ignore par Git et charge au demarrage.
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=votre.adresse@gmail.com
+MAIL_PASSWORD=VOTRE_MOT_DE_PASSE_APPLICATION_SANS_ESPACES
+MAIL_FROM=votre.adresse@gmail.com
+MAIL_SMTP_AUTH=true
+MAIL_STARTTLS=true
+MAIL_SSL=false

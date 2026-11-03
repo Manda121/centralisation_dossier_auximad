@@ -11,6 +11,7 @@ D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\Do
 D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\DossierWorkflowServiceTest.java
 D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\EmailWorkflowPostgresTest.java
 D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\EnvoiMailServiceTest.java
+D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\InterAgenceMultipleAgenciesTest.java
 D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\MouvementDocumentsRulesTest.java
 D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\MvtDossierSearchDatesTest.java
 D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\NotificationInteragenceServiceTest.java
