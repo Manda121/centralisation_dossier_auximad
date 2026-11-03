@@ -20,17 +20,23 @@ public class InterAgenceService {
     private final AgenceRepository agenceRepository;
     private final UtilisateurRepository utilisateurRepository;
     private final DossierService dossierService;
+    private final HeritageSousDossierService heritageSousDossierService;
+    private final DossierWorkflowService workflowService;
 
     public InterAgenceService(DossierInteragenceRepository interagenceRepository,
                                DossierRepository dossierRepository,
                                AgenceRepository agenceRepository,
                                UtilisateurRepository utilisateurRepository,
-                               DossierService dossierService) {
+                               DossierService dossierService,
+                               HeritageSousDossierService heritageSousDossierService,
+                               DossierWorkflowService workflowService) {
         this.interagenceRepository = interagenceRepository;
         this.dossierRepository = dossierRepository;
         this.agenceRepository = agenceRepository;
         this.utilisateurRepository = utilisateurRepository;
         this.dossierService = dossierService;
+        this.heritageSousDossierService = heritageSousDossierService;
+        this.workflowService = workflowService;
     }
 
     /**
@@ -96,6 +102,8 @@ public class InterAgenceService {
 
         // 6. Sauvegarder le sous-dossier (génère son numéro automatiquement)
         Dossier savedSousDossier = dossierService.saveDossier(sousDossier);
+        heritageSousDossierService.copierRessources(mere, savedSousDossier);
+        workflowService.synchroniserDocuments(savedSousDossier.getId());
 
         // 7. Créer le lien interagence
         DossierInteragence lien = new DossierInteragence();

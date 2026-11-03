@@ -58,6 +58,7 @@ public class DossierService {
     private final RemiseRepository remiseRepository;
     private final DemandeInteragenceRepository demandeInteragenceRepository;
     private final DossierWorkflowService workflowService;
+    private final ConteneurService conteneurService;
 
     public DossierService(DossierRepository dossierRepository,
                           PhaseDossierRepository phaseDossierRepository,
@@ -69,7 +70,8 @@ public class DossierService {
                           DocumentRepository documentRepository,
                           RemiseRepository remiseRepository,
                           DemandeInteragenceRepository demandeInteragenceRepository, OrdreTransitService ordreTransitService,
-                          SuppressionService suppressionService, DossierWorkflowService workflowService) {
+                          SuppressionService suppressionService, DossierWorkflowService workflowService,
+                          ConteneurService conteneurService) {
         this.suppressionService = suppressionService;
         this.ordreTransitService = ordreTransitService;
         this.dossierRepository = dossierRepository;
@@ -83,6 +85,7 @@ public class DossierService {
         this.remiseRepository = remiseRepository;
         this.demandeInteragenceRepository = demandeInteragenceRepository;
         this.workflowService = workflowService;
+        this.conteneurService = conteneurService;
     }
 
     /**
@@ -270,6 +273,7 @@ public class DossierService {
         if (creation) {
             // Le verrou est conservé jusqu'au commit de la transaction, pas seulement au calcul.
             dossierRepository.verrouillerNumerotation();
+            verifierConteneurCreation(dossier);
         }
         verifierOtDisponible(dossier);
         if (dossier.getOrdreTransit() != null) {
@@ -308,8 +312,39 @@ public class DossierService {
             dossier.setStatutDossier(courant.getStatutDossier());
         }
         Dossier saved = dossierRepository.save(dossier);
+        if (creation && dossier.getConteneurCreation() != null) {
+            Conteneur source = dossier.getConteneurCreation();
+            // Ne jamais reprendre une collection de dossiers fournie par le client.
+            Conteneur assignation = new Conteneur();
+            assignation.setId(source.getId());
+            assignation.setNumeroContainer(source.getNumeroContainer().trim());
+            assignation.setTypeContainer(source.getTypeContainer());
+            assignation.setDescription(source.getDescription());
+            assignation.setDossier(saved);
+            conteneurService.saveConteneur(assignation);
+            saved.setConteneurCreation(null);
+        }
         if (creation && saved.getId() != null) workflowService.synchroniserDocuments(saved.getId());
         return saved;
+    }
+
+    private void verifierConteneurCreation(Dossier dossier) {
+        Conteneur conteneur = dossier.getConteneurCreation();
+        if (conteneur == null) return;
+        // Le mode est lu depuis le referentiel, pas depuis les libelles du formulaire.
+        if (dossier.getTypeProduction() != null && dossier.getTypeProduction().getId() != null) {
+            dossier.setTypeProduction(typeProductionRepository.findById(dossier.getTypeProduction().getId())
+                    .orElseThrow(() -> new IllegalArgumentException("Type de production introuvable.")));
+        }
+        if (!conteneurService.estEligibleConteneur(dossier)) {
+            throw new IllegalArgumentException("Impossible d'assigner un conteneur : le dossier n'est pas de type maritime.");
+        }
+        if (conteneur.getNumeroContainer() == null || conteneur.getNumeroContainer().isBlank()) {
+            throw new IllegalArgumentException("Le numéro du conteneur est obligatoire.");
+        }
+        if (conteneur.getTypeContainer() == null || conteneur.getTypeContainer().getId() == null) {
+            throw new IllegalArgumentException("Le type de conteneur est obligatoire.");
+        }
     }
 
     @Transactional

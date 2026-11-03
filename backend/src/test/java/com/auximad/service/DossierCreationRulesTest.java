@@ -26,6 +26,7 @@ class DossierCreationRulesTest {
     @Mock RemiseRepository remiseRepository;
     @Mock DemandeInteragenceRepository demandeInteragenceRepository;
     @Mock DossierWorkflowService workflowService;
+    @Mock ConteneurService conteneurService;
     @InjectMocks DossierService service;
 
     private Dossier dossier() {
@@ -113,5 +114,81 @@ class DossierCreationRulesTest {
         assertEquals("1211060001", service.saveDossier(d).getNumeroDossier());
         verify(dossierRepository, never()).verrouillerNumerotation();
         verify(dossierRepository, never()).findMaxChronologie();
+    }
+
+    @Test void creationAssignsContainerOnlyToTheNewDossier() {
+        Dossier d = dossierAvecConteneur();
+        Dossier autre = new Dossier(); autre.setId(999);
+        d.getConteneurCreation().setDossier(autre);
+        preparerCreationAvecConteneur(d);
+        when(dossierRepository.save(any())).thenAnswer(call -> {
+            Dossier saved = call.getArgument(0); saved.setId(42); return saved;
+        });
+        service.saveDossier(d);
+        var capture = org.mockito.ArgumentCaptor.forClass(Conteneur.class);
+        verify(conteneurService).saveConteneur(capture.capture());
+        Conteneur assigned = capture.getValue();
+        assertEquals("MSCU1234567", assigned.getNumeroContainer());
+        assertEquals(1, assigned.getDossiers().size());
+        assertSame(d, assigned.getDossier());
+        assertNull(d.getConteneurCreation());
+        var ordre = inOrder(dossierRepository, conteneurService);
+        ordre.verify(dossierRepository).save(d);
+        ordre.verify(conteneurService).saveConteneur(assigned);
+    }
+
+    @Test void creationCarriesTheExistingContainerReferenceToAssignment() {
+        Dossier d = dossierAvecConteneur(); d.getConteneurCreation().setId(7);
+        preparerCreationAvecConteneur(d);
+        when(dossierRepository.save(any())).thenAnswer(call -> {
+            Dossier saved = call.getArgument(0); saved.setId(42); return saved;
+        });
+        service.saveDossier(d);
+        verify(conteneurService).saveConteneur(argThat(c -> Integer.valueOf(7).equals(c.getId())
+                && c.getDossiers().size() == 1 && c.getDossier().getId() == 42));
+    }
+
+    @Test void creationRejectsContainerOnNonMaritimeDossierBeforeSaving() {
+        Dossier d = dossierAvecConteneur();
+        when(typeProductionRepository.findById(1)).thenReturn(Optional.of(d.getTypeProduction()));
+        assertThrows(IllegalArgumentException.class, () -> service.saveDossier(d));
+        verify(dossierRepository, never()).save(any());
+        verify(conteneurService, never()).saveConteneur(any());
+        verifyNoInteractions(ordreTransitService);
+    }
+
+    @Test void creationRejectsContainerWithoutType() {
+        Dossier d = dossierAvecConteneur(); d.getConteneurCreation().setTypeContainer(null);
+        when(typeProductionRepository.findById(1)).thenReturn(Optional.of(d.getTypeProduction()));
+        when(conteneurService.estEligibleConteneur(d)).thenReturn(true);
+        assertThrows(IllegalArgumentException.class, () -> service.saveDossier(d));
+        verify(dossierRepository, never()).save(any());
+        verifyNoInteractions(ordreTransitService);
+    }
+
+    @Test void creationWithoutContainerDoesNotRequestAssignment() {
+        Dossier d = dossier();
+        OrdreTransit ot = new OrdreTransit(); ot.setId(7);
+        StatutOt status = new StatutOt(); status.setId(3); ot.setStatutOt(status); d.setOrdreTransit(ot);
+        when(ordreTransitService.getOrdreTransitById(7)).thenReturn(Optional.of(ot));
+        when(dossierRepository.save(any())).thenAnswer(call -> call.getArgument(0));
+        service.saveDossier(d);
+        verifyNoInteractions(conteneurService);
+    }
+
+    private Dossier dossierAvecConteneur() {
+        Dossier d = dossier();
+        Conteneur c = new Conteneur(); c.setNumeroContainer(" MSCU1234567 ");
+        TypeContainer type = new TypeContainer(); type.setId(3); c.setTypeContainer(type);
+        d.setConteneurCreation(c);
+        return d;
+    }
+
+    private void preparerCreationAvecConteneur(Dossier d) {
+        when(typeProductionRepository.findById(1)).thenReturn(Optional.of(d.getTypeProduction()));
+        when(conteneurService.estEligibleConteneur(d)).thenReturn(true);
+        OrdreTransit ot = new OrdreTransit(); ot.setId(7);
+        StatutOt status = new StatutOt(); status.setId(3); ot.setStatutOt(status); d.setOrdreTransit(ot);
+        when(ordreTransitService.getOrdreTransitById(7)).thenReturn(Optional.of(ot));
     }
 }

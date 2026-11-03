@@ -11,6 +11,7 @@ export class Dossier {
         this.typeProduction = data.typeProduction || null
         this.ordreTransit = data.ordreTransit || null
         this.natureMarchandiseCreation = data.natureMarchandiseCreation || null
+        this.conteneurCreation = data.conteneurCreation || null
         this.estGroupage = data.estGroupage !== undefined ? data.estGroupage : false
         this.phaseDossier = data.phaseDossier || null
         this.statutDossier = data.statutDossier || null
@@ -35,6 +36,12 @@ export class Dossier {
         if (!this.client) erreurs.push('Le client est requis.')
         if (!this.typeProduction) erreurs.push('Le type de production est requis.')
         if (!this.ordreTransit && !this.natureMarchandiseCreation) erreurs.push('La nature de la marchandise est requise pour créer l’OT.')
+        if (this.conteneurCreation) {
+            const mode = this.typeProduction?.modeTransport?.nom || this.ordreTransit?.typeProduction?.modeTransport?.nom
+            if (mode?.trim().toLowerCase() !== 'maritime') erreurs.push('Un conteneur peut être associé uniquement à un dossier maritime.')
+            if (!this.conteneurCreation.numeroContainer?.trim()) erreurs.push('Le numéro du conteneur est requis.')
+            if (!this.conteneurCreation.typeContainer?.id) erreurs.push('Le type du conteneur est requis.')
+        }
         return { valide: erreurs.length === 0, erreurs }
     }
 
@@ -48,6 +55,13 @@ export class Dossier {
             ordreTransit: this.ordreTransit ? { id: this.ordreTransit.id } : null,
             natureMarchandiseCreation: !this.ordreTransit && this.natureMarchandiseCreation
                 ? { id: this.natureMarchandiseCreation.id } : null,
+            conteneurCreation: this.conteneurCreation ? {
+                id: this.conteneurCreation.id || null,
+                numeroContainer: this.conteneurCreation.numeroContainer.trim(),
+                typeContainer: this.conteneurCreation.typeContainer?.id
+                    ? { id: this.conteneurCreation.typeContainer.id } : null,
+                description: this.conteneurCreation.description?.trim() || null
+            } : null,
             estGroupage: this.estGroupage,
             phaseDossier: this.phaseDossier ? { id: this.phaseDossier.id } : null,
             statutDossier: this.statutDossier ? { id: this.statutDossier.id } : null,

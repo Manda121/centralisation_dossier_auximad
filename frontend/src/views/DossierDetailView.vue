@@ -56,6 +56,8 @@ const dossierMereLien = ref(null)   // lien interagence si ce dossier est un sou
 const sousDossiers = ref([])         // sous-dossiers de ce dossier
 const demandesInteragence = ref([]) // demandes d'interagence pour ce dossier
 const conteneurs = ref([])           // conteneurs assignés
+const erreurConteneurs = ref('')
+const chargementConteneurs = ref(false)
 const showConteneurModal = ref(false)
 const conteneurAEditer = ref(null)
 const exportEnCours = ref(false)
@@ -132,6 +134,8 @@ async function fetchDossier(id) {
     dossierMereLien.value = null
     sousDossiers.value = []
     demandesInteragence.value = []
+    conteneurs.value = []
+    erreurConteneurs.value = ''
     try {
         dossier.value = await DossierService.getDossierById(route.params.id)
         phaseCible.value = dossier.value.phaseDossier?.id || null
@@ -158,6 +162,8 @@ async function fetchDossier(id) {
         }
         if (conteneursRes.status === 'fulfilled') {
             conteneurs.value = conteneursRes.value || []
+        } else {
+            erreurConteneurs.value = 'Impossible de charger les conteneurs de ce dossier.'
         }
         operationsStatus.value = operationsRes.status === 'fulfilled' ? operationsRes.value || [] : []
         erreurChronologie.value = operationsRes.status === 'rejected'
@@ -202,11 +208,17 @@ async function enregistrerStatut() {
 }
 
 async function chargerConteneurs() {
-    if (!dossier.value || !dossier.value.id) return
+    if (!dossier.value?.id || chargementConteneurs.value) return
+    const dossierId = dossier.value.id
+    chargementConteneurs.value = true
+    erreurConteneurs.value = ''
     try {
-        conteneurs.value = await ConteneurService.getConteneursParDossier(dossier.value.id)
+        const resultat = await ConteneurService.getConteneursParDossier(dossierId)
+        if (dossier.value.id === dossierId) conteneurs.value = resultat || []
     } catch (e) {
-        console.error("Erreur de chargement des conteneurs du dossier", e)
+        if (dossier.value.id === dossierId) erreurConteneurs.value = 'Impossible de charger les conteneurs de ce dossier.'
+    } finally {
+        chargementConteneurs.value = false
     }
 }
 
@@ -492,6 +504,11 @@ function formatarDate(dt) {
                                     <div v-if="!estEligibleConteneur" class="alert alert-light border text-muted small mb-0">
                                         ℹ️ L'assignation de conteneurs est réservée aux dossiers de transport maritime.
                                     </div>
+                                    <div v-else-if="erreurConteneurs" class="alert alert-warning small mb-0" role="alert">
+                                        {{ erreurConteneurs }}
+                                        <button type="button" class="btn btn-link btn-sm" :disabled="chargementConteneurs" @click="chargerConteneurs">Réessayer</button>
+                                    </div>
+                                    <div v-else-if="chargementConteneurs" class="text-secondary small py-2" role="status">Chargement des conteneurs…</div>
                                     <div v-else-if="conteneurs.length === 0" class="text-secondary small py-2 text-center">
                                         Aucun conteneur assigné pour ce dossier maritime.
                                     </div>

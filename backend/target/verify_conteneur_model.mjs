@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import Dossier from '../../frontend/src/models/Dossier.js';
+const base = { client: {id: 1}, typeProduction: {id: 2, modeTransport: {nom: 'Maritime'}}, natureMarchandiseCreation: {id: 3} };
+let d = new Dossier(base);
+assert.equal(d.valider().valide, true);
+assert.equal(d.toJSON().conteneurCreation, null);
+d.conteneurCreation = {id: 7, numeroContainer: '  TEST-CTN-001  ', typeContainer: {id: 4, nom: '20 pieds'}, description: '  partage  ', dossiers: [{id: 8}]};
+assert.equal(d.valider().valide, true);
+assert.deepEqual(d.toJSON().conteneurCreation, {id: 7, numeroContainer: 'TEST-CTN-001', typeContainer: {id: 4}, description: 'partage'});
+d.typeProduction = {id: 3, modeTransport: {nom: 'Aerien'}};
+assert.equal(d.valider().valide, false);
+d.typeProduction = base.typeProduction;
+d.conteneurCreation.numeroContainer = '';
+assert.equal(d.valider().valide, false);
+d.conteneurCreation.numeroContainer = 'TEST';
+d.conteneurCreation.typeContainer = null;
+assert.equal(d.valider().valide, false);
+console.log('Contrat frontend conteneur : absence, payload, maritime et champs requis valides.');

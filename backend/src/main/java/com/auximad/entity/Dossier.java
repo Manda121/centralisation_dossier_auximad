@@ -47,6 +47,10 @@ public class Dossier {
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private NatureMarchandise natureMarchandiseCreation;
 
+    @Transient
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private Conteneur conteneurCreation;
+
     @Column(name = "est_groupage", nullable = false)
     private Boolean estGroupage = false;
 
