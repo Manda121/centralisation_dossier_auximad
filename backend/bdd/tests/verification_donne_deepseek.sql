@@ -45,6 +45,15 @@ BEGIN
     SELECT id INTO STRICT v_preparation FROM phase_dossier WHERE nom = 'PREPARATION';
     SELECT id INTO STRICT v_ouvert FROM statut_dossier WHERE nom = 'Ouvert';
 
+    IF (SELECT array_agg(nom::text ORDER BY id) FROM statut_dossier) IS DISTINCT FROM ARRAY[
+        'Ouvert', 'Client avisé', 'Réservation confirmée', 'Documents reçus',
+        'Conteneur positionné', 'Expertise réalisée', 'Déclaration établie',
+        'Visite/scan effectué', 'Droits et taxes payés', 'PG payé', 'Bon à enlever obtenu',
+        'Provision enregistrée', 'Facturé', 'Payé', 'Clôturé', 'En litige', 'Annulé'
+    ]::text[] THEN
+        RAISE EXCEPTION 'Les dix-sept statuts doivent correspondre à la liste retenue et être insérés dans leur ordre de déroulement.';
+    END IF;
+
     IF (SELECT count(*) FROM operation_dossier) <> 64 THEN
         RAISE EXCEPTION '64 opérations attendues : import 15 x 2 modes et export 17 x 2 modes.';
     END IF;
@@ -70,10 +79,19 @@ BEGIN
 
     IF EXISTS (
         SELECT 1 FROM operation_dossier
-        WHERE id_phase IS NULL OR id_type_production IS NULL OR id_statut IS NULL
+        WHERE id_phase IS NULL OR id_type_production IS NULL
            OR id_statut = v_ouvert OR est_actif IS DISTINCT FROM TRUE
     ) THEN
-        RAISE EXCEPTION 'Chaque opération active doit avoir une phase, une production et un statut précis ; Ouvert est réservé à la création.';
+        RAISE EXCEPTION 'Chaque opération active doit avoir une phase et une production ; Ouvert est réservé à la création.';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM operation_dossier
+        WHERE (description IN ('Envoi proforma', 'Premier envoi document', 'Premier réception document',
+            'Dispatche/Passeur', 'Confirmation paiement Droit & Taxes', 'Transmission',
+            'Préalerte', 'Dépôt Déclaration', 'Récupération documents')) IS DISTINCT FROM (id_statut IS NULL)
+    ) THEN
+        RAISE EXCEPTION 'Les opérations dont le statut a été retiré doivent conserver le statut précédent ; les autres doivent garder leur statut associé.';
     END IF;
 
     -- Les listes de documents et les KPI applicatifs filtrent par production :
@@ -104,6 +122,44 @@ BEGIN
         RAISE EXCEPTION 'Le jeu doit contenir 300 dossiers et 320 ordres de transit.';
     END IF;
 
+    -- La capitale est comptée une seule fois : TNR et DIR partagent son quota.
+    IF EXISTS (
+        SELECT attendue.ville
+        FROM (VALUES
+            ('Antananarivo', 152), ('Toamasina', 39), ('Antsirabe', 30),
+            ('Mahajanga', 29), ('Toliara', 20), ('Antsiranana', 16),
+            ('Fort-Dauphin', 8), ('Nosy Be', 6)
+        ) AS attendue(ville, quota)
+        LEFT JOIN agence a ON a.ville = attendue.ville
+        LEFT JOIN dossier d ON d.id_agence = a.id
+        GROUP BY attendue.ville, attendue.quota
+        HAVING count(d.id) <> attendue.quota
+    ) THEN
+        RAISE EXCEPTION 'Les dossiers doivent respecter les quotas démographiques des huit villes, sans compter Antananarivo deux fois.';
+    END IF;
+
+    IF EXISTS (
+        SELECT attendue.code
+        FROM (VALUES
+            (20, 137), (90, 15), (10, 39), (21, 30), (30, 29),
+            (50, 20), (70, 16), (93, 8), (80, 6)
+        ) AS attendue(code, quota)
+        LEFT JOIN agence a ON a.code = attendue.code
+        LEFT JOIN dossier d ON d.id_agence = a.id
+        GROUP BY attendue.code, attendue.quota
+        HAVING count(d.id) <> attendue.quota
+    ) THEN
+        RAISE EXCEPTION 'Les quotas par agence doivent être respectés, dont 137 dossiers TNR et 15 DIR pour Antananarivo.';
+    END IF;
+
+    IF (SELECT count(*) FROM dossier d JOIN agence a ON a.id = d.id_agence WHERE a.code = 20)
+        <= (SELECT max(total) FROM (
+                SELECT count(d.id) AS total FROM agence a LEFT JOIN dossier d ON d.id_agence = a.id
+                WHERE a.code <> 20 GROUP BY a.id
+            ) autres_agences) THEN
+        RAISE EXCEPTION 'TNR doit être l''agence ayant le plus de dossiers.';
+    END IF;
+
     IF (SELECT count(*) FROM ordre_transit ot WHERE NOT EXISTS (
         SELECT 1 FROM dossier d WHERE d.id_ordre_transit = ot.id
     )) < 20 THEN
@@ -111,10 +167,21 @@ BEGIN
     END IF;
 
     IF (SELECT count(DISTINCT date_trunc('month', date_creation)) FROM dossier) <> 12
-       OR (SELECT count(DISTINCT date_creation::date) FROM dossier) < 30
+       OR (SELECT count(DISTINCT date_creation::date) FROM dossier) < 220
        OR (SELECT count(DISTINCT date_creation::date) FROM dossier
            WHERE date_creation >= CURRENT_DATE - INTERVAL '29 days') < 2 THEN
-        RAISE EXCEPTION 'Les créations doivent couvrir douze mois, trente jours distincts et plusieurs jours sur les trente derniers jours.';
+        RAISE EXCEPTION 'Les créations doivent couvrir douze mois, au moins 220 jours distincts et plusieurs jours sur les trente derniers jours.';
+    END IF;
+
+    IF EXISTS (
+        SELECT date_creation::date FROM dossier
+        GROUP BY date_creation::date HAVING count(*) > 3
+    ) THEN
+        RAISE EXCEPTION 'Les créations doivent être lissées : au maximum trois dossiers par jour.';
+    END IF;
+
+    IF (SELECT count(*) FROM dossier WHERE date_creation >= CURRENT_DATE - INTERVAL '29 days') NOT BETWEEN 20 AND 35 THEN
+        RAISE EXCEPTION 'Entre vingt et trente-cinq créations sont attendues sur les trente derniers jours, sans pic artificiel dans le mois courant.';
     END IF;
 
     IF EXISTS (
@@ -150,7 +217,7 @@ BEGIN
         JOIN operation_dossier op ON op.id = m.id_operation
         WHERE op.id_type_production IS DISTINCT FROM d.id_type_production
            OR m.date_mvt IS NULL OR m.date_mvt < d.date_creation OR m.date_mvt > NOW()
-           OR m.id_nouveau_statut IS DISTINCT FROM op.id_statut
+           OR m.id_nouveau_statut IS DISTINCT FROM COALESCE(op.id_statut, m.id_ancien_statut)
            OR m.id_ancienne_phase IS NULL OR m.id_nouvelle_phase IS NULL
            OR m.id_ancien_statut IS NULL OR m.id_nouveau_statut IS NULL
     ) THEN
@@ -229,14 +296,26 @@ BEGIN
 END;
 $verification$;
 
+-- Les deux agences de la capitale se partagent la population d'Antananarivo.
+SELECT a.ville, count(*) AS dossiers,
+       round(count(*) * 100.0 / (SELECT count(*) FROM dossier), 2) AS part_pourcent
+FROM dossier d JOIN agence a ON a.id = d.id_agence
+GROUP BY a.ville ORDER BY dossiers DESC, a.ville;
+
+SELECT a.code, a.nom AS agence, a.ville, count(*) AS dossiers,
+       round(count(*) * 100.0 / (SELECT count(*) FROM dossier), 2) AS part_pourcent
+FROM dossier d JOIN agence a ON a.id = d.id_agence
+GROUP BY a.id, a.code, a.nom, a.ville ORDER BY dossiers DESC, a.code;
+
 -- Répartition visible dans le graphique annuel des créations.
 SELECT to_char(date_creation, 'YYYY-MM') AS mois, count(*) AS dossiers
 FROM dossier GROUP BY 1 ORDER BY 1;
 
--- Détail du graphique affiché par défaut sur les trente derniers jours.
-SELECT date_creation::date AS jour, count(*) AS dossiers
-FROM dossier WHERE date_creation >= CURRENT_DATE - INTERVAL '29 days'
-GROUP BY 1 ORDER BY 1;
+-- Détail du graphique affiché par défaut, avec les jours sans création inclus.
+SELECT j.jour::date AS jour, count(d.id) AS dossiers
+FROM generate_series(CURRENT_DATE - INTERVAL '29 days', CURRENT_DATE, INTERVAL '1 day') AS j(jour)
+LEFT JOIN dossier d ON d.date_creation >= j.jour AND d.date_creation < j.jour + INTERVAL '1 day'
+GROUP BY j.jour ORDER BY j.jour;
 
 SELECT date_trunc('week', date_mvt)::date AS semaine, count(*) AS mouvements
 FROM mvt_dossier WHERE date_mvt >= NOW() - INTERVAL '8 weeks'
