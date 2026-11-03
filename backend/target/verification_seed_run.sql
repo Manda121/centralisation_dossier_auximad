@@ -1,6 +1,6 @@
 \set ON_ERROR_STOP on
-CREATE SCHEMA seed_verification_a3149010fe0f4ae9abe6e03357a6a209;
-SET search_path TO seed_verification_a3149010fe0f4ae9abe6e03357a6a209;
+CREATE SCHEMA seed_verification_82d41962e7da4eb18c5ae8b415fe331e;
+SET search_path TO seed_verification_82d41962e7da4eb18c5ae8b415fe331e;
 CREATE TABLE agence(
     id SERIAL PRIMARY KEY,
     code INTEGER  UNIQUE CHECK (code BETWEEN 0 AND 99), -- 2 chiffres, cf. nomenclature numero_dossier
@@ -31,7 +31,7 @@ CREATE TABLE type_client(
 
 CREATE TABLE type_regime(
     id SERIAL PRIMARY KEY,
-    nom VARCHAR(100)  UNIQUE,
+    nom VARCHAR(100), -- Un meme nom peut couvrir plusieurs codes (IM8 : 8900 et 8000).
     code VARCHAR(10)  UNIQUE,
     description TEXT
 );
@@ -770,41 +770,35 @@ CREATE INDEX IF NOT EXISTS idx_dossier_depart_fts ON dossier USING GIN (auximad_
 CREATE INDEX IF NOT EXISTS idx_dossier_adresselivraison_fts ON dossier USING GIN (auximad_vecteur(COALESCE(adresse_livraison, '')));
 CREATE INDEX IF NOT EXISTS idx_dossier_lieupaiementfret_fts ON dossier USING GIN (auximad_vecteur(COALESCE(lieu_paiement_fret, '')));
 
--- Jeu de démonstration : à charger après base_centralisation.sql sur une base vide.
--- Trois phases, workflows import/export, FOB uniquement, neuf agences.
--- Les dates couvrent les douze derniers mois avec des volumes mensuels variables.
+-- Initialisation pour les tests manuels : configuration et comptes uniquement.
+-- A executer sur les tables vides, apres reinitialiser_donnees.sql si necessaire.
+-- Ne supprime aucune table et aucune donnee. Ne pas cumuler avec donne_deepseek.sql.
+-- Conserve les referentiels et les 30 comptes du jeu de demonstration.
+-- Aucun client, OT, dossier, mouvement, document remis ou demande interagence.
 BEGIN;
-
 -- ============================================================
--- 0. STATUT DOSSIER (nouvelle table)
+-- 0. STATUTS DOSSIER DANS L'ORDRE DU DEROULEMENT
 -- ============================================================
+-- Après une réinitialisation, les identifiants suivent cet ordre.
+-- Pour l'affichage SQL : SELECT * FROM statut_dossier ORDER BY id;
 INSERT INTO statut_dossier (nom, description) VALUES
 ('Ouvert', 'Dossier créé, aucune opération effectuée'),
-('Clôturé', 'Dossier finalisé après paiement et clôture'),
-('Annulé', 'Dossier annulé'),
-('En litige', 'Dossier suspendu pour un litige'),
-('Client avisé', 'Dernière opération effectuée : Avis d’arrivée client'),
-('Proforma envoyée', 'Dernière opération effectuée : Envoi proforma'),
-('Premier envoi effectué', 'Dernière opération effectuée : Premier envoi document'),
-('Premiers documents reçus', 'Dernière opération effectuée : Premier réception document'),
-('Expertise réalisée', 'Dernière opération effectuée : Expertise'),
-('Déclaration établie', 'Dernière opération effectuée : Déclaration'),
-('Dossier transmis au passeur', 'Dernière opération effectuée : Dispatche/Passeur'),
-('Visite/scan effectué', 'Dernière opération effectuée : Visite/Scan'),
-('Droits et taxes payés', 'Dernière opération effectuée : Paiement Droit & Taxes'),
-('Paiement des droits confirmé', 'Dernière opération effectuée : Confirmation paiement Droit & Taxes'),
-('Provision enregistrée', 'Dernière opération effectuée : Provision (pour fret et débours)'),
-('Facturé', 'Dernière opération effectuée : Facturation'),
-('Facture transmise', 'Dernière opération effectuée : Transmission'),
-('Payé', 'Dernière opération effectuée : Paiement'),
-('Préalerte envoyée', 'Dernière opération effectuée : Préalerte'),
+('Client avisé', 'Dernière opération effectuée : Avis d arrivée client'),
 ('Réservation confirmée', 'Dernière opération effectuée : Réservation TC/Ligne'),
 ('Documents reçus', 'Dernière opération effectuée : Réception Doc'),
 ('Conteneur positionné', 'Dernière opération effectuée : Position container'),
-('Déclaration déposée', 'Dernière opération effectuée : Dépôt Déclaration'),
+('Expertise réalisée', 'Dernière opération effectuée : Expertise'),
+('Déclaration établie', 'Dernière opération effectuée : Déclaration'),
+('Visite/scan effectué', 'Dernière opération effectuée : Visite/Scan'),
+('Droits et taxes payés', 'Dernière opération effectuée : Paiement Droit & Taxes'),
 ('PG payé', 'Dernière opération effectuée : Paiement PG'),
 ('Bon à enlever obtenu', 'Dernière opération effectuée : Bon à enlever'),
-('Documents récupérés', 'Dernière opération effectuée : Récupération documents');
+('Provision enregistrée', 'Dernière opération effectuée : Provision (pour fret et débours)'),
+('Facturé', 'Dernière opération effectuée : Facturation'),
+('Payé', 'Dernière opération effectuée : Paiement'),
+('Clôturé', 'Dossier finalisé après paiement et clôture'),
+('En litige', 'Dossier suspendu pour un litige'),
+('Annulé', 'Dossier annulé');
 
 -- ============================================================
 -- 0bis. STATUT ORDRE DE TRANSIT
@@ -856,11 +850,13 @@ INSERT INTO type_client (nom, description) VALUES
 ('Institution', 'Client institutionnel');
 
 INSERT INTO type_regime (nom, code, description) VALUES
-('Mise a la consommation', 'MCI', 'Importation definitive'),
-('Exportation', 'EXP', 'Exportation simple'),
-('Transit', 'TRS', 'Transit international'),
-('Entrepot', 'ENT', 'Regime d''entrepot douanier'),
-('Admission temporaire', 'ADT', 'Admission temporaire');
+('IM4', '4000', 'definitif'),
+('IM5', '5000', 'economique'),
+('IM7', '7000', 'economique'),
+('IM8', '8900', 'transitoire'),
+('IM8', '8000', 'ordinaire'),
+('EX1', '1000', 'definitif'),
+('EX2', '2000', 'temporaire');
 
 -- type_bureau
 INSERT INTO type_bureau (nom, description) VALUES
@@ -925,7 +921,7 @@ INSERT INTO phase_dossier (nom, id_mode_transport, description) VALUES
 -- Première liste = import, seconde liste = export.
 -- Chaque opération est déclinée en maritime et aérien. Le niveau_operation
 -- suit strictement l'ordre des étapes, du début à la clôture de chaque flux.
--- Le statut associé décrit le résultat de l'opération qui vient d'être faite.
+-- Une opération sans statut associé conserve le statut précédent du dossier.
 INSERT INTO operation_dossier
     (description, id_phase, id_statut, id_type_production,
      niveau_autorisation, niveau_validation, niveau_operation, est_obligatoire, est_actif)
@@ -935,42 +931,42 @@ SELECT t.description, ph.id, st.id, tp.id,
             WHEN t.phase = 'COMPTABILITE' THEN 4 WHEN t.phase = 'TRAITEMENT' THEN 2 ELSE 1 END,
        t.rang, TRUE, TRUE
 FROM (VALUES
-    ('import', 'PREPARATION', 'Avis d’arrivée client', 'Client avisé', 1),
-    ('import', 'PREPARATION', 'Envoi proforma', 'Proforma envoyée', 2),
-    ('import', 'PREPARATION', 'Premier envoi document', 'Premier envoi effectué', 3),
-    ('import', 'PREPARATION', 'Premier réception document', 'Premiers documents reçus', 4),
+    ('import', 'PREPARATION', 'Avis d arrivée client', 'Client avisé', 1),
+    ('import', 'PREPARATION', 'Envoi proforma', NULL, 2),
+    ('import', 'PREPARATION', 'Premier envoi document', NULL, 3),
+    ('import', 'PREPARATION', 'Premier réception document', NULL, 4),
     ('import', 'PREPARATION', 'Expertise', 'Expertise réalisée', 5),
     ('import', 'TRAITEMENT', 'Déclaration', 'Déclaration établie', 6),
-    ('import', 'TRAITEMENT', 'Dispatche/Passeur', 'Dossier transmis au passeur', 7),
+    ('import', 'TRAITEMENT', 'Dispatche/Passeur', NULL, 7),
     ('import', 'TRAITEMENT', 'Visite/Scan', 'Visite/scan effectué', 8),
     ('import', 'TRAITEMENT', 'Paiement Droit & Taxes', 'Droits et taxes payés', 9),
-    ('import', 'TRAITEMENT', 'Confirmation paiement Droit & Taxes', 'Paiement des droits confirmé', 10),
+    ('import', 'TRAITEMENT', 'Confirmation paiement Droit & Taxes', NULL, 10),
     ('import', 'COMPTABILITE', 'Provision (pour fret et débours)', 'Provision enregistrée', 11),
     ('import', 'COMPTABILITE', 'Facturation', 'Facturé', 12),
-    ('import', 'COMPTABILITE', 'Transmission', 'Facture transmise', 13),
+    ('import', 'COMPTABILITE', 'Transmission', NULL, 13),
     ('import', 'COMPTABILITE', 'Paiement', 'Payé', 14),
     ('import', 'COMPTABILITE', 'Clôture', 'Clôturé', 15),
-    ('export', 'PREPARATION', 'Préalerte', 'Préalerte envoyée', 1),
+    ('export', 'PREPARATION', 'Préalerte', NULL, 1),
     ('export', 'PREPARATION', 'Réservation TC/Ligne', 'Réservation confirmée', 2),
     ('export', 'PREPARATION', 'Réception Doc', 'Documents reçus', 3),
-    ('export', 'PREPARATION', 'Envoi proforma', 'Proforma envoyée', 4),
+    ('export', 'PREPARATION', 'Envoi proforma', NULL, 4),
     ('export', 'PREPARATION', 'Position container', 'Conteneur positionné', 5),
     ('export', 'PREPARATION', 'Expertise', 'Expertise réalisée', 6),
     ('export', 'TRAITEMENT', 'Déclaration', 'Déclaration établie', 7),
-    ('export', 'TRAITEMENT', 'Dispatche/Passeur', 'Dossier transmis au passeur', 8),
-    ('export', 'TRAITEMENT', 'Dépôt Déclaration', 'Déclaration déposée', 9),
+    ('export', 'TRAITEMENT', 'Dispatche/Passeur', NULL, 8),
+    ('export', 'TRAITEMENT', 'Dépôt Déclaration', NULL, 9),
     ('export', 'TRAITEMENT', 'Paiement PG', 'PG payé', 10),
     ('export', 'TRAITEMENT', 'Bon à enlever', 'Bon à enlever obtenu', 11),
-    ('export', 'TRAITEMENT', 'Récupération documents', 'Documents récupérés', 12),
+    ('export', 'TRAITEMENT', 'Récupération documents', NULL, 12),
     ('export', 'COMPTABILITE', 'Provision', 'Provision enregistrée', 13),
     ('export', 'COMPTABILITE', 'Facturation', 'Facturé', 14),
-    ('export', 'COMPTABILITE', 'Transmission', 'Facture transmise', 15),
+    ('export', 'COMPTABILITE', 'Transmission', NULL, 15),
     ('export', 'COMPTABILITE', 'Paiement', 'Payé', 16),
     ('export', 'COMPTABILITE', 'Clôture', 'Clôturé', 17)
 ) AS t(sens, phase, description, statut, rang)
 JOIN type_production tp ON tp.nom = t.sens
 JOIN phase_dossier ph ON ph.nom = t.phase
-JOIN statut_dossier st ON st.nom = t.statut
+LEFT JOIN statut_dossier st ON st.nom = t.statut
 ORDER BY tp.id, t.rang;
 
 INSERT INTO inconterme (nom, abreviation, description) VALUES
@@ -1047,10 +1043,11 @@ INSERT INTO pays (nom, code) VALUES
 -- ============================================================
 INSERT INTO type_declaration (nom, description) VALUES
 ('Mise à la consommation (IM4)', 'Déclaration pour mise à la consommation directe'),
+('Régime économique (IM5)', 'Déclaration liée au régime économique IM5'),
+('Régime économique (IM7)', 'Déclaration liée au régime économique IM7'),
+('Régime transitoire ou ordinaire (IM8)', 'Déclaration liée aux régimes IM8 8900 ou 8000'),
 ('Exportation définitive (EX1)', 'Déclaration d''exportation définitive'),
-('Transit international (TR)', 'Déclaration de transit international'),
-('Admission temporaire (AT)', 'Déclaration pour régime d''admission temporaire'),
-('Entrepôt douanier (E2)', 'Déclaration pour mise en entrepôt douanier');
+('Exportation temporaire (EX2)', 'Déclaration liée au régime temporaire EX2');
 
 -- ============================================================
 -- TYPE_DOCUMENT : id=1 pour attachement mvt, id=2 pour déclaration
@@ -1229,98 +1226,22 @@ INSERT INTO action (nom, description) VALUES
     ('validation', 'Validation d''un dossier ou d''une ressource')
 ON CONFLICT (nom) DO NOTHING;
 
--- ============================================================
--- 2. GENERATION DE DONNEES DE DEMONSTRATION
--- ============================================================
--- À charger sur une base vide après le schéma. Ce script ne supprime aucune
--- donnée existante et n'est pas destiné à être rejoué sur une base déjà remplie.
--- Dates relatives à l'exécution : les douze derniers mois calendaires, avec
--- des volumes mensuels différents et plusieurs jours dans la période récente.
--- Toutes les dates réelles restent dans le passé ; seules les dates prévues,
--- les échéances et les limites de remise peuvent se situer dans le futur.
-
+-- Comptes et autorisations identiques au jeu de demonstration.
+-- Le mot de passe chiffre est conserve ; aucune activite metier n'est generee.
 DO $$
 DECLARE
-    v_debut TIMESTAMPTZ := date_trunc('month', CURRENT_TIMESTAMP) - INTERVAL '11 months';
-    v_volumes INT[] := ARRAY[10, 13, 17, 12, 22, 18, 28, 24, 34, 30, 40, 52];
     v_agences INT[] := ARRAY(SELECT id FROM agence ORDER BY id);
     v_roles INT[] := ARRAY(SELECT id FROM role ORDER BY id);
-    v_productions INT[] := ARRAY(SELECT id FROM type_production ORDER BY id);
-    v_clients INT[];
-    v_utilisateurs INT[];
-    v_ots INT[] := '{}';
-    v_dossiers INT[] := '{}';
-    v_operations INT[];
-    v_pays INT[] := ARRAY(SELECT id FROM pays ORDER BY id);
-    v_types_clients INT[] := ARRAY(SELECT id FROM type_client ORDER BY id);
-    v_regimes INT[] := ARRAY(SELECT id FROM type_regime ORDER BY id);
-    v_bureaux INT[] := ARRAY(SELECT id FROM bureau ORDER BY id);
-    v_unites INT[] := ARRAY(SELECT id FROM unite_mesure ORDER BY id);
-    v_natures INT[] := ARRAY(SELECT id FROM nature_marchandise ORDER BY id);
-    v_containers INT[] := ARRAY(SELECT id FROM type_container ORDER BY id);
-    v_acheminements INT[] := ARRAY(SELECT id FROM mode_acheminement ORDER BY id);
-    v_fob INT := (SELECT id FROM inconterme WHERE abreviation = 'FOB');
-    v_preparation INT := (SELECT id FROM phase_dossier WHERE nom = 'PREPARATION');
-    v_ouvert INT := (SELECT id FROM statut_dossier WHERE nom = 'Ouvert');
-    v_user INT;
-    v_ot INT;
-    v_dossier INT;
-    v_type INT;
     v_agence INT;
     v_role INT;
-    v_statut_ot INT;
-    v_statut INT;
-    v_phase INT;
-    v_phase_suivante INT;
-    v_doc INT;
-    v_expedition INT;
-    v_compagnie INT;
-    v_navire INT;
-    v_station_depart INT;
-    v_station_arrivee INT;
-    v_acheminement INT;
-    v_nb_operations INT;
-    v_nb_effectuees INT;
-    v_creation TIMESTAMPTZ;
-    v_mois TIMESTAMPTZ;
-    v_fin_mois TIMESTAMPTZ;
-    v_fin_flux TIMESTAMPTZ;
-    v_date_mvt TIMESTAMPTZ;
-    v_date_doc TIMESTAMPTZ;
-    v_date_depart TIMESTAMPTZ;
-    v_date_prevue TIMESTAMPTZ;
-    v_date_arrivee TIMESTAMPTZ;
-    v_numero TEXT;
-    v_compteur INT := 0;
+    v_user INT;
+    v_creation TIMESTAMPTZ := CURRENT_TIMESTAMP;
     i INT;
-    j INT;
-    mois INT;
-    ligne RECORD;
-    op RECORD;
-    type_doc RECORD;
-    parent RECORD;
-    enfant RECORD;
 BEGIN
-    -- Tirage reproductible ; les dates suivent la date d'exécution du script.
-    PERFORM setseed(0.2718);
-    UPDATE agence SET date_creation = v_debut - INTERVAL '4 months' + id * INTERVAL '1 day';
-
-    -- 100 clients et 30 comptes de démonstration, créés avant leur activité.
-    FOR i IN 1..100 LOOP
-        INSERT INTO clients (nom, prenom, email, telephone, adresse, id_type_client,
-                             nif, stat, fax, id_pays, cp_client, date_creation)
-        VALUES ('ClientNom' || i, 'Prenom' || i, 'client' || i || '@mail.com',
-                '032' || lpad(i::text, 7, '0'), 'Adresse ' || i,
-                v_types_clients[1 + (i - 1) % array_length(v_types_clients, 1)],
-                'NIF' || lpad(i::text, 10, '0'), 'STAT' || lpad(i::text, 10, '0'), 'Fax' || i,
-                v_pays[1 + (i - 1) % array_length(v_pays, 1)], 'CLI' || lpad(i::text, 3, '0'),
-                v_debut - INTERVAL '3 months' + random() * INTERVAL '20 days');
-    END LOOP;
-
     FOR i IN 1..30 LOOP
         v_agence := v_agences[1 + (i - 1) % array_length(v_agences, 1)];
         v_role := v_roles[1 + (i - 1) % array_length(v_roles, 1)];
-        v_creation := v_debut - INTERVAL '2 months' + i * INTERVAL '1 day';
+        v_creation := CURRENT_TIMESTAMP;
         INSERT INTO utilisateur (nom_utilisateur, nom, prenom, email, mot_de_passe,
                                  id_role, id_agence, date_creation, date_modification)
         VALUES ('user' || i, 'NomUser' || i, 'PrenomUser' || i, 'user' || i || '@transit.mg',
@@ -1330,512 +1251,45 @@ BEGIN
         -- limité aux comptes insérés ici, sans modifier d'autres utilisateurs.
         INSERT INTO autorisation (id_utilisateur, niveau_autorisation) VALUES (v_user, 10000);
     END LOOP;
-    v_clients := ARRAY(SELECT id FROM clients ORDER BY id);
-    v_utilisateurs := ARRAY(SELECT id FROM utilisateur ORDER BY id);
-
-    -- 320 OT : suffisamment pour 300 dossiers et au moins 20 OT autonomes.
-    FOR i IN 1..320 LOOP
-        v_agence := v_agences[1 + (i - 1) % array_length(v_agences, 1)];
-        v_type := v_productions[1 + (i - 1) % array_length(v_productions, 1)];
-        SELECT id INTO v_user FROM utilisateur WHERE id_agence = v_agence ORDER BY id LIMIT 1;
-        SELECT id INTO v_statut_ot FROM statut_ot
-        WHERE nom = CASE WHEN i <= 300 THEN 'Valide'
-                         WHEN i % 2 = 0 THEN 'Brouillon' ELSE 'Non valide' END;
-        INSERT INTO ordre_transit (numero_ordre_transit, id_agence, id_client, id_type_production,
-            id_nature_marchandise, numero_commande, id_utilisateur, id_type_regime, destination_finale,
-            id_expediteur, id_destinataire, id_bureau_dedou, est_assure, id_destination_facture,
-            id_statut_ot, date_creation)
-        VALUES (10000 + i, v_agence, v_clients[1 + (i - 1) % 100], v_type,
-                v_natures[1 + (i - 1) % array_length(v_natures, 1)],
-                'CMD-' || lpad(i::text, 6, '0'), v_user,
-                v_regimes[1 + (i - 1) % array_length(v_regimes, 1)], 'Destination finale ' || i,
-                v_clients[1 + i % 100], v_clients[1 + (i + 1) % 100],
-                v_bureaux[1 + (i - 1) % array_length(v_bureaux, 1)], random() < 0.3,
-                v_clients[1 + (i - 1) % 100], v_statut_ot,
-                v_debut + random() * (CURRENT_TIMESTAMP - INTERVAL '3 days' - v_debut))
-        RETURNING id INTO v_ot;
-        v_ots := array_append(v_ots, v_ot);
-    END LOOP;
-
-    FOR i IN 1..400 LOOP
-        INSERT INTO instruction (id_ordre_transit, instruction)
-        VALUES (v_ots[1 + (i - 1) % 320], 'Instruction ' || i || ' : suivi du dossier.');
-    END LOOP;
-
-    -- 300 créations mensuelles : 10,13,17,12,22,18,28,24,34,30,40,52.
-    FOR mois IN 1..12 LOOP
-        v_mois := v_debut + (mois - 1) * INTERVAL '1 month';
-        v_fin_mois := LEAST(v_mois + INTERVAL '1 month', CURRENT_TIMESTAMP);
-        FOR j IN 1..v_volumes[mois] LOOP
-            v_compteur := v_compteur + 1;
-            -- Répartition stratifiée : plusieurs jours par mois, sans création future.
-            v_creation := v_mois + (v_fin_mois - v_mois) * ((j - 1 + random()) / v_volumes[mois]);
-            SELECT ot.*, tp.code AS code_production, a.code AS code_agence INTO ligne
-            FROM ordre_transit ot JOIN type_production tp ON tp.id = ot.id_type_production
-            JOIN agence a ON a.id = ot.id_agence WHERE ot.id = v_ots[v_compteur];
-            v_numero := ligne.code_production::text || lpad(ligne.code_agence::text, 2, '0')
-                     || to_char(v_creation, 'MM') || (EXTRACT(YEAR FROM v_creation)::int % 10)::text
-                     || lpad(v_compteur::text, 4, '0');
-            INSERT INTO dossier (id_agence, id_utilisateur, id_client, id_type_production,
-                numero_dossier, id_ordre_transit, est_groupage, id_phase, id_statut, echeance,
-                pour_compte, id_pays_origine, id_pays_destination, est_prepaye, est_provisionne,
-                provision_demandee, lieu_paiement_fret, depart, adresse_livraison, id_inconterme,
-                date_limite_remise, date_creation)
-            VALUES (ligne.id_agence, ligne.id_utilisateur, ligne.id_client, ligne.id_type_production,
-                v_numero, ligne.id, FALSE, v_preparation, v_ouvert,
-                v_creation + (20 + v_compteur % 35) * INTERVAL '1 day',
-                'Pour compte de ' || v_compteur,
-                v_pays[1 + (v_compteur - 1) % array_length(v_pays, 1)],
-                v_pays[1 + v_compteur % array_length(v_pays, 1)], random() < 0.5, FALSE,
-                (50000 + random() * 950000)::numeric(10, 2), 'Antananarivo',
-                'Port/Aeroport ' || v_compteur, 'Adresse livraison ' || v_compteur, v_fob,
-                v_creation + (5 + v_compteur % 8) * INTERVAL '1 day', v_creation)
-            RETURNING id INTO v_dossier;
-            v_dossiers := array_append(v_dossiers, v_dossier);
-        END LOOP;
-    END LOOP;
-
-    -- 40 sous-dossiers plus récents : même OT, même client et même production
-    -- que leur dossier mère, avec une agence différente, sans boucle ni doublon.
-    FOR i IN 1..40 LOOP
-        SELECT * INTO parent FROM dossier WHERE id = v_dossiers[i];
-        SELECT d.* INTO enfant FROM dossier d
-        WHERE d.id = ANY(v_dossiers[181:300]) AND d.id_agence <> parent.id_agence
-          AND d.id_type_production = parent.id_type_production
-          AND NOT EXISTS (SELECT 1 FROM dossier_interagence di WHERE di.id_sous_dossier = d.id)
-        ORDER BY d.id LIMIT 1;
-        IF enfant.id IS NULL THEN RAISE EXCEPTION 'Sous-dossier compatible introuvable'; END IF;
-        UPDATE dossier SET id_ordre_transit = parent.id_ordre_transit, id_client = parent.id_client
-        WHERE id = enfant.id;
-        INSERT INTO dossier_interagence (id_dossier_mere, id_sous_dossier, motif, date_creation)
-        VALUES (parent.id, enfant.id, 'Prise en charge par une autre agence', enfant.date_creation);
-    END LOOP;
-
-    -- L'OT précède toujours le premier dossier qui lui est rattaché.
-    UPDATE ordre_transit ot SET date_creation = LEAST(ot.date_creation,
-        (SELECT min(d.date_creation) - INTERVAL '1 day' FROM dossier d WHERE d.id_ordre_transit = ot.id))
-    WHERE EXISTS (SELECT 1 FROM dossier d WHERE d.id_ordre_transit = ot.id);
-
-    -- Parcours réels : préfixe ordonné du workflow du type de production.
-    -- Les types divers/colis, sans workflow défini, restent ouverts en préparation.
-    FOR ligne IN SELECT * FROM dossier ORDER BY id LOOP
-        v_operations := ARRAY(SELECT id FROM operation_dossier
-            WHERE id_type_production = ligne.id_type_production ORDER BY niveau_operation, id);
-        v_nb_operations := COALESCE(array_length(v_operations, 1), 0);
-        IF v_nb_operations = 0 THEN CONTINUE; END IF;
-        IF ligne.date_creation > CURRENT_TIMESTAMP - INTERVAL '3 days' THEN
-            v_nb_effectuees := ligne.id % 5;
-        ELSIF ligne.id % 17 = 0 THEN
-            v_nb_effectuees := 0;
-        ELSIF ligne.id % 5 IN (0, 1) THEN
-            v_nb_effectuees := v_nb_operations;
-        ELSE
-            v_nb_effectuees := 1 + (ligne.id * 7) % v_nb_operations;
-        END IF;
-        v_phase := v_preparation;
-        v_statut := v_ouvert;
-        v_fin_flux := LEAST(ligne.date_creation + INTERVAL '45 days', CURRENT_TIMESTAMP);
-        v_date_mvt := ligne.date_creation;
-        FOR j IN 1..v_nb_effectuees LOOP
-            SELECT * INTO op FROM operation_dossier WHERE id = v_operations[j];
-            -- Après la dernière opération obligatoire d'une phase, avancer
-            -- à la phase de l'opération suivante, comme le service Java.
-            SELECT id_phase INTO v_phase_suivante FROM operation_dossier
-            WHERE id_type_production = ligne.id_type_production AND niveau_operation > op.niveau_operation
-            ORDER BY niveau_operation, id LIMIT 1;
-            v_phase_suivante := COALESCE(v_phase_suivante, op.id_phase);
-            v_date_mvt := ligne.date_creation + (v_fin_flux - ligne.date_creation) * (j::numeric / (v_nb_effectuees + 1));
-            INSERT INTO mvt_dossier (id_dossier, id_utilisateur, id_operation,
-                id_ancienne_phase, id_nouvelle_phase, id_ancien_statut, id_nouveau_statut,
-                commentaire, date_mvt, origine)
-            VALUES (ligne.id, ligne.id_utilisateur, op.id, v_phase, v_phase_suivante,
-                v_statut, op.id_statut, 'Opération effectuée : ' || op.description, v_date_mvt, 'SAISIE');
-            v_phase := v_phase_suivante;
-            v_statut := op.id_statut;
-        END LOOP;
-        UPDATE dossier SET id_phase = v_phase, id_statut = v_statut,
-            est_provisionne = EXISTS (SELECT 1 FROM mvt_dossier m JOIN operation_dossier o ON o.id = m.id_operation
-                WHERE m.id_dossier = ligne.id AND o.description IN ('Provision', 'Provision (pour fret et débours)')),
-            date_livraison = CASE WHEN v_phase = (SELECT id FROM phase_dossier WHERE nom = 'COMPTABILITE')
-                THEN LEAST(ligne.date_creation + INTERVAL '25 days', v_date_mvt) ELSE NULL END
-        WHERE id = ligne.id;
-    END LOOP;
-
-    -- Documents actifs du même flux et de la même nature que le dossier.
-    -- Les documents requis par une opération réalisée sont toujours présents
-    -- et remis AVANT cette opération. Quelques dossiers non clôturés restent
-    -- volontairement incomplets pour les indicateurs de pièces manquantes.
-    FOR ligne IN SELECT d.*, ot.id_nature_marchandise FROM dossier d
-                 JOIN ordre_transit ot ON ot.id = d.id_ordre_transit ORDER BY d.id LOOP
-        INSERT INTO document (id_dossier, id_type_document, nombre, chemin_fichier, nom_fichier, date_ajout)
-        VALUES (ligne.id, (SELECT id FROM type_document WHERE nom = 'Document d''attachement'),
-                1, '/documents/dossier_' || ligne.id || '.pdf', 'dossier_' || ligne.id || '.pdf', ligne.date_creation);
-        FOR type_doc IN
-            SELECT td.*, (SELECT min(m.date_mvt) FROM mvt_dossier m
-                JOIN document_obligatoire_mvt dom ON dom.id_operation = m.id_operation
-                WHERE m.id_dossier = ligne.id AND dom.id_type_document = td.id) AS premiere_utilisation
-            FROM type_document td
-            WHERE (td.id_type_production = ligne.id_type_production OR td.id_type_production IS NULL)
-              AND td.nom <> 'Document d''attachement'
-              AND (td.id_nature_marchandise IS NULL OR td.id_nature_marchandise = ligne.id_nature_marchandise)
-        LOOP
-            IF type_doc.premiere_utilisation IS NULL AND ligne.id % 5 = 0 THEN CONTINUE; END IF;
-            IF NOT type_doc.est_obligatoire AND type_doc.premiere_utilisation IS NULL AND ligne.id % 3 <> 0 THEN CONTINUE; END IF;
-            v_date_doc := ligne.date_creation +
-                (COALESCE(type_doc.premiere_utilisation, LEAST(ligne.date_creation + INTERVAL '2 days', CURRENT_TIMESTAMP))
-                    - ligne.date_creation) * 0.1;
-            INSERT INTO document (id_dossier, id_type_document, nombre, chemin_fichier, nom_fichier, date_ajout)
-            VALUES (ligne.id, type_doc.id, 1, '/documents/doc_' || ligne.id || '_' || type_doc.id || '.pdf',
-                    type_doc.nom || '.pdf', v_date_doc);
-            INSERT INTO remise (id_dossier, id_type_document, date_remise)
-            VALUES (ligne.id, type_doc.id,
-                LEAST(v_date_doc + INTERVAL '1 second', COALESCE(type_doc.premiere_utilisation, CURRENT_TIMESTAMP)));
-        END LOOP;
-    END LOOP;
-    INSERT INTO document_mvt (id_mvt_dossier, id_document)
-    SELECT m.id, (SELECT doc.id FROM document doc WHERE doc.id_dossier = m.id_dossier ORDER BY doc.id LIMIT 1)
-    FROM mvt_dossier m WHERE m.id % 3 = 0;
-
-    -- Expéditions maritimes/aériennes : dates déduites de l'OT et stations distinctes.
-    FOR ligne IN SELECT ot.*, tp.id_mode_transport, mt.nom AS transport
-        FROM ordre_transit ot JOIN type_production tp ON tp.id = ot.id_type_production
-        JOIN mode_transport mt ON mt.id = tp.id_mode_transport
-        WHERE mt.nom IN ('Maritime', 'Aerien') ORDER BY ot.id LOOP
-        SELECT id INTO v_dossier FROM dossier WHERE id_ordre_transit = ligne.id ORDER BY id LIMIT 1;
-        SELECT id INTO v_compagnie FROM compagnie WHERE id_mode_transport = ligne.id_mode_transport ORDER BY random() LIMIT 1;
-        SELECT id INTO v_navire FROM navire WHERE id_compagnie = v_compagnie ORDER BY random() LIMIT 1;
-        SELECT id INTO v_station_depart FROM station WHERE id_mode_transport = ligne.id_mode_transport ORDER BY random() LIMIT 1;
-        SELECT id INTO v_station_arrivee FROM station
-            WHERE id_mode_transport = ligne.id_mode_transport AND id <> v_station_depart ORDER BY random() LIMIT 1;
-        v_acheminement := v_acheminements[1 + ligne.id % array_length(v_acheminements, 1)];
-        v_date_depart := ligne.date_creation + INTERVAL '1 day';
-        v_date_prevue := v_date_depart + CASE WHEN ligne.transport = 'Maritime' THEN INTERVAL '18 days' ELSE INTERVAL '2 days' END;
-        v_date_arrivee := v_date_prevue + (ligne.id % 4) * INTERVAL '1 day';
-        IF v_date_arrivee > CURRENT_TIMESTAMP THEN v_date_arrivee := NULL; END IF;
-        IF v_date_depart > CURRENT_TIMESTAMP THEN v_date_depart := NULL; END IF;
-        INSERT INTO expedition (id_ordre_transit, id_dossier, est_achemine, id_mode_transport,
-            id_mode_acheminement, id_compagnie, id_navire, numero_bl, date_bl, lieu_bl,
-            id_port_embarquement, id_port_debarquement, numero_vol, numero_lta, date_lta, lieu_lta,
-            id_aeroport_embarquement, id_aeroport_debarquement, lib_scan, date_depart, date_prevu, date_arrivee)
-        VALUES (ligne.id, v_dossier, v_date_arrivee IS NOT NULL, ligne.id_mode_transport,
-            v_acheminement, v_compagnie, CASE WHEN ligne.transport = 'Maritime' THEN v_navire END,
-            CASE WHEN ligne.transport = 'Maritime' THEN 'BL-' || lpad(ligne.id::text, 6, '0') END,
-            CASE WHEN ligne.transport = 'Maritime' THEN v_date_depart END,
-            CASE WHEN ligne.transport = 'Maritime' THEN 'Port de Toamasina' END,
-            CASE WHEN ligne.transport = 'Maritime' THEN v_station_depart END,
-            CASE WHEN ligne.transport = 'Maritime' THEN v_station_arrivee END,
-            CASE WHEN ligne.transport = 'Aerien' THEN 'VOL-' || lpad(ligne.id::text, 6, '0') END,
-            CASE WHEN ligne.transport = 'Aerien' THEN 'LTA-' || lpad(ligne.id::text, 6, '0') END,
-            CASE WHEN ligne.transport = 'Aerien' THEN v_date_depart END,
-            CASE WHEN ligne.transport = 'Aerien' THEN 'Aeroport Ivato' END,
-            CASE WHEN ligne.transport = 'Aerien' THEN v_station_depart END,
-            CASE WHEN ligne.transport = 'Aerien' THEN v_station_arrivee END,
-            'Scan OT ' || ligne.id, v_date_depart, v_date_prevue, v_date_arrivee);
-    END LOOP;
-
-    FOR i IN 1..50 LOOP
-        SELECT * INTO ligne FROM dossier WHERE id = v_dossiers[1 + (i * 7) % 300];
-        INSERT INTO constat (id_dossier, id_expert_constat, id_type_constat, description, date_creation)
-        VALUES (ligne.id, (SELECT id FROM expert_constat ORDER BY id OFFSET (i % 10) LIMIT 1),
-            (SELECT id FROM type_constat ORDER BY id OFFSET (i % 3) LIMIT 1), 'Constat ' || i,
-            LEAST(ligne.date_creation + INTERVAL '1 hour', CURRENT_TIMESTAMP));
-    END LOOP;
-
-    FOR i IN 1..600 LOOP
-        INSERT INTO marchandise (id_ordre_transit, id_unite_mesure, marque, modele, description, poids, volume, quantite)
-        VALUES (v_ots[1 + (i - 1) % 320], v_unites[1 + (i - 1) % array_length(v_unites, 1)],
-            'Marque' || i % 20, 'Modele' || i % 30, 'Description marchandise ' || i,
-            (random() * 5000)::numeric(10, 2), (random() * 100)::numeric(10, 2), 1 + (i % 100));
-    END LOOP;
-
-    FOR i IN 1..300 LOOP
-        v_dossier := v_dossiers[i];
-        INSERT INTO conteneur (id_dossier, id_type_container, numero_container, description)
-        VALUES (v_dossier, v_containers[1 + (i - 1) % array_length(v_containers, 1)],
-            'CONT-' || lpad(i::text, 7, '0'), 'Conteneur ' || i) RETURNING id INTO v_doc;
-        INSERT INTO dossier_conteneur (id_dossier, id_conteneur) VALUES (v_dossier, v_doc);
-    END LOOP;
-
-    FOR ligne IN SELECT d.id, d.date_creation, e.id AS expedition FROM dossier d
-        JOIN expedition e ON e.id_ordre_transit = d.id_ordre_transit ORDER BY d.id LIMIT 100 LOOP
-        INSERT INTO groupage (id_dossier, id_expedition, numero_groupage, partie_notifier, date_creation)
-        VALUES (ligne.id, ligne.expedition, 'GRP-' || lpad(ligne.id::text, 7, '0'),
-            'Partie notifier ' || ligne.id, LEAST(ligne.date_creation + INTERVAL '1 hour', CURRENT_TIMESTAMP));
-        UPDATE dossier SET est_groupage = TRUE WHERE id = ligne.id;
-    END LOOP;
-
-    -- Une déclaration par dossier ayant réellement effectué cette opération.
-    FOR ligne IN SELECT d.id, d.id_type_production, d.id_ordre_transit, m.date_mvt, tp.nom AS sens,
-                        ot.id_bureau_dedou
-        FROM dossier d JOIN mvt_dossier m ON m.id_dossier = d.id
-        JOIN operation_dossier o ON o.id = m.id_operation AND o.description = 'Déclaration'
-        JOIN type_production tp ON tp.id = d.id_type_production
-        JOIN ordre_transit ot ON ot.id = d.id_ordre_transit ORDER BY d.id LOOP
-        SELECT doc.id INTO v_doc FROM document doc JOIN type_document td ON td.id = doc.id_type_document
-        WHERE doc.id_dossier = ligne.id AND td.nom LIKE 'Declaration en douane%' ORDER BY doc.id LIMIT 1;
-        INSERT INTO declaration (id_dossier, numero_declaration, date_declaration, id_bureau,
-            id_type_declaration, id_document, description, date_ajout)
-        VALUES (ligne.id, 'DEC-' || lpad(ligne.id::text, 8, '0'), ligne.date_mvt, ligne.id_bureau_dedou,
-            (SELECT id FROM type_declaration WHERE nom = CASE WHEN ligne.sens = 'import'
-                THEN 'Mise à la consommation (IM4)' ELSE 'Exportation définitive (EX1)' END),
-            v_doc, 'Déclaration du dossier ' || ligne.id, ligne.date_mvt);
-    END LOOP;
-
-    FOR i IN 1..5 LOOP
-        INSERT INTO suspension_connexion (id_utilisateur, tentatives_echouees, date_suspension,
-            duree_suspension_minutes, date_creation)
-        VALUES (v_utilisateurs[i], i, CURRENT_TIMESTAMP - i * INTERVAL '1 day',
-                15, CURRENT_TIMESTAMP - i * INTERVAL '1 day');
-    END LOOP;
-END $$;
+END;
+$$;
 
 COMMIT;
 
--- À lancer après le schéma et donne_deepseek.sql dans un schéma de test isolé.
--- Ce fichier ne modifie aucune donnée et s'arrête à la première incohérence.
-\set ON_ERROR_STOP on
-
-DO $verification$
+-- Verification exclusivement dans un schema temporaire de test.
+DO $$
 DECLARE
-    v_table TEXT;
-    v_preparation INTEGER;
-    v_ouvert INTEGER;
+    t RECORD;
+    n BIGINT;
 BEGIN
-    IF current_schema() IN ('public', 'pg_catalog', 'information_schema') THEN
-        RAISE EXCEPTION 'La vérification doit utiliser un schéma de test isolé (search_path actuel : %).', current_schema();
+    IF current_schema() NOT LIKE 'seed_verification_%' THEN
+        RAISE EXCEPTION 'Utiliser un schema temporaire seed_verification_*';
     END IF;
-
-    FOREACH v_table IN ARRAY ARRAY[
-        'agence', 'inconterme', 'phase_dossier', 'statut_dossier',
-        'type_production', 'mode_transport', 'operation_dossier', 'ordre_transit',
-        'dossier', 'mvt_dossier', 'document', 'type_document', 'document_mvt',
-        'document_obligatoire_mvt', 'remise', 'utilisateur', 'clients',
-        'declaration', 'dossier_interagence'
-    ] LOOP
-        IF NOT EXISTS (
-            SELECT 1 FROM information_schema.tables
-            WHERE table_schema = current_schema() AND table_name = v_table
-        ) THEN
-            RAISE EXCEPTION 'Table % absente du schéma de test %.', v_table, current_schema();
+    IF (SELECT count(*) FROM agence) <> 9
+       OR (SELECT count(*) FROM statut_dossier) <> 17
+       OR (SELECT count(*) FROM phase_dossier) <> 3
+       OR (SELECT count(*) FROM operation_dossier) <> 64
+       OR (SELECT count(*) FROM type_regime) <> 7
+       OR (SELECT count(*) FROM utilisateur) <> 30
+       OR (SELECT count(*) FROM autorisation WHERE niveau_autorisation = 10000) <> 30 THEN
+        RAISE EXCEPTION 'Configuration initiale incomplete';
+    END IF;
+    -- Toutes les tables non configurees doivent rester vides.
+    FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = current_schema()
+        AND tablename NOT IN (
+            'statut_dossier', 'statut_ot', 'agence', 'role', 'mode_transport',
+            'type_production', 'type_client', 'type_regime', 'type_bureau', 'bureau',
+            'mode_acheminement', 'nature_marchandise', 'phase_dossier',
+            'operation_dossier', 'inconterme', 'type_constat', 'expert_constat',
+            'pays', 'type_declaration', 'type_document', 'document_obligatoire_mvt',
+            'type_container', 'compagnie', 'navire', 'station', 'unite_mesure',
+            'action', 'utilisateur', 'autorisation')
+    LOOP
+        EXECUTE format('SELECT count(*) FROM %I.%I', current_schema(), t.tablename) INTO n;
+        IF n <> 0 THEN
+            RAISE EXCEPTION 'La table % contient % donnees metier', t.tablename, n;
         END IF;
     END LOOP;
-
-    IF (SELECT count(*) FROM agence) <> 9
-       OR EXISTS (SELECT 1 FROM agence WHERE lower(nom) LIKE '%manakara%' OR lower(ville) LIKE '%manakara%') THEN
-        RAISE EXCEPTION 'Le jeu doit contenir neuf agences et aucune agence de Manakara.';
-    END IF;
-
-    IF (SELECT count(*) FROM inconterme) <> 1
-       OR NOT EXISTS (SELECT 1 FROM inconterme WHERE abreviation = 'FOB') THEN
-        RAISE EXCEPTION 'FOB doit être le seul incoterm du jeu.';
-    END IF;
-
-    IF (SELECT count(*) FROM phase_dossier) <> 3
-       OR (SELECT count(*) FROM phase_dossier WHERE nom IN ('PREPARATION', 'TRAITEMENT', 'COMPTABILITE')) <> 3 THEN
-        RAISE EXCEPTION 'Les seules phases attendues sont PREPARATION, TRAITEMENT et COMPTABILITE.';
-    END IF;
-
-    SELECT id INTO STRICT v_preparation FROM phase_dossier WHERE nom = 'PREPARATION';
-    SELECT id INTO STRICT v_ouvert FROM statut_dossier WHERE nom = 'Ouvert';
-
-    IF (SELECT count(*) FROM operation_dossier) <> 64 THEN
-        RAISE EXCEPTION '64 opérations attendues : import 15 x 2 modes et export 17 x 2 modes.';
-    END IF;
-
-    IF (SELECT count(*) FROM type_production tp JOIN mode_transport mt ON mt.id = tp.id_mode_transport
-        WHERE tp.nom IN ('import', 'export') AND mt.nom IN ('Maritime', 'Aerien')) <> 4 THEN
-        RAISE EXCEPTION 'Les quatre productions import/export maritime/aérien sont nécessaires.';
-    END IF;
-
-    IF EXISTS (
-        SELECT tp.id FROM type_production tp
-        JOIN mode_transport mt ON mt.id = tp.id_mode_transport
-        LEFT JOIN operation_dossier op ON op.id_type_production = tp.id
-        WHERE tp.nom IN ('import', 'export') AND mt.nom IN ('Maritime', 'Aerien')
-        GROUP BY tp.id, tp.nom
-        HAVING count(op.id) <> CASE WHEN tp.nom = 'import' THEN 15 ELSE 17 END
-           OR count(DISTINCT op.niveau_operation) <> count(op.id)
-           OR min(op.niveau_operation) <> 1
-           OR max(op.niveau_operation) <> count(op.id)
-    ) THEN
-        RAISE EXCEPTION 'Les opérations doivent former les rangs uniques 1..15 (import) ou 1..17 (export), par production.';
-    END IF;
-
-    IF EXISTS (
-        SELECT 1 FROM operation_dossier
-        WHERE id_phase IS NULL OR id_type_production IS NULL OR id_statut IS NULL
-           OR id_statut = v_ouvert OR est_actif IS DISTINCT FROM TRUE
-    ) THEN
-        RAISE EXCEPTION 'Chaque opération active doit avoir une phase, une production et un statut précis ; Ouvert est réservé à la création.';
-    END IF;
-
-    -- Les listes de documents et les KPI applicatifs filtrent par production :
-    -- un type documentaire générique (production NULL) serait invisible ici.
-    IF EXISTS (
-        SELECT 1 FROM document_obligatoire_mvt obligation
-        JOIN operation_dossier op ON op.id = obligation.id_operation
-        JOIN type_document td ON td.id = obligation.id_type_document
-        WHERE td.id_type_production IS DISTINCT FROM op.id_type_production
-    ) THEN
-        RAISE EXCEPTION 'Les documents obligatoires d''une opération doivent avoir la même production que cette opération pour apparaître dans les listes et indicateurs.';
-    END IF;
-
-    IF EXISTS (
-        SELECT 1 FROM type_production tp
-        JOIN mode_transport mt ON mt.id = tp.id_mode_transport
-        CROSS JOIN (VALUES ('Facture commerciale'), ('Declaration en douane'), ('Facture proforma')) AS famille(nom)
-        WHERE tp.nom IN ('import', 'export') AND mt.nom IN ('Maritime', 'Aerien')
-          AND NOT EXISTS (
-              SELECT 1 FROM type_document td
-              WHERE td.id_type_production = tp.id AND td.nom LIKE famille.nom || '%'
-          )
-    ) THEN
-        RAISE EXCEPTION 'Chaque production import/export maritime/aérien doit proposer sa facture commerciale, sa déclaration en douane et sa facture proforma.';
-    END IF;
-
-    IF (SELECT count(*) FROM dossier) <> 300 OR (SELECT count(*) FROM ordre_transit) <> 320 THEN
-        RAISE EXCEPTION 'Le jeu doit contenir 300 dossiers et 320 ordres de transit.';
-    END IF;
-
-    IF (SELECT count(*) FROM ordre_transit ot WHERE NOT EXISTS (
-        SELECT 1 FROM dossier d WHERE d.id_ordre_transit = ot.id
-    )) < 20 THEN
-        RAISE EXCEPTION 'Au moins vingt ordres de transit doivent rester sans dossier.';
-    END IF;
-
-    IF (SELECT count(DISTINCT date_trunc('month', date_creation)) FROM dossier) <> 12
-       OR (SELECT count(DISTINCT date_creation::date) FROM dossier) < 30
-       OR (SELECT count(DISTINCT date_creation::date) FROM dossier
-           WHERE date_creation >= CURRENT_DATE - INTERVAL '29 days') < 2 THEN
-        RAISE EXCEPTION 'Les créations doivent couvrir douze mois, trente jours distincts et plusieurs jours sur les trente derniers jours.';
-    END IF;
-
-    IF EXISTS (
-        SELECT 1 FROM dossier d
-        LEFT JOIN ordre_transit ot ON ot.id = d.id_ordre_transit
-        WHERE d.date_creation IS NULL OR d.date_creation > NOW()
-           OR ot.id IS NULL OR ot.date_creation IS NULL OR ot.date_creation > d.date_creation
-           OR d.id_type_production IS DISTINCT FROM ot.id_type_production
-           OR d.id_client IS DISTINCT FROM ot.id_client
-    ) THEN
-        RAISE EXCEPTION 'Chaque dossier doit conserver le client et la production de son OT, créé au plus tard à la création du dossier.';
-    END IF;
-
-    IF (SELECT count(*) FROM dossier_interagence) <> 40
-       OR (SELECT count(DISTINCT id_sous_dossier) FROM dossier_interagence) <> 40
-       OR EXISTS (
-           SELECT 1 FROM dossier_interagence di
-           JOIN dossier mere ON mere.id = di.id_dossier_mere
-           JOIN dossier sous ON sous.id = di.id_sous_dossier
-           WHERE mere.id = sous.id
-              OR mere.id_agence IS NOT DISTINCT FROM sous.id_agence
-              OR mere.id_ordre_transit IS DISTINCT FROM sous.id_ordre_transit
-              OR mere.id_client IS DISTINCT FROM sous.id_client
-              OR mere.id_type_production IS DISTINCT FROM sous.id_type_production
-              OR sous.date_creation < mere.date_creation
-       ) THEN
-        RAISE EXCEPTION 'Les quarante sous-dossiers doivent partager OT, client et production de leur dossier mère, dans une autre agence, sans antériorité.';
-    END IF;
-
-    IF NOT EXISTS (SELECT 1 FROM mvt_dossier) OR EXISTS (
-        SELECT 1 FROM mvt_dossier m
-        JOIN dossier d ON d.id = m.id_dossier
-        JOIN operation_dossier op ON op.id = m.id_operation
-        WHERE op.id_type_production IS DISTINCT FROM d.id_type_production
-           OR m.date_mvt IS NULL OR m.date_mvt < d.date_creation OR m.date_mvt > NOW()
-           OR m.id_nouveau_statut IS DISTINCT FROM op.id_statut
-           OR m.id_ancienne_phase IS NULL OR m.id_nouvelle_phase IS NULL
-           OR m.id_ancien_statut IS NULL OR m.id_nouveau_statut IS NULL
-    ) THEN
-        RAISE EXCEPTION 'Les mouvements doivent suivre le type du dossier, le statut de leur opération et une chronologie dossier <= mouvement <= maintenant.';
-    END IF;
-
-    IF EXISTS (
-        SELECT 1 FROM (
-            SELECT m.*,
-                lag(m.id_nouvelle_phase, 1, v_preparation) OVER w AS phase_attendue,
-                lag(m.id_nouveau_statut, 1, v_ouvert) OVER w AS statut_attendu,
-                lag(m.date_mvt) OVER w AS date_precedente,
-                lag(op.niveau_operation) OVER w AS rang_precedent,
-                op.niveau_operation AS rang
-            FROM mvt_dossier m JOIN operation_dossier op ON op.id = m.id_operation
-            WHERE NOT coalesce(m.est_annule, FALSE)
-            WINDOW w AS (PARTITION BY m.id_dossier ORDER BY m.id)
-        ) chaine
-        WHERE id_ancienne_phase IS DISTINCT FROM phase_attendue
-           OR id_ancien_statut IS DISTINCT FROM statut_attendu
-           OR date_mvt < date_precedente OR rang <= rang_precedent
-    ) THEN
-        RAISE EXCEPTION 'La chaîne des mouvements doit conserver les anciennes phases/statuts et progresser dans l''ordre des opérations et des dates.';
-    END IF;
-
-    IF EXISTS (
-        SELECT 1 FROM dossier d
-        LEFT JOIN LATERAL (
-            SELECT m.id_nouvelle_phase, m.id_nouveau_statut FROM mvt_dossier m
-            WHERE m.id_dossier = d.id AND NOT coalesce(m.est_annule, FALSE)
-            ORDER BY m.id DESC LIMIT 1
-        ) dernier ON TRUE
-        WHERE d.id_phase IS DISTINCT FROM coalesce(dernier.id_nouvelle_phase, v_preparation)
-           OR d.id_statut IS DISTINCT FROM coalesce(dernier.id_nouveau_statut, v_ouvert)
-    ) THEN
-        RAISE EXCEPTION 'La phase et le statut de chaque dossier doivent correspondre à son dernier mouvement, ou à PREPARATION/Ouvert sans mouvement.';
-    END IF;
-
-    IF EXISTS (
-        SELECT 1 FROM document_mvt dm
-        JOIN document doc ON doc.id = dm.id_document
-        JOIN mvt_dossier m ON m.id = dm.id_mvt_dossier
-        WHERE doc.id_dossier IS DISTINCT FROM m.id_dossier OR doc.date_ajout > m.date_mvt
-    ) THEN
-        RAISE EXCEPTION 'Les documents joints à un mouvement doivent appartenir au même dossier et exister à la date du mouvement.';
-    END IF;
-
-    IF NOT EXISTS (SELECT 1 FROM document_obligatoire_mvt) OR EXISTS (
-        SELECT 1 FROM mvt_dossier m
-        JOIN document_obligatoire_mvt obligation ON obligation.id_operation = m.id_operation
-        WHERE NOT coalesce(m.est_annule, FALSE) AND NOT EXISTS (
-            SELECT 1 FROM document doc
-            WHERE doc.id_dossier = m.id_dossier
-              AND doc.id_type_document = obligation.id_type_document
-              AND doc.est_actif = TRUE AND doc.date_ajout <= m.date_mvt
-              AND EXISTS (
-                  SELECT 1 FROM remise r
-                  WHERE r.id_dossier = m.id_dossier AND r.id_type_document = doc.id_type_document
-                    AND r.date_remise <= m.date_mvt
-              )
-        )
-    ) THEN
-        RAISE EXCEPTION 'Les documents obligatoires des opérations effectuées doivent être présents, actifs et remis avant le mouvement.';
-    END IF;
-
-    IF EXISTS (SELECT 1 FROM utilisateur WHERE date_creation > NOW() OR date_modification > NOW())
-       OR EXISTS (SELECT 1 FROM clients WHERE date_creation > NOW())
-       OR EXISTS (SELECT 1 FROM ordre_transit WHERE date_creation > NOW())
-       OR EXISTS (SELECT 1 FROM document WHERE date_ajout > NOW())
-       OR EXISTS (SELECT 1 FROM remise WHERE date_remise > NOW())
-       OR EXISTS (SELECT 1 FROM declaration WHERE date_ajout > NOW() OR date_declaration > NOW()) THEN
-        RAISE EXCEPTION 'Les utilisateurs, clients, OT, ajouts de documents, remises et déclarations ne doivent pas être datés dans le futur.';
-    END IF;
-
-    RAISE NOTICE 'Vérifications du jeu donne_deepseek réussies dans le schéma %.', current_schema();
 END;
-$verification$;
-
--- Répartition visible dans le graphique annuel des créations.
-SELECT to_char(date_creation, 'YYYY-MM') AS mois, count(*) AS dossiers
-FROM dossier GROUP BY 1 ORDER BY 1;
-
--- Détail du graphique affiché par défaut sur les trente derniers jours.
-SELECT date_creation::date AS jour, count(*) AS dossiers
-FROM dossier WHERE date_creation >= CURRENT_DATE - INTERVAL '29 days'
-GROUP BY 1 ORDER BY 1;
-
-SELECT date_trunc('week', date_mvt)::date AS semaine, count(*) AS mouvements
-FROM mvt_dossier WHERE date_mvt >= NOW() - INTERVAL '8 weeks'
-GROUP BY 1 ORDER BY 1;
-
-SELECT ph.nom AS phase, s.nom AS statut, count(*) AS dossiers
-FROM dossier d JOIN phase_dossier ph ON ph.id = d.id_phase
-JOIN statut_dossier s ON s.id = d.id_statut
-GROUP BY ph.nom, s.nom ORDER BY ph.nom, s.nom;
+$$;
+SELECT 'Configuration initiale valide, tables metier vides' AS resultat;

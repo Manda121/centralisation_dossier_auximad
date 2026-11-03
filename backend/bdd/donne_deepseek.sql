@@ -971,6 +971,7 @@ END $$;
 COMMIT;
 
 update autorisation set niveau_autorisation = 10000;
+UPDATE utilisateur set id_agence = 1 where id = 7;
 commit;
 
 SELECT code from agence join utilisateur on agence.id = utilisateur.id_agence where utilisateur.id = 7;
