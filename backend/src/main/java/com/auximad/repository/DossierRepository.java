@@ -234,9 +234,13 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
             Integer clientId, Integer typeProductionId, Integer otId, Boolean estGroupage,
             String dateMin, String dateMax, Integer agenceId, String typeDossier, Pageable pageable) {
         return searchDossiersFiltres(query, phaseId, statutId, clientId, typeProductionId, otId,
-                estGroupage, dateMin, dateMax, agenceId, typeDossier, null,
-                null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, pageable);
+                estGroupage, dateMin, dateMax, agenceId, typeDossier,
+                null, null, null, null, null, // documents, activité, clôture, échéance, demande
+                null, null, null, // numéro dossier, client, compte client
+                null, null, null, null, // OT, pays origine/destination, incoterme
+                null, null, null, null, // pour compte, départ, livraison, paiement fret
+                null, null, null, null, // prépayé, provisionné, bornes de provision
+                null, null, null, null, pageable); // bornes d'échéance et de livraison
     }
 
     @Query(value = """

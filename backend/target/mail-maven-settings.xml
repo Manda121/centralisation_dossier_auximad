@@ -1,0 +1,3 @@
+﻿<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0">
+  <mirrors><mirror><id>cached-local</id><mirrorOf>*</mirrorOf><url>file:///C:/Users/Mandaniaina/.m2/repository</url></mirror></mirrors>
+</settings>

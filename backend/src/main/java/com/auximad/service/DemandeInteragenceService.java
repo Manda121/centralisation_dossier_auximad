@@ -32,17 +32,20 @@ public class DemandeInteragenceService {
     private final AgenceRepository agenceRepository;
     private final UtilisateurRepository utilisateurRepository;
     private final InterAgenceService interAgenceService;
+    private final NotificationInteragenceService notificationInteragenceService;
 
     public DemandeInteragenceService(DemandeInteragenceRepository demandeRepository,
                                    DossierRepository dossierRepository,
                                    AgenceRepository agenceRepository,
                                    UtilisateurRepository utilisateurRepository,
-                                   InterAgenceService interAgenceService) {
+                                   InterAgenceService interAgenceService,
+                                   NotificationInteragenceService notificationInteragenceService) {
         this.demandeRepository = demandeRepository;
         this.dossierRepository = dossierRepository;
         this.agenceRepository = agenceRepository;
         this.utilisateurRepository = utilisateurRepository;
         this.interAgenceService = interAgenceService;
+        this.notificationInteragenceService = notificationInteragenceService;
     }
 
     @Transactional
@@ -80,7 +83,9 @@ public class DemandeInteragenceService {
         demande.setEstVue(false);
         demande.setDateDemande(LocalDateTime.now());
 
-        return demandeRepository.save(demande);
+        DemandeInteragence enregistree = demandeRepository.save(demande);
+        notificationInteragenceService.preparer(enregistree);
+        return enregistree;
     }
 
     @Transactional
@@ -138,6 +143,8 @@ public class DemandeInteragenceService {
             throw new SecurityException("Seule l'agence émettrice peut modifier cette demande.");
         }
 
+        Integer ancienneAgence = demande.getAgenceDestinataire().getId();
+        String ancienMotif = demande.getMotif();
         if (request.getIdAgenceDestinataire() != null) {
             Agence agenceDest = agenceRepository.findById(request.getIdAgenceDestinataire())
                     .orElseThrow(() -> new IllegalArgumentException("Agence destinataire introuvable : " + request.getIdAgenceDestinataire()));
@@ -151,7 +158,12 @@ public class DemandeInteragenceService {
             demande.setMotif(request.getMotif());
         }
 
-        return demandeRepository.save(demande);
+        DemandeInteragence enregistree = demandeRepository.save(demande);
+        if (!java.util.Objects.equals(ancienneAgence, demande.getAgenceDestinataire().getId())
+                || !java.util.Objects.equals(ancienMotif, demande.getMotif())) {
+            notificationInteragenceService.preparer(enregistree);
+        }
+        return enregistree;
     }
 
     @Transactional
