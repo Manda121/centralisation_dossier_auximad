@@ -34,17 +34,19 @@ public interface DocumentObligatoireMvtRepository extends JpaRepository<Document
      * Liste des types de documents obligatoires manquants pour une operation
      * donnee (utilisee par la fenetre d'assignation de document).
      */
-    @Query(value = """
-        SELECT td.* FROM document_obligatoire_mvt dov
-        JOIN type_document td ON td.id = dov.id_type_document
-        JOIN dossier dos ON dos.id = :dossierId
-        LEFT JOIN ordre_transit ot ON ot.id = dos.id_ordre_transit
-        WHERE dov.id_operation = :operationId
-          AND (td.id_nature_marchandise IS NULL OR td.id_nature_marchandise = ot.id_nature_marchandise)
-          AND NOT EXISTS (SELECT 1 FROM document doc
-            WHERE doc.id_dossier = dos.id AND doc.id_type_document = td.id AND doc.est_actif = true)
+    // Une selection JPQL d'entite evite la conversion de lignes Object[] issues
+    // d'une requete native sur un repository dont l'entite racine est differente.
+    @Query("""
+        SELECT td FROM DocumentObligatoireMvt dov
+        JOIN dov.typeDocument td, Dossier dos
+        LEFT JOIN dos.ordreTransit ot
+        LEFT JOIN ot.natureMarchandise nature
+        WHERE dos.id = :dossierId AND dov.operation.id = :operationId
+          AND (td.natureMarchandise IS NULL OR td.natureMarchandise.id = nature.id)
+          AND NOT EXISTS (SELECT doc.id FROM Document doc
+            WHERE doc.dossier.id = dos.id AND doc.typeDocument.id = td.id AND doc.estActif = true)
         ORDER BY td.nom
-    """, nativeQuery = true)
+    """)
     List<TypeDocument> findManquants(@Param("dossierId") Integer dossierId,
                                      @Param("operationId") Integer operationId);
 

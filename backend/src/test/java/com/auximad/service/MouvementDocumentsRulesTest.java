@@ -29,6 +29,7 @@ class MouvementDocumentsRulesTest {
     @Mock DocumentMvtRepository documentMvtRepository;
     @Mock DocumentService documentService;
     @Mock DossierWorkflowService workflowService;
+    @Mock SynchronisationMouvementsService synchronisation;
     @InjectMocks MvtDossierService service;
 
     @AfterEach void cleanup() { SecurityContextHolder.clearContext(); }
@@ -48,6 +49,8 @@ class MouvementDocumentsRulesTest {
         assertTrue(error.getMessage().contains("documents obligatoires"));
         verifyNoInteractions(mvtDossierRepository, documentMvtRepository);
         verify(dossierRepository, never()).save(any());
+        verify(synchronisation).verrouillerFamille(1);
+        verify(synchronisation, never()).synchroniserDepuis(any());
     }
 
     @Test void completeDocumentsAllowMovement() throws Exception {
@@ -70,5 +73,7 @@ class MouvementDocumentsRulesTest {
         assertSame(utilisateur, mouvement.getUtilisateur());
         verify(mvtDossierRepository).save(any());
         verify(dossierRepository).save(d);
+        verify(synchronisation).verrouillerFamille(1);
+        verify(synchronisation).synchroniserDepuis(d);
     }
 }

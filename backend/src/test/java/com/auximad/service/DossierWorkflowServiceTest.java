@@ -3,6 +3,7 @@ package com.auximad.service;
 import com.auximad.entity.*;
 import com.auximad.repository.*;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -26,7 +27,14 @@ class DossierWorkflowServiceTest {
     @Mock TypeDocumentRepository typesDocuments;
     @Mock DocumentRepository documents;
     @Mock UtilisateurRepository utilisateurs;
+    @Mock SynchronisationMouvementsService synchronisation;
     @InjectMocks DossierWorkflowService workflow;
+
+    @BeforeEach void mouvementDossierPourVerrouillage() {
+        lenient().when(mouvements.findDossierIdByMouvementId(anyInt())).thenAnswer(call ->
+                mouvements.findById(call.getArgument(0, Integer.class))
+                        .map(mouvement -> mouvement.getDossier().getId()));
+    }
 
     private PhaseDossier phase(int id, String nom) {
         PhaseDossier phase = new PhaseDossier(); phase.setId(id); phase.setNom(nom); return phase;

@@ -18,8 +18,8 @@ class InterAgenceMultipleAgenciesTest {
     private final UtilisateurRepository utilisateurs = mock(UtilisateurRepository.class);
     private final DossierService sauvegarde = mock(DossierService.class);
     private final HeritageSousDossierService heritage = mock(HeritageSousDossierService.class);
-    private final DossierWorkflowService workflow = mock(DossierWorkflowService.class);
-    private final InterAgenceService service = new InterAgenceService(liens, dossiers, agences, utilisateurs, sauvegarde, heritage, workflow);
+    private final SynchronisationMouvementsService synchronisation = mock(SynchronisationMouvementsService.class);
+    private final InterAgenceService service = new InterAgenceService(liens, dossiers, agences, utilisateurs, sauvegarde, heritage, synchronisation);
 
     @AfterEach void nettoyer() { SecurityContextHolder.clearContext(); }
 
@@ -46,6 +46,8 @@ class InterAgenceMultipleAgenciesTest {
         assertSame(mere.getOrdreTransit(), deuxieme.getSousDossier().getOrdreTransit());
         verify(heritage).copierRessources(mere, premier.getSousDossier());
         verify(heritage).copierRessources(mere, deuxieme.getSousDossier());
+        verify(synchronisation, times(2)).verrouillerFamille(10);
+        verify(synchronisation, times(2)).synchroniserDepuis(mere);
         verify(liens, times(2)).save(any());
         when(liens.existsByDossierMereIdAndSousDossierAgenceId(10, 2)).thenReturn(true);
         request.setIdAgence(2);

@@ -34,6 +34,7 @@ public class MvtDossierService {
     private final DocumentMvtRepository documentMvtRepository;
     private final DocumentService documentService;
     private final DossierWorkflowService workflowService;
+    private final SynchronisationMouvementsService synchronisation;
 
     public MvtDossierService(MvtDossierRepository mvtDossierRepository,
                              DossierRepository dossierRepository,
@@ -43,7 +44,8 @@ public class MvtDossierService {
                              DocumentRepository documentRepository,
                              DocumentMvtRepository documentMvtRepository,
                              DocumentService documentService,
-                             DossierWorkflowService workflowService) {
+                             DossierWorkflowService workflowService,
+                             SynchronisationMouvementsService synchronisation) {
         this.mvtDossierRepository = mvtDossierRepository;
         this.dossierRepository = dossierRepository;
         this.operationDossierRepository = operationDossierRepository;
@@ -53,6 +55,7 @@ public class MvtDossierService {
         this.documentMvtRepository = documentMvtRepository;
         this.documentService = documentService;
         this.workflowService = workflowService;
+        this.synchronisation = synchronisation;
     }
 
     @Transactional(readOnly = true)
@@ -216,8 +219,9 @@ public class MvtDossierService {
         return statusList;
     }
 
-    @Transactional
+    @Transactional(rollbackFor = IOException.class)
     public MvtDossier creerMouvement(MvtDossierRequest req, MultipartFile file) throws IOException {
+        synchronisation.verrouillerFamille(req.getDossierId());
         Dossier dossier = dossierRepository.findById(req.getDossierId())
                 .orElseThrow(() -> new IllegalArgumentException("Dossier introuvable : " + req.getDossierId()));
 
@@ -294,6 +298,7 @@ public class MvtDossierService {
         dossier.setPhaseDossier(mvt.getNouvellePhase());
         dossier.setStatutDossier(mvt.getNouveauStatut());
         dossierRepository.save(dossier);
+        synchronisation.synchroniserDepuis(dossier);
 
         return savedMvt;
     }

@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.auximad.service.EnvoiMailServiceTest
 -------------------------------------------------------------------------------
-Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.378 s -- in com.auximad.service.EnvoiMailServiceTest
+Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.299 s -- in com.auximad.service.EnvoiMailServiceTest

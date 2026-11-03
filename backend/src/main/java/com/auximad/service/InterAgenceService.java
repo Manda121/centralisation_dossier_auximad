@@ -21,7 +21,7 @@ public class InterAgenceService {
     private final UtilisateurRepository utilisateurRepository;
     private final DossierService dossierService;
     private final HeritageSousDossierService heritageSousDossierService;
-    private final DossierWorkflowService workflowService;
+    private final SynchronisationMouvementsService synchronisation;
 
     public InterAgenceService(DossierInteragenceRepository interagenceRepository,
                                DossierRepository dossierRepository,
@@ -29,14 +29,14 @@ public class InterAgenceService {
                                UtilisateurRepository utilisateurRepository,
                                DossierService dossierService,
                                HeritageSousDossierService heritageSousDossierService,
-                               DossierWorkflowService workflowService) {
+                               SynchronisationMouvementsService synchronisation) {
         this.interagenceRepository = interagenceRepository;
         this.dossierRepository = dossierRepository;
         this.agenceRepository = agenceRepository;
         this.utilisateurRepository = utilisateurRepository;
         this.dossierService = dossierService;
         this.heritageSousDossierService = heritageSousDossierService;
-        this.workflowService = workflowService;
+        this.synchronisation = synchronisation;
     }
 
     /**
@@ -56,6 +56,7 @@ public class InterAgenceService {
         );
 
         // 2. Charger le dossier mère
+        synchronisation.verrouillerFamille(idDossierMere);
         Dossier mere = dossierRepository.verrouillerInteragence(idDossierMere)
                 .orElseThrow(() -> new IllegalArgumentException("Dossier mère introuvable : " + idDossierMere));
 
@@ -91,19 +92,16 @@ public class InterAgenceService {
         sousDossier.setProvisionDemandee(java.math.BigDecimal.ZERO);
         sousDossier.setDateCreation(LocalDateTime.now());
 
-        // Choisir le type de production (override possible)
-        if (request.getIdTypeProduction() != null) {
-            TypeProduction tp = new TypeProduction();
-            tp.setId(request.getIdTypeProduction());
-            sousDossier.setTypeProduction(tp);
-        } else {
-            sousDossier.setTypeProduction(mere.getTypeProduction());
+        // Le meme flux est necessaire pour partager les memes operations.
+        if (request.getIdTypeProduction() != null && (mere.getTypeProduction() == null
+                || !request.getIdTypeProduction().equals(mere.getTypeProduction().getId()))) {
+            throw new IllegalArgumentException("Le sous-dossier doit conserver le type de production du dossier mere.");
         }
+        sousDossier.setTypeProduction(mere.getTypeProduction());
 
         // 6. Sauvegarder le sous-dossier (génère son numéro automatiquement)
         Dossier savedSousDossier = dossierService.saveDossier(sousDossier);
         heritageSousDossierService.copierRessources(mere, savedSousDossier);
-        workflowService.synchroniserDocuments(savedSousDossier.getId());
 
         // 7. Créer le lien interagence
         DossierInteragence lien = new DossierInteragence();
@@ -112,7 +110,9 @@ public class InterAgenceService {
         lien.setMotif(request.getMotif());
         lien.setDateCreation(LocalDateTime.now());
 
-        return interagenceRepository.save(lien);
+        DossierInteragence savedLien = interagenceRepository.save(lien);
+        synchronisation.synchroniserDepuis(mere);
+        return savedLien;
     }
 
     /**

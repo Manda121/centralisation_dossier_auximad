@@ -488,8 +488,9 @@ update autorisation set niveau_autorisation = 10000;
 UPDATE utilisateur set id_agence = 1 where id = 7;
 UPDATE utilisateur SET nom_utilisateur = 'admin', nom = 'admin' WHERE id = 7;
 
+update autorisation set niveau_autorisation = 900 where id = 3;
 UPDATE utilisateur set id_agence = 3 where id = 3;
-UPDATE utilisateur SET nom_utilisateur = 'admintmg', nom = 'admintmg' WHERE id = 3;
+UPDATE utilisateur SET nom_utilisateur = 'agentTamatave', nom = 'AgentTamatave' WHERE id = 3;
 
 commit;
 

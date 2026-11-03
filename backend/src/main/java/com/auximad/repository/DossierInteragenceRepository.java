@@ -2,6 +2,7 @@ package com.auximad.repository;
 
 import com.auximad.entity.DossierInteragence;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -9,6 +10,9 @@ import java.util.Optional;
 
 @Repository
 public interface DossierInteragenceRepository extends JpaRepository<DossierInteragence, Integer> {
+
+    @Query("SELECT DISTINCT lien.dossierMere.id FROM DossierInteragence lien ORDER BY lien.dossierMere.id")
+    List<Integer> findDossierMereIds();
 
     /** Tous les sous-dossiers d'un dossier mère */
     List<DossierInteragence> findByDossierMereId(Integer dossierMereId);

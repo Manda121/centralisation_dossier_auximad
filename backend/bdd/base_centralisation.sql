@@ -542,8 +542,12 @@ CREATE TABLE mvt_dossier(
     date_mvt TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP,
     origine VARCHAR(30) DEFAULT 'SAISIE',
     groupe_ajustement VARCHAR(36),
+    cle_partage VARCHAR(36),
     est_annule BOOLEAN NOT NULL DEFAULT FALSE
 );
+
+CREATE UNIQUE INDEX idx_mvt_partage_actif ON mvt_dossier(id_dossier, cle_partage)
+    WHERE est_annule = FALSE AND cle_partage IS NOT NULL;
 
 CREATE TABLE mvt_annulee(
     id SERIAL PRIMARY KEY,

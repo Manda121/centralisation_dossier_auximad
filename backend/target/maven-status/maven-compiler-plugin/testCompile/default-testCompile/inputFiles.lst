@@ -7,6 +7,7 @@ D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\Co
 D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\DashboardServicePostgresTest.java
 D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\DemandeInteragenceEmailTest.java
 D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\DocumentObligatoireMvtServiceTest.java
+D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\DocumentsManquantsMappingPostgresTest.java
 D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\DossierCreationRulesTest.java
 D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\DossierWorkflowServiceTest.java
 D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\EmailWorkflowPostgresTest.java
@@ -19,3 +20,4 @@ D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\Mv
 D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\NotificationInteragenceServiceTest.java
 D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\OrdreTransitExpeditionTest.java
 D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\SuppressionServicePostgresTest.java
+D:\Stage Auximad\centralisation_app\backend\src\test\java\com\auximad\service\SynchronisationMouvementsPostgresTest.java

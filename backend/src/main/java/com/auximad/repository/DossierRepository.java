@@ -19,6 +19,21 @@ public interface DossierRepository extends JpaRepository<Dossier, Integer> {
     @Query("select d from Dossier d where d.id = :id")
     Optional<Dossier> verrouillerInteragence(@Param("id") Integer id);
 
+    /** Famille complete, en remontant et descendant les liens, sans doublon ni boucle. */
+    @Query(value = """
+        WITH RECURSIVE famille(id) AS (
+            SELECT d.id FROM dossier d WHERE d.id = :dossierId
+            UNION
+            SELECT CASE WHEN lien.id_dossier_mere = membre.id
+                        THEN lien.id_sous_dossier ELSE lien.id_dossier_mere END
+            FROM famille membre
+            JOIN dossier_interagence lien
+              ON lien.id_dossier_mere = membre.id OR lien.id_sous_dossier = membre.id
+        )
+        SELECT id FROM famille ORDER BY id
+        """, nativeQuery = true)
+    List<Integer> findFamilleIds(@Param("dossierId") Integer dossierId);
+
     Optional<Dossier> findByOrdreTransitId(Integer ordreTransitId);
 
     Optional<Dossier> findByOrdreTransitIdAndAgenceId(Integer ordreTransitId, Integer agenceId);

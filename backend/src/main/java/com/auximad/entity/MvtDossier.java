@@ -58,6 +58,10 @@ public class MvtDossier {
     @Column(name = "groupe_ajustement", length = 36)
     private String groupeAjustement;
 
+    /** Identifie le meme evenement dans les dossiers d'une famille interagence. */
+    @Column(name = "cle_partage", length = 36)
+    private String clePartage;
+
     @Column(name = "est_annule", nullable = false)
     private Boolean estAnnule = false;
 
