@@ -7,26 +7,26 @@ BEGIN;
 -- ============================================================
 -- 0. STATUTS DOSSIER DANS L'ORDRE DU DEROULEMENT
 -- ============================================================
--- Après une réinitialisation, les identifiants suivent cet ordre.
+-- Apres une reinitialisation, les identifiants suivent cet ordre.
 -- Pour l'affichage SQL : SELECT * FROM statut_dossier ORDER BY id;
 INSERT INTO statut_dossier (nom, description) VALUES
-('Ouvert', 'Dossier créé, aucune opération effectuée'),
-('Client avisé', 'Dernière opération effectuée : Avis d arrivée client'),
-('Réservation confirmée', 'Dernière opération effectuée : Réservation TC/Ligne'),
-('Documents reçus', 'Dernière opération effectuée : Réception Doc'),
-('Conteneur positionné', 'Dernière opération effectuée : Position container'),
-('Expertise réalisée', 'Dernière opération effectuée : Expertise'),
-('Déclaration établie', 'Dernière opération effectuée : Déclaration'),
-('Visite/scan effectué', 'Dernière opération effectuée : Visite/Scan'),
-('Droits et taxes payés', 'Dernière opération effectuée : Paiement Droit & Taxes'),
-('PG payé', 'Dernière opération effectuée : Paiement PG'),
-('Bon à enlever obtenu', 'Dernière opération effectuée : Bon à enlever'),
-('Provision enregistrée', 'Dernière opération effectuée : Provision (pour fret et débours)'),
-('Facturé', 'Dernière opération effectuée : Facturation'),
-('Payé', 'Dernière opération effectuée : Paiement'),
-('Clôturé', 'Dossier finalisé après paiement et clôture'),
+('Ouvert', 'Dossier cree, aucune operation effectuee'),
+('Client avise', 'Derniere operation effectuee : Avis d arrivee client'),
+('Reservation confirmee', 'Derniere operation effectuee : Reservation TC/Ligne'),
+('Documents reçus', 'Derniere operation effectuee : Reception Doc'),
+('Conteneur positionne', 'Derniere operation effectuee : Position container'),
+('Expertise realisee', 'Derniere operation effectuee : Expertise'),
+('Declaration etablie', 'Derniere operation effectuee : Declaration'),
+('Visite/scan effectue', 'Derniere operation effectuee : Visite/Scan'),
+('Droits et taxes payes', 'Derniere operation effectuee : Paiement Droit & Taxes'),
+('PG paye', 'Derniere operation effectuee : Paiement PG'),
+('Bon à enlever obtenu', 'Derniere operation effectuee : Bon à enlever'),
+('Provision enregistree', 'Derniere operation effectuee : Provision (pour fret et debours)'),
+('Facture', 'Derniere operation effectuee : Facturation'),
+('Paye', 'Derniere operation effectuee : Paiement'),
+('Cloture', 'Dossier finalise apres paiement et cloture'),
 ('En litige', 'Dossier suspendu pour un litige'),
-('Annulé', 'Dossier annulé');
+('Annule', 'Dossier annule');
 
 -- ============================================================
 -- 0bis. STATUT ORDRE DE TRANSIT
@@ -142,55 +142,55 @@ INSERT INTO nature_marchandise (nom, description) VALUES
 -- Trois phases communes aux flux import et export.
 -- PREPARATION et Ouvert conservent les noms attendus par le service Java.
 INSERT INTO phase_dossier (nom, id_mode_transport, description) VALUES
-('PREPARATION', NULL, 'Préparation documentaire et expertise'),
-('TRAITEMENT', NULL, 'Formalités douanières et règlements associés'),
-('COMPTABILITE', NULL, 'Provision, facturation, paiement et clôture');
+('PREPARATION', NULL, 'Preparation documentaire et expertise'),
+('TRAITEMENT', NULL, 'Formalites douanieres et reglements associes'),
+('COMPTABILITE', NULL, 'Provision, facturation, paiement et cloture');
 
--- Première liste = import, seconde liste = export.
--- Chaque opération est déclinée en maritime et aérien. Le niveau_operation
--- suit strictement l'ordre des étapes, du début à la clôture de chaque flux.
--- Une opération sans statut associé conserve le statut précédent du dossier.
+-- Premiere liste = import, seconde liste = export.
+-- Chaque operation est declinee en maritime et aerien. Le niveau_operation
+-- suit strictement l'ordre des etapes, du debut à la cloture de chaque flux.
+-- Une operation sans statut associe conserve le statut precedent du dossier.
 INSERT INTO operation_dossier
     (description, id_phase, id_statut, id_type_production,
      niveau_autorisation, niveau_validation, niveau_operation, est_obligatoire, est_actif)
 SELECT t.description, ph.id, st.id, tp.id,
        CASE t.phase WHEN 'PREPARATION' THEN 1 WHEN 'TRAITEMENT' THEN 2 ELSE 4 END,
-       CASE WHEN t.description = 'Clôture' THEN 5
+       CASE WHEN t.description = 'Cloture' THEN 5
             WHEN t.phase = 'COMPTABILITE' THEN 4 WHEN t.phase = 'TRAITEMENT' THEN 2 ELSE 1 END,
        t.rang, TRUE, TRUE
 FROM (VALUES
-    ('import', 'PREPARATION', 'Avis d arrivée client', 'Client avisé', 1),
+    ('import', 'PREPARATION', 'Avis d arrivee client', 'Client avise', 1),
     ('import', 'PREPARATION', 'Envoi proforma', NULL, 2),
     ('import', 'PREPARATION', 'Premier envoi document', NULL, 3),
-    ('import', 'PREPARATION', 'Premier réception document', NULL, 4),
-    ('import', 'PREPARATION', 'Expertise', 'Expertise réalisée', 5),
-    ('import', 'TRAITEMENT', 'Déclaration', 'Déclaration établie', 6),
+    ('import', 'PREPARATION', 'Premier reception document', NULL, 4),
+    ('import', 'PREPARATION', 'Expertise', 'Expertise realisee', 5),
+    ('import', 'TRAITEMENT', 'Declaration', 'Declaration etablie', 6),
     ('import', 'TRAITEMENT', 'Dispatche/Passeur', NULL, 7),
-    ('import', 'TRAITEMENT', 'Visite/Scan', 'Visite/scan effectué', 8),
-    ('import', 'TRAITEMENT', 'Paiement Droit & Taxes', 'Droits et taxes payés', 9),
+    ('import', 'TRAITEMENT', 'Visite/Scan', 'Visite/scan effectue', 8),
+    ('import', 'TRAITEMENT', 'Paiement Droit & Taxes', 'Droits et taxes payes', 9),
     ('import', 'TRAITEMENT', 'Confirmation paiement Droit & Taxes', NULL, 10),
-    ('import', 'COMPTABILITE', 'Provision (pour fret et débours)', 'Provision enregistrée', 11),
-    ('import', 'COMPTABILITE', 'Facturation', 'Facturé', 12),
+    ('import', 'COMPTABILITE', 'Provision (pour fret et debours)', 'Provision enregistree', 11),
+    ('import', 'COMPTABILITE', 'Facturation', 'Facture', 12),
     ('import', 'COMPTABILITE', 'Transmission', NULL, 13),
-    ('import', 'COMPTABILITE', 'Paiement', 'Payé', 14),
-    ('import', 'COMPTABILITE', 'Clôture', 'Clôturé', 15),
-    ('export', 'PREPARATION', 'Préalerte', NULL, 1),
-    ('export', 'PREPARATION', 'Réservation TC/Ligne', 'Réservation confirmée', 2),
-    ('export', 'PREPARATION', 'Réception Doc', 'Documents reçus', 3),
+    ('import', 'COMPTABILITE', 'Paiement', 'Paye', 14),
+    ('import', 'COMPTABILITE', 'Cloture', 'Cloture', 15),
+    ('export', 'PREPARATION', 'Prealerte', NULL, 1),
+    ('export', 'PREPARATION', 'Reservation TC/Ligne', 'Reservation confirmee', 2),
+    ('export', 'PREPARATION', 'Reception Doc', 'Documents reçus', 3),
     ('export', 'PREPARATION', 'Envoi proforma', NULL, 4),
-    ('export', 'PREPARATION', 'Position container', 'Conteneur positionné', 5),
-    ('export', 'PREPARATION', 'Expertise', 'Expertise réalisée', 6),
-    ('export', 'TRAITEMENT', 'Déclaration', 'Déclaration établie', 7),
+    ('export', 'PREPARATION', 'Position container', 'Conteneur positionne', 5),
+    ('export', 'PREPARATION', 'Expertise', 'Expertise realisee', 6),
+    ('export', 'TRAITEMENT', 'Declaration', 'Declaration etablie', 7),
     ('export', 'TRAITEMENT', 'Dispatche/Passeur', NULL, 8),
-    ('export', 'TRAITEMENT', 'Dépôt Déclaration', NULL, 9),
-    ('export', 'TRAITEMENT', 'Paiement PG', 'PG payé', 10),
+    ('export', 'TRAITEMENT', 'Depot Declaration', NULL, 9),
+    ('export', 'TRAITEMENT', 'Paiement PG', 'PG paye', 10),
     ('export', 'TRAITEMENT', 'Bon à enlever', 'Bon à enlever obtenu', 11),
-    ('export', 'TRAITEMENT', 'Récupération documents', NULL, 12),
-    ('export', 'COMPTABILITE', 'Provision', 'Provision enregistrée', 13),
-    ('export', 'COMPTABILITE', 'Facturation', 'Facturé', 14),
+    ('export', 'TRAITEMENT', 'Recuperation documents', NULL, 12),
+    ('export', 'COMPTABILITE', 'Provision', 'Provision enregistree', 13),
+    ('export', 'COMPTABILITE', 'Facturation', 'Facture', 14),
     ('export', 'COMPTABILITE', 'Transmission', NULL, 15),
-    ('export', 'COMPTABILITE', 'Paiement', 'Payé', 16),
-    ('export', 'COMPTABILITE', 'Clôture', 'Clôturé', 17)
+    ('export', 'COMPTABILITE', 'Paiement', 'Paye', 16),
+    ('export', 'COMPTABILITE', 'Cloture', 'Cloture', 17)
 ) AS t(sens, phase, description, statut, rang)
 JOIN type_production tp ON tp.nom = t.sens
 JOIN phase_dossier ph ON ph.nom = t.phase
@@ -270,23 +270,23 @@ INSERT INTO pays (nom, code) VALUES
 -- TYPE_DECLARATION
 -- ============================================================
 INSERT INTO type_declaration (nom, description) VALUES
-('Mise à la consommation (IM4)', 'Déclaration pour mise à la consommation directe'),
-('Régime économique (IM5)', 'Déclaration liée au régime économique IM5'),
-('Régime économique (IM7)', 'Déclaration liée au régime économique IM7'),
-('Régime transitoire ou ordinaire (IM8)', 'Déclaration liée aux régimes IM8 8900 ou 8000'),
-('Exportation définitive (EX1)', 'Déclaration d''exportation définitive'),
-('Exportation temporaire (EX2)', 'Déclaration liée au régime temporaire EX2');
+('Mise à la consommation (IM4)', 'Declaration pour mise à la consommation directe'),
+('Regime economique (IM5)', 'Declaration liee au regime economique IM5'),
+('Regime economique (IM7)', 'Declaration liee au regime economique IM7'),
+('Regime transitoire ou ordinaire (IM8)', 'Declaration liee aux regimes IM8 8900 ou 8000'),
+('Exportation definitive (EX1)', 'Declaration d''exportation definitive'),
+('Exportation temporaire (EX2)', 'Declaration liee au regime temporaire EX2');
 
 -- ============================================================
--- TYPE_DOCUMENT : id=1 pour attachement mvt, id=2 pour déclaration
+-- TYPE_DOCUMENT : id=1 pour attachement mvt, id=2 pour declaration
 -- ============================================================
 -- INSERT INTO type_document (id, nom, id_type_production, id_nature_marchandise, est_obligatoire, description) VALUES
 -- (1, 'Document d''attachement', NULL, NULL, FALSE, 'Document d''attachement pour les mouvements de dossier'),
--- (2, 'Document de déclaration', NULL, NULL, FALSE, 'Document de déclaration douanière');
+-- (2, 'Document de declaration', NULL, NULL, FALSE, 'Document de declaration douaniere');
 
 INSERT INTO type_document (nom, id_type_production, id_nature_marchandise, est_obligatoire, description) VALUES
 ('Document d''attachement', NULL, NULL, FALSE, 'Document d''attachement pour les mouvements de dossier'),
-('Document de déclaration', NULL, NULL, FALSE, 'Document de déclaration douanière'),
+('Document de declaration', NULL, NULL, FALSE, 'Document de declaration douaniere'),
 ('Facture commerciale', (SELECT id FROM type_production WHERE nom = 'import' AND id_mode_transport = (SELECT id FROM mode_transport WHERE nom = 'Maritime')), NULL, TRUE, 'Facture commerciale'),
 ('Liste de colisage', (SELECT id FROM type_production WHERE nom = 'import' AND id_mode_transport = (SELECT id FROM mode_transport WHERE nom = 'Maritime')), NULL, TRUE, 'Liste de colisage'),
 ('Connaissement maritime', (SELECT id FROM type_production WHERE nom = 'import' AND id_mode_transport = (SELECT id FROM mode_transport WHERE nom = 'Maritime')), NULL, TRUE, 'Connaissement maritime'),
@@ -316,16 +316,16 @@ INSERT INTO type_document (nom, id_type_production, id_nature_marchandise, est_o
 ('Attestation de non-radioactivite', (SELECT id FROM type_production WHERE nom = 'import' AND id_mode_transport = (SELECT id FROM mode_transport WHERE nom = 'Maritime')), NULL, FALSE, 'Attestation de non-radioactivite'),
 ('Certificat de conformite', (SELECT id FROM type_production WHERE nom = 'import' AND id_mode_transport = (SELECT id FROM mode_transport WHERE nom = 'Maritime')), (SELECT id FROM nature_marchandise WHERE nom = 'Electronique'), TRUE, 'Certificat de conformite');
 
--- Les noms de types documentaires sont uniques dans le schéma. Conserver
+-- Les noms de types documentaires sont uniques dans le schema. Conserver
 -- leur production pour les listes documentaires et les indicateurs du tableau
--- de bord ; suffixer les noms ajoutés avec le flux et le mode de transport.
+-- de bord ; suffixer les noms ajoutes avec le flux et le mode de transport.
 INSERT INTO type_document (nom, id_type_production, est_obligatoire, description)
 SELECT t.nom || ' - ' || tp.description, tp.id, t.obligatoire, t.description
 FROM type_production tp
 CROSS JOIN (VALUES
-    ('Declaration en douane', TRUE, 'Déclaration douanière du dossier'),
+    ('Declaration en douane', TRUE, 'Declaration douaniere du dossier'),
     ('Facture commerciale', TRUE, 'Facture commerciale du dossier'),
-    ('Facture proforma', FALSE, 'Proforma envoyée au client')
+    ('Facture proforma', FALSE, 'Proforma envoyee au client')
 ) AS t(nom, obligatoire, description)
 WHERE tp.nom IN ('import', 'export')
   AND NOT EXISTS (SELECT 1 FROM type_document td WHERE td.nom = t.nom AND td.id_type_production = tp.id);
@@ -342,10 +342,10 @@ FROM operation_dossier op
 JOIN type_production tp ON tp.id = op.id_type_production
 JOIN mode_transport mt ON mt.id = tp.id_mode_transport
 JOIN type_document td ON td.id_type_production = op.id_type_production
-WHERE (op.description IN ('Premier réception document', 'Réception Doc')
+WHERE (op.description IN ('Premier reception document', 'Reception Doc')
        AND ((mt.nom = 'Maritime' AND td.nom LIKE 'Connaissement maritime%')
          OR (mt.nom = 'Aerien' AND td.nom LIKE 'Lettre de transport aerien%')))
-   OR (op.description IN ('Déclaration', 'Dépôt Déclaration') AND td.nom LIKE 'Declaration en douane%')
+   OR (op.description IN ('Declaration', 'Depot Declaration') AND td.nom LIKE 'Declaration en douane%')
    OR (op.description = 'Envoi proforma' AND td.nom LIKE 'Facture proforma%')
    OR (op.description = 'Facturation' AND td.nom LIKE 'Facture commerciale%');
 
@@ -448,7 +448,7 @@ INSERT INTO unite_mesure (nom, rapport_m_cube, description) VALUES
 -- Insertion des actions de base
 INSERT INTO action (nom, description) VALUES
     ('visualisation', 'Visualisation d''un dossier ou d''une ressource'),
-    ('creation', 'Création d''un dossier ou d''une ressource'),
+    ('creation', 'Creation d''un dossier ou d''une ressource'),
     ('modification', 'Modification d''un dossier ou d''une ressource'),
     ('suppression', 'Suppression d''un dossier ou d''une ressource'),
     ('validation', 'Validation d''un dossier ou d''une ressource')
@@ -475,8 +475,8 @@ BEGIN
         VALUES ('user' || i, 'NomUser' || i, 'PrenomUser' || i, 'user' || i || '@transit.mg',
                 '$2a$12$KovwAzSOJPTaWqYJ2UgE/.sztG.CGSEgGa/QfoV.qlNK8qBtXzMna',
                 v_role, v_agence, v_creation, v_creation) RETURNING id INTO v_user;
-        -- Même accès administrateur que le jeu de démonstration précédent,
-        -- limité aux comptes insérés ici, sans modifier d'autres utilisateurs.
+        -- Même acces administrateur que le jeu de demonstration precedent,
+        -- limite aux comptes inseres ici, sans modifier d'autres utilisateurs.
         INSERT INTO autorisation (id_utilisateur, niveau_autorisation) VALUES (v_user, 10000);
     END LOOP;
 END;

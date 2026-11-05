@@ -1,32 +1,32 @@
--- Jeu de démonstration : à charger après base_centralisation.sql sur une base vide.
--- Si les tables contiennent déjà des données, utiliser reinitialiser_donnees.sql avant ce fichier.
+-- Jeu de demonstration : à charger apres base_centralisation.sql sur une base vide.
+-- Si les tables contiennent dejà des donnees, utiliser reinitialiser_donnees.sql avant ce fichier.
 -- Trois phases, workflows import/export, FOB uniquement, neuf agences.
--- Créations lissées sur douze mois ; répartition des agences pondérée par population urbaine.
+-- Creations lissees sur douze mois ; repartition des agences ponderee par population urbaine.
 BEGIN;
 
 -- ============================================================
 -- 0. STATUTS DOSSIER DANS L'ORDRE DU DEROULEMENT
 -- ============================================================
--- Après une réinitialisation, les identifiants suivent cet ordre.
+-- Apres une reinitialisation, les identifiants suivent cet ordre.
 -- Pour l'affichage SQL : SELECT * FROM statut_dossier ORDER BY id;
 INSERT INTO statut_dossier (nom, description) VALUES
-('Ouvert', 'Dossier créé, aucune opération effectuée'),
-('Client avisé', 'Dernière opération effectuée : Avis d arrivée client'),
-('Réservation confirmée', 'Dernière opération effectuée : Réservation TC/Ligne'),
-('Documents reçus', 'Dernière opération effectuée : Réception Doc'),
-('Conteneur positionné', 'Dernière opération effectuée : Position container'),
-('Expertise réalisée', 'Dernière opération effectuée : Expertise'),
-('Déclaration établie', 'Dernière opération effectuée : Déclaration'),
-('Visite/scan effectué', 'Dernière opération effectuée : Visite/Scan'),
-('Droits et taxes payés', 'Dernière opération effectuée : Paiement Droit & Taxes'),
-('PG payé', 'Dernière opération effectuée : Paiement PG'),
-('Bon à enlever obtenu', 'Dernière opération effectuée : Bon à enlever'),
-('Provision enregistrée', 'Dernière opération effectuée : Provision (pour fret et débours)'),
-('Facturé', 'Dernière opération effectuée : Facturation'),
-('Payé', 'Dernière opération effectuée : Paiement'),
-('Clôturé', 'Dossier finalisé après paiement et clôture'),
+('Ouvert', 'Dossier cree, aucune operation effectuee'),
+('Client avise', 'Derniere operation effectuee : Avis d arrivee client'),
+('Reservation confirmee', 'Derniere operation effectuee : Reservation TC/Ligne'),
+('Documents reçus', 'Derniere operation effectuee : Reception Doc'),
+('Conteneur positionne', 'Derniere operation effectuee : Position container'),
+('Expertise realisee', 'Derniere operation effectuee : Expertise'),
+('Declaration etablie', 'Derniere operation effectuee : Declaration'),
+('Visite/scan effectue', 'Derniere operation effectuee : Visite/Scan'),
+('Droits et taxes payes', 'Derniere operation effectuee : Paiement Droit & Taxes'),
+('PG paye', 'Derniere operation effectuee : Paiement PG'),
+('Bon à enlever obtenu', 'Derniere operation effectuee : Bon à enlever'),
+('Provision enregistree', 'Derniere operation effectuee : Provision (pour fret et debours)'),
+('Facture', 'Derniere operation effectuee : Facturation'),
+('Paye', 'Derniere operation effectuee : Paiement'),
+('Cloture', 'Dossier finalise apres paiement et cloture'),
 ('En litige', 'Dossier suspendu pour un litige'),
-('Annulé', 'Dossier annulé');
+('Annule', 'Dossier annule');
 
 -- ============================================================
 -- 0bis. STATUT ORDRE DE TRANSIT
@@ -142,55 +142,55 @@ INSERT INTO nature_marchandise (nom, description) VALUES
 -- Trois phases communes aux flux import et export.
 -- PREPARATION et Ouvert conservent les noms attendus par le service Java.
 INSERT INTO phase_dossier (nom, id_mode_transport, description) VALUES
-('PREPARATION', NULL, 'Préparation documentaire et expertise'),
-('TRAITEMENT', NULL, 'Formalités douanières et règlements associés'),
-('COMPTABILITE', NULL, 'Provision, facturation, paiement et clôture');
+('PREPARATION', NULL, 'Preparation documentaire et expertise'),
+('TRAITEMENT', NULL, 'Formalites douanieres et reglements associes'),
+('COMPTABILITE', NULL, 'Provision, facturation, paiement et cloture');
 
--- Première liste = import, seconde liste = export.
--- Chaque opération est déclinée en maritime et aérien. Le niveau_operation
--- suit strictement l'ordre des étapes, du début à la clôture de chaque flux.
--- Une opération sans statut associé conserve le statut précédent du dossier.
+-- Premiere liste = import, seconde liste = export.
+-- Chaque operation est declinee en maritime et aerien. Le niveau_operation
+-- suit strictement l'ordre des etapes, du debut à la cloture de chaque flux.
+-- Une operation sans statut associe conserve le statut precedent du dossier.
 INSERT INTO operation_dossier
     (description, id_phase, id_statut, id_type_production,
      niveau_autorisation, niveau_validation, niveau_operation, est_obligatoire, est_actif)
 SELECT t.description, ph.id, st.id, tp.id,
        CASE t.phase WHEN 'PREPARATION' THEN 1 WHEN 'TRAITEMENT' THEN 2 ELSE 4 END,
-       CASE WHEN t.description = 'Clôture' THEN 5
+       CASE WHEN t.description = 'Cloture' THEN 5
             WHEN t.phase = 'COMPTABILITE' THEN 4 WHEN t.phase = 'TRAITEMENT' THEN 2 ELSE 1 END,
        t.rang, TRUE, TRUE
 FROM (VALUES
-    ('import', 'PREPARATION', 'Avis d arrivée client', 'Client avisé', 1),
+    ('import', 'PREPARATION', 'Avis d arrivee client', 'Client avise', 1),
     ('import', 'PREPARATION', 'Envoi proforma', NULL, 2),
     ('import', 'PREPARATION', 'Premier envoi document', NULL, 3),
-    ('import', 'PREPARATION', 'Premier réception document', NULL, 4),
-    ('import', 'PREPARATION', 'Expertise', 'Expertise réalisée', 5),
-    ('import', 'TRAITEMENT', 'Déclaration', 'Déclaration établie', 6),
+    ('import', 'PREPARATION', 'Premier reception document', NULL, 4),
+    ('import', 'PREPARATION', 'Expertise', 'Expertise realisee', 5),
+    ('import', 'TRAITEMENT', 'Declaration', 'Declaration etablie', 6),
     ('import', 'TRAITEMENT', 'Dispatche/Passeur', NULL, 7),
-    ('import', 'TRAITEMENT', 'Visite/Scan', 'Visite/scan effectué', 8),
-    ('import', 'TRAITEMENT', 'Paiement Droit & Taxes', 'Droits et taxes payés', 9),
+    ('import', 'TRAITEMENT', 'Visite/Scan', 'Visite/scan effectue', 8),
+    ('import', 'TRAITEMENT', 'Paiement Droit & Taxes', 'Droits et taxes payes', 9),
     ('import', 'TRAITEMENT', 'Confirmation paiement Droit & Taxes', NULL, 10),
-    ('import', 'COMPTABILITE', 'Provision (pour fret et débours)', 'Provision enregistrée', 11),
-    ('import', 'COMPTABILITE', 'Facturation', 'Facturé', 12),
+    ('import', 'COMPTABILITE', 'Provision (pour fret et debours)', 'Provision enregistree', 11),
+    ('import', 'COMPTABILITE', 'Facturation', 'Facture', 12),
     ('import', 'COMPTABILITE', 'Transmission', NULL, 13),
-    ('import', 'COMPTABILITE', 'Paiement', 'Payé', 14),
-    ('import', 'COMPTABILITE', 'Clôture', 'Clôturé', 15),
-    ('export', 'PREPARATION', 'Préalerte', NULL, 1),
-    ('export', 'PREPARATION', 'Réservation TC/Ligne', 'Réservation confirmée', 2),
-    ('export', 'PREPARATION', 'Réception Doc', 'Documents reçus', 3),
+    ('import', 'COMPTABILITE', 'Paiement', 'Paye', 14),
+    ('import', 'COMPTABILITE', 'Cloture', 'Cloture', 15),
+    ('export', 'PREPARATION', 'Prealerte', NULL, 1),
+    ('export', 'PREPARATION', 'Reservation TC/Ligne', 'Reservation confirmee', 2),
+    ('export', 'PREPARATION', 'Reception Doc', 'Documents reçus', 3),
     ('export', 'PREPARATION', 'Envoi proforma', NULL, 4),
-    ('export', 'PREPARATION', 'Position container', 'Conteneur positionné', 5),
-    ('export', 'PREPARATION', 'Expertise', 'Expertise réalisée', 6),
-    ('export', 'TRAITEMENT', 'Déclaration', 'Déclaration établie', 7),
+    ('export', 'PREPARATION', 'Position container', 'Conteneur positionne', 5),
+    ('export', 'PREPARATION', 'Expertise', 'Expertise realisee', 6),
+    ('export', 'TRAITEMENT', 'Declaration', 'Declaration etablie', 7),
     ('export', 'TRAITEMENT', 'Dispatche/Passeur', NULL, 8),
-    ('export', 'TRAITEMENT', 'Dépôt Déclaration', NULL, 9),
-    ('export', 'TRAITEMENT', 'Paiement PG', 'PG payé', 10),
+    ('export', 'TRAITEMENT', 'Depot Declaration', NULL, 9),
+    ('export', 'TRAITEMENT', 'Paiement PG', 'PG paye', 10),
     ('export', 'TRAITEMENT', 'Bon à enlever', 'Bon à enlever obtenu', 11),
-    ('export', 'TRAITEMENT', 'Récupération documents', NULL, 12),
-    ('export', 'COMPTABILITE', 'Provision', 'Provision enregistrée', 13),
-    ('export', 'COMPTABILITE', 'Facturation', 'Facturé', 14),
+    ('export', 'TRAITEMENT', 'Recuperation documents', NULL, 12),
+    ('export', 'COMPTABILITE', 'Provision', 'Provision enregistree', 13),
+    ('export', 'COMPTABILITE', 'Facturation', 'Facture', 14),
     ('export', 'COMPTABILITE', 'Transmission', NULL, 15),
-    ('export', 'COMPTABILITE', 'Paiement', 'Payé', 16),
-    ('export', 'COMPTABILITE', 'Clôture', 'Clôturé', 17)
+    ('export', 'COMPTABILITE', 'Paiement', 'Paye', 16),
+    ('export', 'COMPTABILITE', 'Cloture', 'Cloture', 17)
 ) AS t(sens, phase, description, statut, rang)
 JOIN type_production tp ON tp.nom = t.sens
 JOIN phase_dossier ph ON ph.nom = t.phase
@@ -270,23 +270,23 @@ INSERT INTO pays (nom, code) VALUES
 -- TYPE_DECLARATION
 -- ============================================================
 INSERT INTO type_declaration (nom, description) VALUES
-('Mise à la consommation (IM4)', 'Déclaration pour mise à la consommation directe'),
-('Régime économique (IM5)', 'Déclaration liée au régime économique IM5'),
-('Régime économique (IM7)', 'Déclaration liée au régime économique IM7'),
-('Régime transitoire ou ordinaire (IM8)', 'Déclaration liée aux régimes IM8 8900 ou 8000'),
-('Exportation définitive (EX1)', 'Déclaration d''exportation définitive'),
-('Exportation temporaire (EX2)', 'Déclaration liée au régime temporaire EX2');
+('Mise à la consommation (IM4)', 'Declaration pour mise à la consommation directe'),
+('Regime economique (IM5)', 'Declaration liee au regime economique IM5'),
+('Regime economique (IM7)', 'Declaration liee au regime economique IM7'),
+('Regime transitoire ou ordinaire (IM8)', 'Declaration liee aux regimes IM8 8900 ou 8000'),
+('Exportation definitive (EX1)', 'Declaration d''exportation definitive'),
+('Exportation temporaire (EX2)', 'Declaration liee au regime temporaire EX2');
 
 -- ============================================================
--- TYPE_DOCUMENT : id=1 pour attachement mvt, id=2 pour déclaration
+-- TYPE_DOCUMENT : id=1 pour attachement mvt, id=2 pour declaration
 -- ============================================================
 -- INSERT INTO type_document (id, nom, id_type_production, id_nature_marchandise, est_obligatoire, description) VALUES
 -- (1, 'Document d''attachement', NULL, NULL, FALSE, 'Document d''attachement pour les mouvements de dossier'),
--- (2, 'Document de déclaration', NULL, NULL, FALSE, 'Document de déclaration douanière');
+-- (2, 'Document de declaration', NULL, NULL, FALSE, 'Document de declaration douaniere');
 
 INSERT INTO type_document (nom, id_type_production, id_nature_marchandise, est_obligatoire, description) VALUES
 ('Document d''attachement', NULL, NULL, FALSE, 'Document d''attachement pour les mouvements de dossier'),
-('Document de déclaration', NULL, NULL, FALSE, 'Document de déclaration douanière'),
+('Document de declaration', NULL, NULL, FALSE, 'Document de declaration douaniere'),
 ('Facture commerciale', (SELECT id FROM type_production WHERE nom = 'import' AND id_mode_transport = (SELECT id FROM mode_transport WHERE nom = 'Maritime')), NULL, TRUE, 'Facture commerciale'),
 ('Liste de colisage', (SELECT id FROM type_production WHERE nom = 'import' AND id_mode_transport = (SELECT id FROM mode_transport WHERE nom = 'Maritime')), NULL, TRUE, 'Liste de colisage'),
 ('Connaissement maritime', (SELECT id FROM type_production WHERE nom = 'import' AND id_mode_transport = (SELECT id FROM mode_transport WHERE nom = 'Maritime')), NULL, TRUE, 'Connaissement maritime'),
@@ -316,16 +316,16 @@ INSERT INTO type_document (nom, id_type_production, id_nature_marchandise, est_o
 ('Attestation de non-radioactivite', (SELECT id FROM type_production WHERE nom = 'import' AND id_mode_transport = (SELECT id FROM mode_transport WHERE nom = 'Maritime')), NULL, FALSE, 'Attestation de non-radioactivite'),
 ('Certificat de conformite', (SELECT id FROM type_production WHERE nom = 'import' AND id_mode_transport = (SELECT id FROM mode_transport WHERE nom = 'Maritime')), (SELECT id FROM nature_marchandise WHERE nom = 'Electronique'), TRUE, 'Certificat de conformite');
 
--- Les noms de types documentaires sont uniques dans le schéma. Conserver
+-- Les noms de types documentaires sont uniques dans le schema. Conserver
 -- leur production pour les listes documentaires et les indicateurs du tableau
--- de bord ; suffixer les noms ajoutés avec le flux et le mode de transport.
+-- de bord ; suffixer les noms ajoutes avec le flux et le mode de transport.
 INSERT INTO type_document (nom, id_type_production, est_obligatoire, description)
 SELECT t.nom || ' - ' || tp.description, tp.id, t.obligatoire, t.description
 FROM type_production tp
 CROSS JOIN (VALUES
-    ('Declaration en douane', TRUE, 'Déclaration douanière du dossier'),
+    ('Declaration en douane', TRUE, 'Declaration douaniere du dossier'),
     ('Facture commerciale', TRUE, 'Facture commerciale du dossier'),
-    ('Facture proforma', FALSE, 'Proforma envoyée au client')
+    ('Facture proforma', FALSE, 'Proforma envoyee au client')
 ) AS t(nom, obligatoire, description)
 WHERE tp.nom IN ('import', 'export')
   AND NOT EXISTS (SELECT 1 FROM type_document td WHERE td.nom = t.nom AND td.id_type_production = tp.id);
@@ -342,10 +342,10 @@ FROM operation_dossier op
 JOIN type_production tp ON tp.id = op.id_type_production
 JOIN mode_transport mt ON mt.id = tp.id_mode_transport
 JOIN type_document td ON td.id_type_production = op.id_type_production
-WHERE (op.description IN ('Premier réception document', 'Réception Doc')
+WHERE (op.description IN ('Premier reception document', 'Reception Doc')
        AND ((mt.nom = 'Maritime' AND td.nom LIKE 'Connaissement maritime%')
          OR (mt.nom = 'Aerien' AND td.nom LIKE 'Lettre de transport aerien%')))
-   OR (op.description IN ('Déclaration', 'Dépôt Déclaration') AND td.nom LIKE 'Declaration en douane%')
+   OR (op.description IN ('Declaration', 'Depot Declaration') AND td.nom LIKE 'Declaration en douane%')
    OR (op.description = 'Envoi proforma' AND td.nom LIKE 'Facture proforma%')
    OR (op.description = 'Facturation' AND td.nom LIKE 'Facture commerciale%');
 
@@ -448,7 +448,7 @@ INSERT INTO unite_mesure (nom, rapport_m_cube, description) VALUES
 -- Insertion des actions de base
 INSERT INTO action (nom, description) VALUES
     ('visualisation', 'Visualisation d''un dossier ou d''une ressource'),
-    ('creation', 'Création d''un dossier ou d''une ressource'),
+    ('creation', 'Creation d''un dossier ou d''une ressource'),
     ('modification', 'Modification d''un dossier ou d''une ressource'),
     ('suppression', 'Suppression d''un dossier ou d''une ressource'),
     ('validation', 'Validation d''un dossier ou d''une ressource')
@@ -457,16 +457,16 @@ ON CONFLICT (nom) DO NOTHING;
 -- ============================================================
 -- 2. GENERATION DE DONNEES DE DEMONSTRATION
 -- ============================================================
--- À charger sur une base vide après le schéma. Ce script ne supprime aucune
--- donnée existante et n'est pas destiné à être rejoué sur une base déjà remplie.
--- Dates relatives à l'exécution : débit régulier sur les douze derniers mois
--- calendaires, avec un mois courant proportionnel à sa durée déjà écoulée.
+-- À charger sur une base vide apres le schema. Ce script ne supprime aucune
+-- donnee existante et n'est pas destine à être rejoue sur une base dejà remplie.
+-- Dates relatives à l'execution : debit regulier sur les douze derniers mois
+-- calendaires, avec un mois courant proportionnel à sa duree dejà ecoulee.
 -- Les poids des villes proviennent du RGPH-3 INSTAT 2018 (population urbaine).
 -- Source : https://instat.mg/documents/upload/main/INSTAT_RGPH3-Definitif-ResultatsGlogaux-Tome1_17-2021.pdf#page=45
--- Le quota d'Antananarivo est partagé entre TNR (90 %) et DIR (10 %).
--- Ce partage interne est une hypothèse de démonstration, distincte du recensement.
--- Toutes les dates réelles restent dans le passé ; seules les dates prévues,
--- les échéances et les limites de remise peuvent se situer dans le futur.
+-- Le quota d'Antananarivo est partage entre TNR (90 %) et DIR (10 %).
+-- Ce partage interne est une hypothese de demonstration, distincte du recensement.
+-- Toutes les dates reelles restent dans le passe ; seules les dates prevues,
+-- les echeances et les limites de remise peuvent se situer dans le futur.
 
 DO $$
 DECLARE
@@ -532,11 +532,11 @@ DECLARE
     parent RECORD;
     enfant RECORD;
 BEGIN
-    -- Tirage reproductible ; les dates suivent la date d'exécution du script.
+    -- Tirage reproductible ; les dates suivent la date d'execution du script.
     PERFORM setseed(0.2718);
     UPDATE agence SET date_creation = v_debut - INTERVAL '4 months' + id * INTERVAL '1 day';
 
-    -- Quotas exacts sur 300 dossiers par la méthode des plus forts restes.
+    -- Quotas exacts sur 300 dossiers par la methode des plus forts restes.
     -- Compter Antananarivo une seule fois avant de partager TNR et DIR.
     WITH populations(ville, population) AS (VALUES
         ('Antananarivo', 1274225), ('Toamasina', 325857),
@@ -565,10 +565,10 @@ BEGIN
     INTO v_agences_dossiers
     FROM agences a CROSS JOIN LATERAL generate_series(1, a.nombre) AS s(n);
     IF COALESCE(array_length(v_agences_dossiers, 1), 0) <> 300 THEN
-        RAISE EXCEPTION 'La pondération des agences doit produire exactement 300 affectations.';
+        RAISE EXCEPTION 'La ponderation des agences doit produire exactement 300 affectations.';
     END IF;
 
-    -- 100 clients et 30 comptes de démonstration, créés avant leur activité.
+    -- 100 clients et 30 comptes de demonstration, crees avant leur activite.
     FOR i IN 1..100 LOOP
         INSERT INTO clients (nom, prenom, email, telephone, adresse, id_type_client,
                              nif, stat, fax, id_pays, cp_client, date_creation)
@@ -589,22 +589,22 @@ BEGIN
         VALUES ('user' || i, 'NomUser' || i, 'PrenomUser' || i, 'user' || i || '@transit.mg',
                 '$2a$12$KovwAzSOJPTaWqYJ2UgE/.sztG.CGSEgGa/QfoV.qlNK8qBtXzMna',
                 v_role, v_agence, v_creation, v_creation) RETURNING id INTO v_user;
-        -- Même accès administrateur que le jeu de démonstration précédent,
-        -- limité aux comptes insérés ici, sans modifier d'autres utilisateurs.
+        -- Même acces administrateur que le jeu de demonstration precedent,
+        -- limite aux comptes inseres ici, sans modifier d'autres utilisateurs.
         INSERT INTO autorisation (id_utilisateur, niveau_autorisation) VALUES (v_user, 10000);
     END LOOP;
     v_clients := ARRAY(SELECT id FROM clients ORDER BY id);
     v_utilisateurs := ARRAY(SELECT id FROM utilisateur ORDER BY id);
 
     -- 320 OT : suffisamment pour 300 dossiers et au moins 20 OT autonomes.
-    -- Les 300 premiers suivent les quotas démographiques des dossiers ;
-    -- les 20 OT supplémentaires utilisent les mêmes poids.
+    -- Les 300 premiers suivent les quotas demographiques des dossiers ;
+    -- les 20 OT supplementaires utilisent les mêmes poids.
     FOR i IN 1..320 LOOP
         v_agence := CASE WHEN i <= 300 THEN v_agences_dossiers[i]
             ELSE v_agences_dossiers[1 + floor(random() * 300)::int] END;
         v_type := v_productions[1 + (i - 1) % array_length(v_productions, 1)];
         -- Permutation de deux productions : garder les mêmes volumes, avec
-        -- un exemple maritime sur le dernier dossier créé aujourd'hui.
+        -- un exemple maritime sur le dernier dossier cree aujourd'hui.
         IF i = 295 THEN v_type := v_productions[6]; END IF;
         IF i = 300 THEN v_type := v_productions[1]; END IF;
         -- Varier les regimes parmi ceux compatibles avec le sens de production.
@@ -641,14 +641,14 @@ BEGIN
         VALUES (v_ots[1 + (i - 1) % 320], 'Instruction ' || i || ' : suivi du dossier.');
     END LOOP;
 
-    -- 300 créneaux sur toute la durée écoulée : environ 25 à 28 créations
-    -- par mois complet, sans compresser un quota complet au début du mois courant.
+    -- 300 creneaux sur toute la duree ecoulee : environ 25 à 28 creations
+    -- par mois complet, sans compresser un quota complet au debut du mois courant.
     FOR j IN 1..300 LOOP
             v_compteur := j;
             v_creation := v_debut + (CURRENT_TIMESTAMP - v_debut) * ((j - 1 + random()) / 300);
             IF j = 300 THEN
                 -- Un dossier maritime du jour pour les parcours d'assignation,
-                -- même si le script est lancé le premier jour du mois.
+                -- même si le script est lance le premier jour du mois.
                 v_creation := GREATEST(v_creation, date_trunc('day', CURRENT_TIMESTAMP));
             END IF;
             SELECT ot.*, tp.code AS code_production, a.code AS code_agence INTO ligne
@@ -675,11 +675,11 @@ BEGIN
             v_dossiers := array_append(v_dossiers, v_dossier);
     END LOOP;
 
-    -- 40 sous-dossiers plus récents : même OT, même client et même production
-    -- que leur dossier mère, avec une agence différente, sans boucle ni doublon.
+    -- 40 sous-dossiers plus recents : même OT, même client et même production
+    -- que leur dossier mere, avec une agence differente, sans boucle ni doublon.
     FOR i IN 1..40 LOOP
-        -- Choisir un parent qui possède encore un enfant compatible. Cela
-        -- préserve les quotas même lorsque la plupart des dossiers sont à TNR.
+        -- Choisir un parent qui possede encore un enfant compatible. Cela
+        -- preserve les quotas même lorsque la plupart des dossiers sont à TNR.
         SELECT p.* INTO parent FROM dossier p
         WHERE p.id = ANY(v_dossiers[1:180])
           AND EXISTS (
@@ -691,7 +691,7 @@ BEGIN
                     WHERE di.id_dossier_mere = p.id AND associe.id_agence = d.id_agence)
           )
         ORDER BY p.id LIMIT 1;
-        IF parent.id IS NULL THEN RAISE EXCEPTION 'Dossier mère compatible introuvable'; END IF;
+        IF parent.id IS NULL THEN RAISE EXCEPTION 'Dossier mere compatible introuvable'; END IF;
         SELECT d.* INTO enfant FROM dossier d
         WHERE d.id = ANY(v_dossiers[181:300]) AND d.id_agence <> parent.id_agence
           AND d.id_type_production = parent.id_type_production
@@ -706,8 +706,8 @@ BEGIN
         INSERT INTO dossier_interagence (id_dossier_mere, id_sous_dossier, motif, date_creation)
         VALUES (parent.id, enfant.id, 'Prise en charge par une autre agence', enfant.date_creation);
 
-        -- Une demande acceptée est la cause du sous-dossier : réponse et
-        -- création du sous-dossier ont la même date, par un utilisateur de l'agence sollicitée.
+        -- Une demande acceptee est la cause du sous-dossier : reponse et
+        -- creation du sous-dossier ont la même date, par un utilisateur de l'agence sollicitee.
         SELECT id INTO v_user FROM utilisateur WHERE id_agence = parent.id_agence ORDER BY id LIMIT 1;
         SELECT id INTO v_user_reponse FROM utilisateur WHERE id_agence = enfant.id_agence ORDER BY id LIMIT 1;
         v_date_demande := parent.date_creation + (enfant.date_creation - parent.date_creation) * 0.5;
@@ -716,17 +716,17 @@ BEGIN
             statut, est_vue, date_demande, date_reponse)
         VALUES (parent.id, parent.id_agence, enfant.id_agence, v_user, v_user_reponse,
             'Prise en charge du dossier par l''agence ' || (SELECT nom FROM agence WHERE id = enfant.id_agence),
-            'Demande acceptée ; sous-dossier créé pour le suivi local.', 'ACCEPTEE', TRUE,
+            'Demande acceptee ; sous-dossier cree pour le suivi local.', 'ACCEPTEE', TRUE,
             v_date_demande, enfant.date_creation);
     END LOOP;
 
-    -- L'OT précède toujours le premier dossier qui lui est rattaché.
+    -- L'OT precede toujours le premier dossier qui lui est rattache.
     UPDATE ordre_transit ot SET date_creation = LEAST(ot.date_creation,
         (SELECT min(d.date_creation) - INTERVAL '1 day' FROM dossier d WHERE d.id_ordre_transit = ot.id))
     WHERE EXISTS (SELECT 1 FROM dossier d WHERE d.id_ordre_transit = ot.id);
 
-    -- Parcours réels : préfixe ordonné du workflow du type de production.
-    -- Les types divers/colis, sans workflow défini, restent ouverts en préparation.
+    -- Parcours reels : prefixe ordonne du workflow du type de production.
+    -- Les types divers/colis, sans workflow defini, restent ouverts en preparation.
     FOR ligne IN SELECT * FROM dossier ORDER BY id LOOP
         v_operations := ARRAY(SELECT id FROM operation_dossier
             WHERE id_type_production = ligne.id_type_production ORDER BY niveau_operation, id);
@@ -749,36 +749,36 @@ BEGIN
         v_date_mvt := ligne.date_creation;
         FOR j IN 1..v_nb_effectuees LOOP
             SELECT * INTO op FROM operation_dossier WHERE id = v_operations[j];
-            -- Après la dernière opération obligatoire d'une phase, avancer
-            -- à la phase de l'opération suivante, comme le service Java.
+            -- Apres la derniere operation obligatoire d'une phase, avancer
+            -- à la phase de l'operation suivante, comme le service Java.
             SELECT id_phase INTO v_phase_suivante FROM operation_dossier
             WHERE id_type_production = ligne.id_type_production AND niveau_operation > op.niveau_operation
             ORDER BY niveau_operation, id LIMIT 1;
             v_phase_suivante := COALESCE(v_phase_suivante, op.id_phase);
             v_date_mvt := ligne.date_creation + (v_fin_flux - ligne.date_creation) * (j::numeric / (v_nb_effectuees + 1));
-            IF op.description = 'Clôture' AND v_derniere_acceptation IS NOT NULL THEN
+            IF op.description = 'Cloture' AND v_derniere_acceptation IS NOT NULL THEN
                 v_date_mvt := GREATEST(v_date_mvt, LEAST(CURRENT_TIMESTAMP, v_derniere_acceptation + INTERVAL '1 hour'));
             END IF;
             INSERT INTO mvt_dossier (id_dossier, id_utilisateur, id_operation,
                 id_ancienne_phase, id_nouvelle_phase, id_ancien_statut, id_nouveau_statut,
                 commentaire, date_mvt, origine)
             VALUES (ligne.id, ligne.id_utilisateur, op.id, v_phase, v_phase_suivante,
-                v_statut, COALESCE(op.id_statut, v_statut), 'Opération effectuée : ' || op.description, v_date_mvt, 'SAISIE');
+                v_statut, COALESCE(op.id_statut, v_statut), 'Operation effectuee : ' || op.description, v_date_mvt, 'SAISIE');
             v_phase := v_phase_suivante;
             v_statut := COALESCE(op.id_statut, v_statut);
         END LOOP;
         UPDATE dossier SET id_phase = v_phase, id_statut = v_statut,
             est_provisionne = EXISTS (SELECT 1 FROM mvt_dossier m JOIN operation_dossier o ON o.id = m.id_operation
-                WHERE m.id_dossier = ligne.id AND o.description IN ('Provision', 'Provision (pour fret et débours)')),
+                WHERE m.id_dossier = ligne.id AND o.description IN ('Provision', 'Provision (pour fret et debours)')),
             date_livraison = CASE WHEN v_phase = (SELECT id FROM phase_dossier WHERE nom = 'COMPTABILITE')
                 THEN LEAST(ligne.date_creation + INTERVAL '25 days', v_date_mvt) ELSE NULL END
         WHERE id = ligne.id;
     END LOOP;
 
     -- Documents actifs du même flux et de la même nature que le dossier.
-    -- Les documents requis par une opération réalisée sont toujours présents
-    -- et remis AVANT cette opération. Quelques dossiers non clôturés restent
-    -- volontairement incomplets pour les indicateurs de pièces manquantes.
+    -- Les documents requis par une operation realisee sont toujours presents
+    -- et remis AVANT cette operation. Quelques dossiers non clotures restent
+    -- volontairement incomplets pour les indicateurs de pieces manquantes.
     FOR ligne IN SELECT d.*, ot.id_nature_marchandise FROM dossier d
                  JOIN ordre_transit ot ON ot.id = d.id_ordre_transit ORDER BY d.id LOOP
         INSERT INTO document (id_dossier, id_type_document, nombre, chemin_fichier, nom_fichier, date_ajout)
@@ -810,8 +810,8 @@ BEGIN
     SELECT m.id, (SELECT doc.id FROM document doc WHERE doc.id_dossier = m.id_dossier ORDER BY doc.id LIMIT 1)
     FROM mvt_dossier m WHERE m.id % 3 = 0;
 
-    -- Expéditions maritimes/aériennes : dates déduites de l'OT et stations distinctes.
-    -- Les OT encore en brouillon ou non validés n'ont ni expédition ni marchandise affectée.
+    -- Expeditions maritimes/aeriennes : dates deduites de l'OT et stations distinctes.
+    -- Les OT encore en brouillon ou non valides n'ont ni expedition ni marchandise affectee.
     FOR ligne IN SELECT ot.*, tp.id_mode_transport, tp.nom AS sens, mt.nom AS transport
         FROM ordre_transit ot JOIN type_production tp ON tp.id = ot.id_type_production
         JOIN mode_transport mt ON mt.id = tp.id_mode_transport
@@ -820,7 +820,7 @@ BEGIN
         SELECT id INTO v_dossier FROM dossier WHERE id_ordre_transit = ligne.id ORDER BY id LIMIT 1;
         SELECT id INTO v_compagnie FROM compagnie WHERE id_mode_transport = ligne.id_mode_transport ORDER BY random() LIMIT 1;
         SELECT id INTO v_navire FROM navire WHERE id_compagnie = v_compagnie ORDER BY random() LIMIT 1;
-        -- Import : départ étranger / arrivée Madagascar. Export : sens inverse.
+        -- Import : depart etranger / arrivee Madagascar. Export : sens inverse.
         SELECT id INTO v_station_depart FROM station WHERE id_mode_transport = ligne.id_mode_transport
             AND ((code IN ('PTOM', 'PDAN', 'PMAH', 'PTOL', 'TNR', 'NOS', 'TMM')) = (ligne.sens = 'export'))
             ORDER BY random() LIMIT 1;
@@ -855,7 +855,7 @@ BEGIN
             'Scan OT ' || ligne.id, v_date_depart, v_date_prevue, v_date_arrivee);
     END LOOP;
 
-    -- Les pays et lieux des dossiers suivent les stations de leur expédition.
+    -- Les pays et lieux des dossiers suivent les stations de leur expedition.
     WITH pays_stations(code_station, code_pays) AS (VALUES
         ('PTOM', 'MDG'), ('PDAN', 'MDG'), ('PMAH', 'MDG'), ('PTOL', 'MDG'),
         ('TNR', 'MDG'), ('NOS', 'MDG'), ('TMM', 'MDG'),
@@ -892,7 +892,7 @@ BEGIN
             (random() * 5000)::numeric(10, 2), (random() * 100)::numeric(10, 2), 1 + (i % 100));
     END LOOP;
 
-    -- Un conteneur pour chaque dossier maritime ; aucun sur un dossier aérien ou terrestre.
+    -- Un conteneur pour chaque dossier maritime ; aucun sur un dossier aerien ou terrestre.
     FOR ligne IN SELECT d.id FROM dossier d
         JOIN type_production tp ON tp.id = d.id_type_production
         JOIN mode_transport mt ON mt.id = tp.id_mode_transport
@@ -904,13 +904,13 @@ BEGIN
         INSERT INTO dossier_conteneur (id_dossier, id_conteneur) VALUES (v_dossier, v_doc);
     END LOOP;
 
-    -- 20 demandes en attente et 20 refusées, sur des dossiers encore actifs
+    -- 20 demandes en attente et 20 refusees, sur des dossiers encore actifs
     -- sans autre demande. Les dates suivent l'ouverture et chaque auteur appartient
-    -- à l'agence qui demande ou répond. Ce jeu n'expédie aucun email.
+    -- à l'agence qui demande ou repond. Ce jeu n'expedie aucun email.
     v_compteur := 0;
     FOR ligne IN SELECT d.* FROM dossier d
         JOIN statut_dossier st ON st.id = d.id_statut
-        WHERE st.nom NOT IN ('Clôturé', 'Annulé')
+        WHERE st.nom NOT IN ('Cloture', 'Annule')
           AND NOT EXISTS (SELECT 1 FROM demande_interagence di WHERE di.id_dossier = d.id)
           AND NOT EXISTS (SELECT 1 FROM dossier_interagence di WHERE di.id_sous_dossier = d.id)
         ORDER BY d.date_creation DESC, d.id DESC LIMIT 40 LOOP
@@ -927,7 +927,7 @@ BEGIN
         VALUES (ligne.id, ligne.id_agence, v_agence_destinataire, v_user,
             CASE WHEN v_compteur > 20 THEN v_user_reponse END,
             CASE WHEN v_compteur <= 20 THEN 'Demande de prise en charge locale en attente de confirmation.'
-                 ELSE 'Demande de prise en charge locale examinée par l''agence sollicitée.' END,
+                 ELSE 'Demande de prise en charge locale examinee par l''agence sollicitee.' END,
             CASE WHEN v_compteur > 20 THEN 'Prise en charge indisponible ; le dossier reste suivi par son agence d''origine.' END,
             CASE WHEN v_compteur <= 20 THEN 'EN_ATTENTE' ELSE 'REFUSEE' END,
             CASE WHEN v_compteur <= 20 THEN v_compteur % 3 = 0 ELSE TRUE END,
@@ -942,12 +942,12 @@ BEGIN
         UPDATE dossier SET est_groupage = TRUE WHERE id = ligne.id;
     END LOOP;
 
-    -- Une déclaration par dossier ayant réellement effectué cette opération.
+    -- Une declaration par dossier ayant reellement effectue cette operation.
     FOR ligne IN SELECT d.id, d.id_type_production, d.id_ordre_transit, m.date_mvt, tp.nom AS sens,
                         regime.nom AS regime_nom,
                         ot.id_bureau_dedou
         FROM dossier d JOIN mvt_dossier m ON m.id_dossier = d.id
-        JOIN operation_dossier o ON o.id = m.id_operation AND o.description = 'Déclaration'
+        JOIN operation_dossier o ON o.id = m.id_operation AND o.description = 'Declaration'
         JOIN type_production tp ON tp.id = d.id_type_production
         JOIN ordre_transit ot ON ot.id = d.id_ordre_transit
         JOIN type_regime regime ON regime.id = ot.id_type_regime ORDER BY d.id LOOP
@@ -957,7 +957,7 @@ BEGIN
             id_type_declaration, id_document, description, date_ajout)
         VALUES (ligne.id, 'DEC-' || lpad(ligne.id::text, 8, '0'), ligne.date_mvt, ligne.id_bureau_dedou,
             (SELECT id FROM type_declaration WHERE nom LIKE '%(' || ligne.regime_nom || ')'),
-            v_doc, 'Déclaration du dossier ' || ligne.id, ligne.date_mvt);
+            v_doc, 'Declaration du dossier ' || ligne.id, ligne.date_mvt);
     END LOOP;
 
     FOR i IN 1..5 LOOP
@@ -972,6 +972,12 @@ COMMIT;
 
 update autorisation set niveau_autorisation = 10000;
 UPDATE utilisateur set id_agence = 1 where id = 7;
+UPDATE utilisateur SET nom_utilisateur = 'admin', nom = 'admin' WHERE id = 7;
+
+update autorisation set niveau_autorisation = 900 where id = 3;
+UPDATE utilisateur set id_agence = 3 where id = 3;
+UPDATE utilisateur SET nom_utilisateur = 'agentTamatave', nom = 'AgentTamatave' WHERE id = 3;
+
 commit;
 
 SELECT code from agence join utilisateur on agence.id = utilisateur.id_agence where utilisateur.id = 7;
