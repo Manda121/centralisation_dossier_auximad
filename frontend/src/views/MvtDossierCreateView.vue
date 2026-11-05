@@ -352,7 +352,6 @@ import AutocompleteRecherche from '../components/inc/AutocompleteRecherche.vue'
 import DossierService from '../services/DossierService'
 import MvtDossierService from '../services/MvtDossierService'
 import DeclarationService from '../services/DeclarationService'
-import AdminService from '../services/AdminService'
 import DocumentService from '../services/DocumentService'
 import { useNotification } from '../composables/useNotification'
 import PermissionService, { PORTEE_PROPRE_ECRITURE, ACTION_OT } from '../utils/permission.service'
@@ -685,7 +684,7 @@ const saveDeclaration = async () => {
 const loadModalReferentiels = async () => {
   try {
     const [bRes, tdRes] = await Promise.all([
-      AdminService.bureaux.lister(),
+      DeclarationService.getBureaux(),
       DeclarationService.getTypeDeclarations()
     ])
     bureaux.value = bRes || []

@@ -1,6 +1,7 @@
 import axios from 'axios'
 
 const API_URL = 'http://localhost:8080/api/declarations'
+const OT_API_URL = 'http://localhost:8080/api/ordres-transit'
 
 function authHeader() {
     const token = localStorage.getItem('auximad_token')
@@ -10,6 +11,11 @@ function authHeader() {
 class DeclarationService {
     async getTypeDeclarations() {
         const response = await axios.get(`${API_URL}/types`, { headers: authHeader() })
+        return response.data
+    }
+
+    async getBureaux() {
+        const response = await axios.get(`${OT_API_URL}/bureaux`, { headers: authHeader() })
         return response.data
     }
 
