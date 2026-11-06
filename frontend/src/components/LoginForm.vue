@@ -42,7 +42,7 @@ const handleLogin = async () => {
       credentials.motDePasse
     )
     utilisateur.chargerDonnees(response)
-    router.push({ name: 'home' })
+    await router.replace({ name: 'home' })
   } catch (err) {
     console.error('Login error:', err)
     error.value = err?.erreur || err?.message || err?.error || 'Une erreur est survenue lors de la connexion.'

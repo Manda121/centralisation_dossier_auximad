@@ -32,17 +32,20 @@ public class DemandeInteragenceService {
     private final AgenceRepository agenceRepository;
     private final UtilisateurRepository utilisateurRepository;
     private final InterAgenceService interAgenceService;
+    private final NotificationInteragenceService notificationInteragenceService;
 
     public DemandeInteragenceService(DemandeInteragenceRepository demandeRepository,
                                    DossierRepository dossierRepository,
                                    AgenceRepository agenceRepository,
                                    UtilisateurRepository utilisateurRepository,
-                                   InterAgenceService interAgenceService) {
+                                   InterAgenceService interAgenceService,
+                                   NotificationInteragenceService notificationInteragenceService) {
         this.demandeRepository = demandeRepository;
         this.dossierRepository = dossierRepository;
         this.agenceRepository = agenceRepository;
         this.utilisateurRepository = utilisateurRepository;
         this.interAgenceService = interAgenceService;
+        this.notificationInteragenceService = notificationInteragenceService;
     }
 
     @Transactional
@@ -51,24 +54,19 @@ public class DemandeInteragenceService {
         Utilisateur user = utilisateurRepository.findById(idUtilisateur)
                 .orElseThrow(() -> new IllegalArgumentException("Utilisateur non trouvé."));
 
-        Dossier dossier = dossierRepository.findById(request.getIdDossier())
+        Dossier dossier = dossierRepository.verrouillerInteragence(request.getIdDossier())
                 .orElseThrow(() -> new IllegalArgumentException("Dossier introuvable : " + request.getIdDossier()));
 
         Agence agenceDest = agenceRepository.findById(request.getIdAgenceDestinataire())
                 .orElseThrow(() -> new IllegalArgumentException("Agence destinataire introuvable : " + request.getIdAgenceDestinataire()));
 
-        Agence agenceDemandeuse = user.getAgence() != null ? user.getAgence() : dossier.getAgence();
+        Agence agenceDemandeuse = dossier.getAgence() != null ? dossier.getAgence() : user.getAgence();
 
         if (agenceDemandeuse.getId().equals(agenceDest.getId())) {
             throw new IllegalArgumentException("L'agence destinataire doit être différente de l'agence du dossier.");
         }
 
-        // Vérifier si une demande en attente existe déjà pour ce dossier
-        Optional<DemandeInteragence> existante = demandeRepository
-                .findFirstByDossierIdAndStatutOrderByDateDemandeDesc(dossier.getId(), "EN_ATTENTE");
-        if (existante.isPresent()) {
-            throw new IllegalArgumentException("Une demande d'inter-agence est déjà en attente pour ce dossier.");
-        }
+        verifierAgenceDisponible(dossier.getId(), agenceDest.getId(), null);
 
         DemandeInteragence demande = new DemandeInteragence();
         demande.setDossier(dossier);
@@ -80,7 +78,9 @@ public class DemandeInteragenceService {
         demande.setEstVue(false);
         demande.setDateDemande(LocalDateTime.now());
 
-        return demandeRepository.save(demande);
+        DemandeInteragence enregistree = demandeRepository.save(demande);
+        notificationInteragenceService.preparer(enregistree);
+        return enregistree;
     }
 
     @Transactional
@@ -89,7 +89,7 @@ public class DemandeInteragenceService {
         Utilisateur user = utilisateurRepository.findById(idUtilisateur)
                 .orElseThrow(() -> new IllegalArgumentException("Utilisateur non trouvé."));
 
-        DemandeInteragence demande = demandeRepository.findById(idDemande)
+        DemandeInteragence demande = demandeRepository.verrouiller(idDemande)
                 .orElseThrow(() -> new IllegalArgumentException("Demande introuvable : " + idDemande));
 
         if (!"EN_ATTENTE".equalsIgnoreCase(demande.getStatut())) {
@@ -124,7 +124,7 @@ public class DemandeInteragenceService {
 
     @Transactional
     public DemandeInteragence modifierDemande(Integer idDemande, DemandeInteragenceRequest request) {
-        DemandeInteragence demande = demandeRepository.findById(idDemande)
+        DemandeInteragence demande = demandeRepository.verrouiller(idDemande)
                 .orElseThrow(() -> new IllegalArgumentException("Demande introuvable : " + idDemande));
 
         if (!"EN_ATTENTE".equalsIgnoreCase(demande.getStatut())) {
@@ -138,12 +138,17 @@ public class DemandeInteragenceService {
             throw new SecurityException("Seule l'agence émettrice peut modifier cette demande.");
         }
 
+        Integer ancienneAgence = demande.getAgenceDestinataire().getId();
+        String ancienMotif = demande.getMotif();
+        dossierRepository.verrouillerInteragence(demande.getDossier().getId())
+                .orElseThrow(() -> new IllegalArgumentException("Dossier introuvable."));
         if (request.getIdAgenceDestinataire() != null) {
             Agence agenceDest = agenceRepository.findById(request.getIdAgenceDestinataire())
                     .orElseThrow(() -> new IllegalArgumentException("Agence destinataire introuvable : " + request.getIdAgenceDestinataire()));
             if (demande.getAgenceDemandeuse().getId().equals(agenceDest.getId())) {
                 throw new IllegalArgumentException("L'agence destinataire doit être différente de l'agence du dossier.");
             }
+            verifierAgenceDisponible(demande.getDossier().getId(), agenceDest.getId(), idDemande);
             demande.setAgenceDestinataire(agenceDest);
         }
 
@@ -151,7 +156,25 @@ public class DemandeInteragenceService {
             demande.setMotif(request.getMotif());
         }
 
-        return demandeRepository.save(demande);
+        DemandeInteragence enregistree = demandeRepository.save(demande);
+        if (!java.util.Objects.equals(ancienneAgence, demande.getAgenceDestinataire().getId())
+                || !java.util.Objects.equals(ancienMotif, demande.getMotif())) {
+            notificationInteragenceService.preparer(enregistree);
+        }
+        return enregistree;
+    }
+
+    private void verifierAgenceDisponible(Integer dossierId, Integer agenceId, Integer demandeCourante) {
+        Optional<DemandeInteragence> existante = demandeRepository
+                .findFirstByDossierIdAndAgenceDestinataireIdAndStatutInOrderByDateDemandeDesc(
+                        dossierId, agenceId, List.of("EN_ATTENTE", "ACCEPTEE"));
+        if (existante.isPresent() && (demandeCourante == null
+                || !java.util.Objects.equals(existante.get().getId(), demandeCourante))) {
+            throw new IllegalArgumentException("Une demande est déjà en attente ou acceptée pour ce dossier et cette agence.");
+        }
+        if (interAgenceService.agenceDejaAssociee(dossierId, agenceId)) {
+            throw new IllegalArgumentException("Cette agence possède déjà un sous-dossier pour ce dossier.");
+        }
     }
 
     @Transactional

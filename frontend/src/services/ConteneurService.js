@@ -41,29 +41,20 @@ class ConteneurService {
     }
 
     /**
-     * Vérifie si un dossier est de transport maritime ou éligible aux conteneurs
+     * L'assignation d'un conteneur est réservée au transport maritime.
      */
     estEligibleConteneur(dossier) {
         if (!dossier) return false
 
         // Mode transport direct du dossier (via typeProduction)
         const mtNom = dossier.typeProduction?.modeTransport?.nom
-        if (mtNom) {
-            const lower = mtNom.toLowerCase()
-            if (lower.includes('maritime') || lower === 'combine') return true
+        if (mtNom?.trim()) {
+            return mtNom.trim().toLowerCase() === 'maritime'
         }
-
-        const tpNom = dossier.typeProduction?.nom
-        if (tpNom && tpNom.toLowerCase().includes('maritime')) return true
 
         // Mode transport via Ordre de Transit
         const otMtNom = dossier.ordreTransit?.typeProduction?.modeTransport?.nom
-        if (otMtNom) {
-            const lower = otMtNom.toLowerCase()
-            if (lower.includes('maritime') || lower === 'combine') return true
-        }
-
-        return false
+        return otMtNom?.trim().toLowerCase() === 'maritime'
     }
 }
 

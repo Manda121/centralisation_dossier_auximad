@@ -254,7 +254,7 @@ function ouvrirPointEvolution(index) {
 function ouvrirAgence(index) {
     const agence = parAgence.value[index]
     if (!agence) return
-    ouvrirListeDossiers(construireRequete({ agenceId: String(agence.id), estActif: 'true' }))
+    ouvrirListeDossiers(construireRequete({ agenceId: String(agence.id), toutesDates: 'true' }))
 }
 
 // ──────────────────────────────────────────────
@@ -489,11 +489,11 @@ onMounted(async () => {
                     <div v-if="peutVoirToutesAgences" class="card border shadow-sm mb-3">
                         <div class="card-header bg-white border-bottom py-3">
                             <h2 class="h6 fw-semibold mb-1">Répartition des dossiers par agence</h2>
-                            <p class="small text-secondary mb-0">Dossiers en cours par agence — cliquez sur une barre pour ouvrir la liste.</p>
+                            <p class="small text-secondary mb-0">Tous les dossiers par agence, y compris les dossiers clôturés et annulés — cliquez sur une barre pour ouvrir la liste.</p>
                         </div>
                         <div class="card-body p-3">
                             <div v-if="parAgence.length === 0" class="text-secondary small text-center py-4">
-                                Aucun dossier en cours
+                                Aucun dossier dans ce périmètre
                             </div>
                             <div v-else class="db-graphique db-graphique--barres">
                                 <DashboardChart type="barH"

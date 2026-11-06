@@ -1,0 +1,14 @@
+{
+  "checks": [
+    "API : deux demandes vers deux agences, deux acceptations/sous-dossiers, doublon refusé",
+    "API : assignation de conteneur à un dossier non maritime refusée",
+    "Navigateur : dossiers du jour → sélection → marchandises de l’OT du dossier",
+    "Navigateur : sélection maritime → conteneurs ; URL non maritime bloquée",
+    "Navigateur/API : document manquant → sélection à enregistrer → remise persistée en vert",
+    "Navigateur : phase/statut près des exports, numéro d’OT cliquable, aucune chronologie sur le détail",
+    "Navigateur : chronologie J0 et +n j dans la page de création des mouvements"
+  ],
+  "consoleErrors": [],
+  "networkErrors": [],
+  "success": true
+}

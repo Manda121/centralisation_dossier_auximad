@@ -41,6 +41,14 @@ async function supprimer(endpoint, id) {
 // ── Exports organisés par section ─────────────────────────────────────────
 
 const AdminService = {
+    emails: {
+        lister: () => api.get('/emails/adresses').then(r => r.data),
+        creer: data => api.post('/emails/adresses', data).then(r => r.data),
+        modifier: (id, data) => api.put(`/emails/adresses/${id}`, data).then(r => r.data),
+        configuration: () => api.get('/emails/configuration').then(r => r.data),
+        historique: params => api.get('/emails/historique', { params }).then(r => r.data),
+        relancer: id => api.post(`/emails/historique/${id}/relancer`).then(r => r.data),
+    },
     // 1. Utilisateurs & Sécurité
     utilisateurs: {
         lister: () => lister('utilisateurs'),

@@ -103,11 +103,16 @@
       <div class="mvt-next-card card"><div class="card-body p-4"><span class="mvt-overline">PROCHAINE ÉTAPE</span><strong>{{ prochaineOperation?.operation?.description || (operationsRestantes ? 'Opérations en attente de prérequis' : operationsStatus.length ? 'Toutes les opérations sont terminées' : 'Aucune opération configurée') }}</strong><small v-if="prochaineOperation">Prête à être enregistrée</small></div></div>
     </section>
 
+    <details v-if="selectedDossier && !loadingOperations" class="mvt-chronologie mb-4">
+      <summary>Chronologie depuis l’ouverture du dossier</summary>
+      <DossierChronologie :dossier="selectedDossier" :operations="operationsStatus" :erreur="!!operationsError" />
+    </details>
+
     <div v-if="selectedDossier" class="card mvt-operations-card">
       <div class="card-header bg-white py-3 px-4">
         <div class="mvt-section-heading">
           <span class="mvt-section-heading__number">02</span>
-          <div><h2>Opérations du dossier</h2><p>{{ selectedDossier.typeProduction?.nom || 'Type de production non renseigné' }} · {{ operationsStatus.length }} opération(s)</p></div>
+          <div><h2>Opérations du dossier</h2><p>{{ selectedDossier.typeProduction?.nom || 'Type de production non renseigné' }} · {{ operationsStatus.length }} opération(s) · Ouverture (J0) : {{ formatDate(selectedDossier.dateCreation) }}</p></div>
         </div>
       </div>
       <div class="card-body p-0">
@@ -128,6 +133,7 @@
                 <th>Phase & Statut Résultant</th>
                 <th>Obligatoire</th>
                 <th>Date Mouvement</th>
+                <th>Depuis l’ouverture</th>
                 <th>Document / Action</th>
                 <th class="pe-4 text-end">Statut & Action</th>
               </tr>
@@ -166,6 +172,11 @@
                     :disabled="opDto.estBloque"
                     class="form-control form-control-sm"
                   />
+                </td>
+
+                <td class="small text-nowrap">
+                  <span v-if="opDto.estFait" class="badge bg-primary-subtle text-primary-emphasis">{{ repereChronologique(selectedDossier.dateCreation, opDto.dateMvt) }}</span>
+                  <span v-else class="text-secondary">À venir</span>
                 </td>
 
                 <td>
@@ -332,18 +343,21 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import Header from '../components/inc/Header.vue'
+import DossierChronologie from '../components/DossierChronologie.vue'
+import { repereChronologique } from '../utils/chronologieDossier'
 import AutocompleteRecherche from '../components/inc/AutocompleteRecherche.vue'
 import DossierService from '../services/DossierService'
 import MvtDossierService from '../services/MvtDossierService'
 import DeclarationService from '../services/DeclarationService'
-import AdminService from '../services/AdminService'
 import DocumentService from '../services/DocumentService'
 import { useNotification } from '../composables/useNotification'
 import PermissionService, { PORTEE_PROPRE_ECRITURE, ACTION_OT } from '../utils/permission.service'
 
 const { notifyError, notifySuccess, notifyWarning, confirm } = useNotification()
+const route = useRoute()
 const peutAnnuler = PermissionService.verifierPermission(PORTEE_PROPRE_ECRITURE, ACTION_OT)
 
 const dossierSearchQuery = ref('')
@@ -670,7 +684,7 @@ const saveDeclaration = async () => {
 const loadModalReferentiels = async () => {
   try {
     const [bRes, tdRes] = await Promise.all([
-      AdminService.bureaux.lister(),
+      DeclarationService.getBureaux(),
       DeclarationService.getTypeDeclarations()
     ])
     bureaux.value = bRes || []
@@ -693,12 +707,25 @@ const getFileUrl = (chemin) => {
   return `http://localhost:8080/uploads/documents/${chemin}`
 }
 
+watch(() => route.query.dossierId, async id => {
+  if (!id) return
+  chargementDossier.value = true
+  try {
+    const dossier = await DossierService.getDossierById(id)
+    if (String(route.query.dossierId) === String(id)) selectDossier(dossier)
+  } catch (e) {
+    notifyError(e.response?.data?.erreur || 'Impossible de charger ce dossier.')
+  } finally { chargementDossier.value = false }
+}, { immediate: true })
+
 onMounted(() => {
   loadModalReferentiels()
 })
 </script>
 
 <style scoped>
+.mvt-chronologie > summary { padding: 1rem 1.25rem; background: #eef4fc; color: #3269ab; border: 1px solid #d7e2ef; border-radius: .5rem; font-weight: 600; cursor: pointer; }
+.mvt-chronologie[open] > summary { margin-bottom: .75rem; }
 .mvt-main { margin-left: 260px; min-width: 0; }
 .mvt-create-container {
   max-width: 1600px;

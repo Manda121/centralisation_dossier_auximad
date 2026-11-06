@@ -15,6 +15,12 @@
 
     <!-- Navigation -->
     <nav v-if="isLoggedIn" class="sidebar__nav">
+      <router-link :to="{ name: 'home' }" class="sidebar__nav-link" exact-active-class="sidebar__nav-link--active">
+        <svg viewBox="0 0 16 16" fill="currentColor" class="sidebar__icon" aria-hidden="true">
+          <path d="m8 1 7 6h-2v7H9.5V9h-3v5H3V7H1zm0 1.3L4 5.7V13h1.5V8h5v5H12V5.7z" />
+        </svg>
+        Accueil
+      </router-link>
       <router-link to="/tableau-de-bord" class="sidebar__nav-link" active-class="sidebar__nav-link--active">
         <svg viewBox="0 0 16 16" fill="currentColor" class="sidebar__icon">
           <path d="M1 11a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1zm5-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zm5-5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1z"/>

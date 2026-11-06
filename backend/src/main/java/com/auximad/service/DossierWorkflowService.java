@@ -21,12 +21,14 @@ public class DossierWorkflowService {
     private final TypeDocumentRepository typesDocuments;
     private final DocumentRepository documents;
     private final UtilisateurRepository utilisateurs;
+    private final SynchronisationMouvementsService synchronisation;
 
     public DossierWorkflowService(DossierRepository dossiers, PhaseDossierRepository phases,
                                   StatutDossierRepository statuts, OperationDossierRepository operations,
                                   MvtDossierRepository mouvements, MvtAnnuleeRepository annulations,
                                   TypeDocumentRepository typesDocuments,
-                                  DocumentRepository documents, UtilisateurRepository utilisateurs) {
+                                  DocumentRepository documents, UtilisateurRepository utilisateurs,
+                                  SynchronisationMouvementsService synchronisation) {
         this.dossiers = dossiers;
         this.phases = phases;
         this.statuts = statuts;
@@ -36,6 +38,7 @@ public class DossierWorkflowService {
         this.typesDocuments = typesDocuments;
         this.documents = documents;
         this.utilisateurs = utilisateurs;
+        this.synchronisation = synchronisation;
     }
 
     private List<OperationDossier> etapes(Dossier dossier) {
@@ -231,6 +234,13 @@ public class DossierWorkflowService {
 
     @Transactional
     public Dossier synchroniserDocuments(Integer dossierId) {
+        synchronisation.verrouillerFamille(dossierId);
+        Dossier resultat = synchroniserDocumentsLocal(dossierId);
+        synchronisation.synchroniserDepuis(resultat);
+        return resultat;
+    }
+
+    private Dossier synchroniserDocumentsLocal(Integer dossierId) {
         Dossier dossier = dossier(dossierId);
         List<OperationDossier> etapes = etapes(dossier);
         PhaseDossier preparation = phaseInitiale(etapes);
@@ -275,8 +285,10 @@ public class DossierWorkflowService {
 
     @Transactional
     public Dossier apresMouvement(Integer dossierId) {
+        synchronisation.verrouillerFamille(dossierId);
         Dossier dossier = dossier(dossierId);
         recalculer(dossier);
+        synchronisation.synchroniserDepuis(dossier);
         return dossier;
     }
 
@@ -287,6 +299,15 @@ public class DossierWorkflowService {
 
     @Transactional
     public Dossier annulerMouvement(Integer mouvementId, String motif, boolean confirmerObligatoires) {
+        Integer dossierId = mouvements.findDossierIdByMouvementId(mouvementId)
+                .orElseThrow(() -> new IllegalArgumentException("Mouvement introuvable : " + mouvementId));
+        synchronisation.verrouillerFamille(dossierId);
+        Dossier resultat = annulerMouvementLocal(mouvementId, motif, confirmerObligatoires);
+        synchronisation.synchroniserDepuis(resultat);
+        return resultat;
+    }
+
+    private Dossier annulerMouvementLocal(Integer mouvementId, String motif, boolean confirmerObligatoires) {
         MvtDossier mouvement = mouvements.findById(mouvementId)
                 .orElseThrow(() -> new IllegalArgumentException("Mouvement introuvable : " + mouvementId));
         if (Boolean.TRUE.equals(mouvement.getEstAnnule())) return mouvement.getDossier();
@@ -307,6 +328,13 @@ public class DossierWorkflowService {
 
     @Transactional
     public Dossier changerPhase(Integer dossierId, Integer phaseId) {
+        synchronisation.verrouillerFamille(dossierId);
+        Dossier resultat = changerPhaseLocal(dossierId, phaseId);
+        synchronisation.synchroniserDepuis(resultat);
+        return resultat;
+    }
+
+    private Dossier changerPhaseLocal(Integer dossierId, Integer phaseId) {
         Dossier dossier = dossier(dossierId);
         List<OperationDossier> etapes = etapes(dossier);
         List<PhaseDossier> phasesFlux = phasesDuFlux(etapes);
@@ -356,6 +384,13 @@ public class DossierWorkflowService {
 
     @Transactional
     public Dossier changerStatut(Integer dossierId, Integer statutId) {
+        synchronisation.verrouillerFamille(dossierId);
+        Dossier resultat = changerStatutLocal(dossierId, statutId);
+        synchronisation.synchroniserDepuis(resultat);
+        return resultat;
+    }
+
+    private Dossier changerStatutLocal(Integer dossierId, Integer statutId) {
         Dossier dossier = dossier(dossierId);
         StatutDossier cible = statuts.findById(statutId)
                 .orElseThrow(() -> new IllegalArgumentException("Statut introuvable : " + statutId));

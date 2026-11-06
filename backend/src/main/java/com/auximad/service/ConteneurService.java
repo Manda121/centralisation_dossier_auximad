@@ -12,6 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.HashSet;
+import java.util.Set;
 
 @Service
 @Transactional
@@ -49,16 +51,22 @@ public class ConteneurService {
     }
 
     public Conteneur saveConteneur(Conteneur conteneur) {
-        Dossier dossierSource = conteneur.getDossier();
-        if (dossierSource == null && conteneur.getDossiers() != null && !conteneur.getDossiers().isEmpty()) {
-            dossierSource = conteneur.getDossiers().iterator().next();
+        Set<Integer> dossierIds = new HashSet<>();
+        if (conteneur.getDossiers() != null) {
+            for (Dossier source : conteneur.getDossiers()) {
+                if (source == null || source.getId() == null) {
+                    throw new IllegalArgumentException("Le dossier associé est obligatoire pour assigner un conteneur.");
+                }
+                dossierIds.add(source.getId());
+            }
         }
-
-        if (dossierSource == null || dossierSource.getId() == null) {
+        if (dossierIds.isEmpty()) {
             throw new IllegalArgumentException("Le dossier associé est obligatoire pour assigner un conteneur.");
         }
-
-        final Integer dossierIdTarget = dossierSource.getId();
+        if (dossierIds.size() != 1) {
+            throw new IllegalArgumentException("Une assignation doit désigner un seul dossier.");
+        }
+        final Integer dossierIdTarget = dossierIds.iterator().next();
         Dossier dossier = dossierRepository.findById(dossierIdTarget)
                 .orElseThrow(() -> new IllegalArgumentException("Dossier introuvable (ID: " + dossierIdTarget + ")"));
 
@@ -116,23 +124,16 @@ public class ConteneurService {
     }
 
     /**
-     * Vérifie si un dossier est éligible à l'assignation de conteneur (Maritime ou combine ou produit nécessitant conteneur).
+     * L'assignation d'un conteneur est réservée au transport maritime.
      */
     public boolean estEligibleConteneur(Dossier dossier) {
         if (dossier == null) return false;
 
-        // 1. Vérification par typeProduction -> modeTransport
+        // Le mode renseigné sur le dossier est prioritaire sur celui de l'OT.
         if (dossier.getTypeProduction() != null) {
             ModeTransport mt = dossier.getTypeProduction().getModeTransport();
-            if (mt != null && mt.getNom() != null) {
-                String modeNom = mt.getNom().trim();
-                if ("Maritime".equalsIgnoreCase(modeNom) || "combine".equalsIgnoreCase(modeNom)) {
-                    return true;
-                }
-            }
-            if (dossier.getTypeProduction().getNom() != null
-                    && dossier.getTypeProduction().getNom().toLowerCase().contains("maritime")) {
-                return true;
+            if (mt != null && mt.getNom() != null && !mt.getNom().isBlank()) {
+                return "Maritime".equalsIgnoreCase(mt.getNom().trim());
             }
         }
 
@@ -140,10 +141,7 @@ public class ConteneurService {
         if (dossier.getOrdreTransit() != null && dossier.getOrdreTransit().getTypeProduction() != null) {
             ModeTransport mt = dossier.getOrdreTransit().getTypeProduction().getModeTransport();
             if (mt != null && mt.getNom() != null) {
-                String modeNom = mt.getNom().trim();
-                if ("Maritime".equalsIgnoreCase(modeNom) || "combine".equalsIgnoreCase(modeNom)) {
-                    return true;
-                }
+                return "Maritime".equalsIgnoreCase(mt.getNom().trim());
             }
         }
 

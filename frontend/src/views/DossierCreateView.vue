@@ -61,7 +61,7 @@
                                         class="text-danger">*</span></label>
                                 <select v-model="dossier.typeProduction" class="form-select form-select-sm" required>
                                     <option :value="null">Sélectionnez</option>
-                                    <option v-for="p in typeProductions" :key="p.id" :value="p">{{ p.nom }}</option>
+                                    <option v-for="p in typeProductions" :key="p.id" :value="p">{{ p.nom }} — {{ p.modeTransport?.nom || 'Mode non défini' }}</option>
                                 </select>
                             </div>
                             <div v-if="!otCharge" class="col-md-4">
@@ -146,6 +146,42 @@
                             </div>
                         </div>
 
+                        <section v-if="estMaritime" class="mt-4 pt-3 border-top" aria-labelledby="conteneur-creation-title">
+                            <h6 id="conteneur-creation-title" class="fw-semibold mb-3">Conteneur</h6>
+                            <div class="form-check mb-3">
+                                <input id="ajouter-conteneur-creation" v-model="ajouterConteneur" type="checkbox" class="form-check-input">
+                                <label for="ajouter-conteneur-creation" class="form-check-label">Associer un conteneur à la création du dossier</label>
+                            </div>
+                            <template v-if="dossier.conteneurCreation">
+                                <p class="text-secondary mb-3">Choisissez un conteneur existant ou saisissez un nouveau numéro. Il sera enregistré et rattaché au dossier avec le bouton « Créer le Dossier ».</p>
+                                <div v-if="erreurReferentielsConteneur" class="alert alert-warning py-2" role="alert">
+                                    {{ erreurReferentielsConteneur }}
+                                    <button type="button" class="btn btn-link btn-sm" :disabled="chargementConteneurs" @click="chargerReferentielsConteneur">Réessayer</button>
+                                </div>
+                                <p v-if="chargementConteneurs" class="text-secondary" role="status">Chargement des conteneurs…</p>
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label for="numero-conteneur-creation" class="form-label fw-semibold">Numéro du conteneur <span class="text-danger">*</span></label>
+                                        <input id="numero-conteneur-creation" v-model="dossier.conteneurCreation.numeroContainer" list="conteneurs-creation-existants" class="form-control form-control-sm" maxlength="100" required @input="choisirConteneurExistant">
+                                        <datalist id="conteneurs-creation-existants">
+                                            <option v-for="c in conteneursDisponibles" :key="c.id" :value="c.numeroContainer">{{ c.typeContainer?.nom }}</option>
+                                        </datalist>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="type-conteneur-creation" class="form-label fw-semibold">Type de conteneur <span class="text-danger">*</span></label>
+                                        <select id="type-conteneur-creation" v-model="dossier.conteneurCreation.typeContainer" class="form-select form-select-sm" required :disabled="chargementConteneurs">
+                                            <option :value="null">Sélectionnez</option>
+                                            <option v-for="type in typesConteneurs" :key="type.id" :value="type">{{ type.nom }}</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="description-conteneur-creation" class="form-label fw-semibold">Description</label>
+                                        <input id="description-conteneur-creation" v-model="dossier.conteneurCreation.description" class="form-control form-control-sm">
+                                    </div>
+                                </div>
+                            </template>
+                        </section>
+
                         <!-- Section Documents (lors de la création) -->
                         <div v-if="dossier.typeProduction && (dossier.ordreTransit?.natureMarchandise?.id || dossier.natureMarchandiseCreation?.id)"
                             class="mt-4 pt-3 border-top">
@@ -167,7 +203,7 @@
                         <div class="d-flex justify-content-end gap-3 mt-5 pt-3 border-top">
                             <router-link to="/dossiers" class="btn btn-secondary btn-sm">Annuler</router-link>
                             <button type="submit" class="btn btn-primary btn-sm"
-                                :disabled="enCours || chargementOt">
+                                :disabled="enCours || chargementOt || (ajouterConteneur && chargementConteneurs)">
                                 <span v-if="enCours" class="spinner-border spinner-border-sm me-2"></span>
                                 Créer le Dossier
                             </button>
@@ -180,7 +216,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Header from '../components/inc/Header.vue'
 import PageSkeleton from '../components/inc/PageSkeleton.vue'
@@ -192,6 +228,7 @@ import DossierService from '../services/DossierService'
 import ClientService from '../services/ClientService'
 import OrdreTransitService from '../services/OrdreTransitService'
 import MarchandiseService from '../services/MarchandiseService'
+import ConteneurService from '../services/ConteneurService'
 import UtilisateurService from '@/services/UtilisateurService.js'
 import { useNotification } from '../composables/useNotification'
 
@@ -221,6 +258,54 @@ const naturesMarchandise = ref([])
 const pays = ref([])
 const incontermes = ref([])
 const utilisateur = ref();
+const ajouterConteneur = ref(false)
+const typesConteneurs = ref([])
+const conteneursExistants = ref([])
+const chargementConteneurs = ref(false)
+const erreurReferentielsConteneur = ref('')
+const estMaritime = computed(() => ConteneurService.estEligibleConteneur(dossier.value))
+const conteneursDisponibles = computed(() => conteneursExistants.value.filter(c => {
+    const associes = c.dossiers?.length ? c.dossiers : (c.dossier ? [c.dossier] : [])
+    return !associes.some(d => /cl[oô]t/i.test(d.statutDossier?.nom || ''))
+        && (!associes.length || associes.some(d => !d.typeProduction?.id || d.typeProduction.id === dossier.value.typeProduction?.id))
+}))
+
+async function chargerReferentielsConteneur() {
+    if (chargementConteneurs.value) return
+    chargementConteneurs.value = true
+    erreurReferentielsConteneur.value = ''
+    const [types, conteneurs] = await Promise.allSettled([
+        ConteneurService.getTypesContainers(), ConteneurService.getTousConteneurs()
+    ])
+    if (types.status === 'fulfilled') typesConteneurs.value = types.value || []
+    if (conteneurs.status === 'fulfilled') conteneursExistants.value = conteneurs.value || []
+    if (types.status === 'rejected') erreurReferentielsConteneur.value = 'Impossible de charger les types de conteneurs.'
+    else if (conteneurs.status === 'rejected') erreurReferentielsConteneur.value = 'La recherche des conteneurs existants est indisponible. Vous pouvez saisir un numéro.'
+    chargementConteneurs.value = false
+}
+
+watch(estMaritime, maritime => {
+    if (!maritime) {
+        ajouterConteneur.value = false
+        dossier.value.conteneurCreation = null
+    }
+})
+watch(ajouterConteneur, ajouter => {
+    dossier.value.conteneurCreation = ajouter && estMaritime.value
+        ? { id: null, numeroContainer: '', typeContainer: null, description: '' } : null
+    if (ajouter && estMaritime.value) chargerReferentielsConteneur()
+})
+
+function choisirConteneurExistant(event) {
+    const saisie = dossier.value.conteneurCreation
+    if (!saisie) return
+    const existant = conteneursDisponibles.value.find(c => c.numeroContainer === event.target.value.trim())
+    saisie.id = existant?.id || null
+    if (existant) {
+        saisie.typeContainer = typesConteneurs.value.find(t => t.id === existant.typeContainer?.id) || existant.typeContainer || null
+        saisie.description = existant.description || ''
+    }
+}
 
 onMounted(async () => {
     try {

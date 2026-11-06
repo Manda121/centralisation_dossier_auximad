@@ -15,6 +15,9 @@ import java.util.Optional;
 @Repository
 public interface MvtDossierRepository extends JpaRepository<MvtDossier, Integer> {
 
+    @Query("SELECT m.dossier.id FROM MvtDossier m WHERE m.id = :id")
+    Optional<Integer> findDossierIdByMouvementId(@Param("id") Integer id);
+
     List<MvtDossier> findByDossierIdOrderByDateMvtAscIdAsc(Integer dossierId);
 
     @Query("SELECT m FROM MvtDossier m WHERE m.dossier.id = :dossierId "

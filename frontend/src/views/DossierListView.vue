@@ -27,9 +27,10 @@ const LIBELLES_BINAIRES = {
 function lireParametresUrl() {
     const params = route.query
     const filtreSpecial = PARAMS_BINAIRES.some(cle => params[cle] === 'true')
+    const sansPeriode = filtreSpecial || params.toutesDates === 'true'
     return {
-        dateMin: params.dateMin || (filtreSpecial ? '' : aujourdhui),
-        dateMax: params.dateMax || (filtreSpecial ? '' : aujourdhui),
+        dateMin: params.dateMin || (sansPeriode ? '' : aujourdhui),
+        dateMax: params.dateMax || (sansPeriode ? '' : aujourdhui),
         phaseId: params.phaseId || '',
         statutId: params.statutId || '',
         typeProductionId: params.typeProductionId || '',

@@ -20,17 +20,23 @@ public class InterAgenceService {
     private final AgenceRepository agenceRepository;
     private final UtilisateurRepository utilisateurRepository;
     private final DossierService dossierService;
+    private final HeritageSousDossierService heritageSousDossierService;
+    private final SynchronisationMouvementsService synchronisation;
 
     public InterAgenceService(DossierInteragenceRepository interagenceRepository,
                                DossierRepository dossierRepository,
                                AgenceRepository agenceRepository,
                                UtilisateurRepository utilisateurRepository,
-                               DossierService dossierService) {
+                               DossierService dossierService,
+                               HeritageSousDossierService heritageSousDossierService,
+                               SynchronisationMouvementsService synchronisation) {
         this.interagenceRepository = interagenceRepository;
         this.dossierRepository = dossierRepository;
         this.agenceRepository = agenceRepository;
         this.utilisateurRepository = utilisateurRepository;
         this.dossierService = dossierService;
+        this.heritageSousDossierService = heritageSousDossierService;
+        this.synchronisation = synchronisation;
     }
 
     /**
@@ -50,12 +56,19 @@ public class InterAgenceService {
         );
 
         // 2. Charger le dossier mère
-        Dossier mere = dossierRepository.findById(idDossierMere)
+        synchronisation.verrouillerFamille(idDossierMere);
+        Dossier mere = dossierRepository.verrouillerInteragence(idDossierMere)
                 .orElseThrow(() -> new IllegalArgumentException("Dossier mère introuvable : " + idDossierMere));
 
         // 3. Charger l'agence cible
         Agence agenceCible = agenceRepository.findById(request.getIdAgence())
                 .orElseThrow(() -> new IllegalArgumentException("Agence introuvable : " + request.getIdAgence()));
+        if (mere.getAgence() != null && mere.getAgence().getId().equals(agenceCible.getId())) {
+            throw new IllegalArgumentException("L'agence destinataire doit être différente de celle du dossier.");
+        }
+        if (agenceDejaAssociee(idDossierMere, agenceCible.getId())) {
+            throw new IllegalArgumentException("Un sous-dossier existe déjà dans cette agence.");
+        }
 
         // 4. Récupérer l'utilisateur connecté
         Integer idUtilisateur = JwtSecurityContext.getIdUtilisateur();
@@ -79,17 +92,16 @@ public class InterAgenceService {
         sousDossier.setProvisionDemandee(java.math.BigDecimal.ZERO);
         sousDossier.setDateCreation(LocalDateTime.now());
 
-        // Choisir le type de production (override possible)
-        if (request.getIdTypeProduction() != null) {
-            TypeProduction tp = new TypeProduction();
-            tp.setId(request.getIdTypeProduction());
-            sousDossier.setTypeProduction(tp);
-        } else {
-            sousDossier.setTypeProduction(mere.getTypeProduction());
+        // Le meme flux est necessaire pour partager les memes operations.
+        if (request.getIdTypeProduction() != null && (mere.getTypeProduction() == null
+                || !request.getIdTypeProduction().equals(mere.getTypeProduction().getId()))) {
+            throw new IllegalArgumentException("Le sous-dossier doit conserver le type de production du dossier mere.");
         }
+        sousDossier.setTypeProduction(mere.getTypeProduction());
 
         // 6. Sauvegarder le sous-dossier (génère son numéro automatiquement)
         Dossier savedSousDossier = dossierService.saveDossier(sousDossier);
+        heritageSousDossierService.copierRessources(mere, savedSousDossier);
 
         // 7. Créer le lien interagence
         DossierInteragence lien = new DossierInteragence();
@@ -98,7 +110,9 @@ public class InterAgenceService {
         lien.setMotif(request.getMotif());
         lien.setDateCreation(LocalDateTime.now());
 
-        return interagenceRepository.save(lien);
+        DossierInteragence savedLien = interagenceRepository.save(lien);
+        synchronisation.synchroniserDepuis(mere);
+        return savedLien;
     }
 
     /**
@@ -107,6 +121,11 @@ public class InterAgenceService {
     @Transactional(readOnly = true)
     public List<DossierInteragence> getSousDossiers(Integer idDossierMere) {
         return interagenceRepository.findByDossierMereId(idDossierMere);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean agenceDejaAssociee(Integer dossierId, Integer agenceId) {
+        return interagenceRepository.existsByDossierMereIdAndSousDossierAgenceId(dossierId, agenceId);
     }
 
     /**

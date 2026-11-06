@@ -1,390 +1,162 @@
-<script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+﻿<script setup>
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import Header from '../components/inc/Header.vue'
-import DataTable from '../components/inc/DataTable.vue'
+import ChoixDossier from '../components/assignation/ChoixDossier.vue'
+import ModalConteneur from '../components/conteneur/ModalConteneur.vue'
+import ExportActions from '../components/inc/ExportActions.vue'
 import DossierService from '../services/DossierService'
 import ConteneurService from '../services/ConteneurService'
-import ModalConteneur from '../components/conteneur/ModalConteneur.vue'
+import PermissionService from '../utils/permission.service'
 import { useNotification } from '../composables/useNotification'
 
-const { notifyError } = useNotification()
-const datatableRef = ref(null)
-
-// Date du jour par défaut (Format YYYY-MM-DD)
-const todayStr = new Date().toISOString().split('T')[0]
-
-const filters = reactive({
-  query: '',
-  phaseId: '',
-  statutId: '',
-  typeProductionId: '',
-  dateMin: todayStr,
-  dateMax: todayStr
-})
-
-const phases = ref([])
-const statuts = ref([])
-
-// Pour la modale d'assignation
-const showModal = ref(false)
+const route = useRoute()
+const router = useRouter()
+const { notifyError, notifySuccess } = useNotification()
 const dossierSelectionne = ref(null)
+const conteneurs = ref([])
+const chargement = ref(false)
+const erreur = ref('')
+const showModal = ref(false)
 const conteneurAEditer = ref(null)
-
-// Map pour stocker la liste des conteneurs par dossierId
-const conteneursParDossier = ref({})
-const loadingConteneurs = ref(false)
-
-// Gestion du déroulement flottant (dropdown/popover)
-const expandedRows = reactive({})
-
-function toggleExpand(dossierId, e) {
-  if (e) e.stopPropagation()
-  const currentlyOpen = !!expandedRows[dossierId]
-  Object.keys(expandedRows).forEach(k => { expandedRows[k] = false })
-  expandedRows[dossierId] = !currentlyOpen
-}
-
-function fermerTousDropdowns() {
-  Object.keys(expandedRows).forEach(k => { expandedRows[k] = false })
-}
-
-async function chargerTousLesConteneurs() {
-  loadingConteneurs.value = true
-  try {
-    const tous = await ConteneurService.getTousConteneurs()
-    const map = {}
-    tous.forEach(c => {
-      const listDossiers = (c.dossiers && c.dossiers.length > 0) ? c.dossiers : (c.dossier ? [c.dossier] : [])
-      listDossiers.forEach(d => {
-        if (d && d.id) {
-          if (!map[d.id]) {
-            map[d.id] = []
-          }
-          if (!map[d.id].some(item => item.id === c.id)) {
-            map[d.id].push(c)
-          }
-        }
-      })
-    })
-    conteneursParDossier.value = map
-  } catch (e) {
-    console.error("Erreur de chargement des conteneurs", e)
-  } finally {
-    loadingConteneurs.value = false
-  }
-}
-
-onMounted(async () => {
-  window.addEventListener('click', fermerTousDropdowns)
-  try {
-    const [ph, st] = await Promise.all([
-      DossierService.getAllPhases(),
-      DossierService.getAllStatuts()
-    ])
-    phases.value = ph
-    statuts.value = st
-  } catch (e) {
-    console.error('Erreur chargement des référentiels', e)
-  }
-  await chargerTousLesConteneurs()
-})
-
-onUnmounted(() => {
-  window.removeEventListener('click', fermerTousDropdowns)
-})
-
-// Colonnes demandées : numéro dossier, client, date embarquement, date arrivée, compagnie, description du type production, conteneurs, actions
-const columns = [
-  { key: 'numeroDossier', label: 'N° Dossier', sortable: true },
-  { key: 'client.nom', label: 'Client', sortable: false },
-  { key: 'dateEmbarquement', label: 'Date Embarquement', sortable: false, format: 'date', get: row => row.ordreTransit?.contratTransport?.datePrevue || row.echeance },
-  { key: 'dateArrivee', label: 'Date Arrivée', sortable: false, format: 'date', get: row => row.ordreTransit?.contratTransport?.dateArrivee || row.dateLivraison },
-  { key: 'compagnie', label: 'Compagnie', sortable: false, get: row => row.ordreTransit?.contratTransport?.compagnie?.nom || row.compagnie },
-  { key: 'typeProduction.description', label: 'Description Type Prod.', sortable: false },
-  { key: 'conteneurs', label: 'Conteneurs Assignés', sortable: false,
-    get: row => (conteneursParDossier.value[row.id] || []).map(c => c.numeroContainer).join(', ') },
-  { key: 'actions', label: 'Actions', sortable: false }
+const retraitId = ref(null)
+let requete = 0
+const peutEditer = computed(() => PermissionService.peutEcrireOT())
+const peutRetirer = computed(() => PermissionService.peutSupprimerOT())
+const espaceOuvert = computed(() => !!route.query.dossierId)
+const colonnesExport = [
+  { key: 'numeroContainer', label: 'N° conteneur' },
+  { key: 'typeContainer.nom', label: 'Type' },
+  { key: 'description', label: 'Description' },
 ]
+async function lignesExport() { return conteneurs.value }
 
-async function chargerDossiers(page, size, sortBy, sortDir, currentFilters) {
-  return await DossierService.searchDossiers(page, size, sortBy, sortDir, currentFilters)
-}
-
-function estEligible(dossier) {
-  return ConteneurService.estEligibleConteneur(dossier)
-}
-
-function ouvrirModalAssignation(dossier, conteneur = null) {
-  dossierSelectionne.value = dossier
+function estMaritime(dossier) { return ConteneurService.estEligibleConteneur(dossier) }
+function choisirDossier(dossier) { router.push({ path: '/conteneurs', query: { dossierId: dossier.id } }) }
+function retourDossiers() { router.push({ path: '/conteneurs' }) }
+function ouvrirModal(conteneur = null) {
+  if (!estMaritime(dossierSelectionne.value) || !peutEditer.value) return
   conteneurAEditer.value = conteneur
   showModal.value = true
 }
 
-async function onConteneurEnregistre() {
-  await chargerTousLesConteneurs()
-  datatableRef.value?.refresh(false)
+async function chargerConteneurs() {
+  const dossierId = dossierSelectionne.value?.id
+  if (!dossierId) return
+  try {
+    const resultat = await ConteneurService.getConteneursParDossier(dossierId)
+    if (dossierSelectionne.value?.id === dossierId) conteneurs.value = resultat
+  } catch (e) {
+    if (dossierSelectionne.value?.id === dossierId) notifyError(e.response?.data?.message || 'Impossible de charger les conteneurs de ce dossier.')
+  }
 }
 
-async function supprimerConteneur(cId, dossierId = null) {
-    try {
-        await ConteneurService.supprimerConteneur(cId, dossierId)
-        await chargerTousLesConteneurs()
-    } catch (e) {
-        if (e?.code === 'ERR_CANCELED') return
-        notifyError(e.response?.data?.message || 'Erreur de suppression du conteneur')
-    }
+async function onConteneurEnregistre() { await chargerConteneurs() }
+async function retirer(conteneur) {
+  const dossierId = dossierSelectionne.value?.id
+  if (!dossierId || !peutRetirer.value || retraitId.value !== null) return
+  retraitId.value = conteneur.id
+  try {
+    await ConteneurService.supprimerConteneur(conteneur.id, dossierId)
+    if (dossierSelectionne.value?.id === dossierId) await chargerConteneurs()
+    notifySuccess('Conteneur retiré du dossier.')
+  } catch (e) {
+    if (e?.code !== 'ERR_CANCELED') notifyError(e.response?.data?.message || 'Impossible de retirer ce conteneur.')
+  } finally { retraitId.value = null }
 }
 
-function formatarDate(dt) {
-  if (!dt) return '—'
-  return new Date(dt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-}
-
-function reinitialiserFiltreDate() {
-  filters.dateMin = ''
-  filters.dateMax = ''
-  datatableRef.value?.refresh(true)
-}
-
-function filtrerAujourdhui() {
-  filters.dateMin = todayStr
-  filters.dateMax = todayStr
-  datatableRef.value?.refresh(true)
-}
+watch(() => route.query.dossierId, async id => {
+  const numeroRequete = ++requete
+  dossierSelectionne.value = null
+  conteneurs.value = []
+  erreur.value = ''
+  showModal.value = false
+  chargement.value = !!id
+  if (!id) return
+  try {
+    const dossier = await DossierService.getDossierById(id)
+    if (!estMaritime(dossier)) throw new Error('L’assignation de conteneurs est réservée aux dossiers maritimes.')
+    const resultat = await ConteneurService.getConteneursParDossier(dossier.id)
+    if (numeroRequete !== requete) return
+    dossierSelectionne.value = dossier
+    conteneurs.value = resultat
+  } catch (e) {
+    if (numeroRequete === requete) erreur.value = e.response?.data?.message || e.message || 'Impossible de charger l’assignation des conteneurs.'
+  } finally {
+    if (numeroRequete === requete) chargement.value = false
+  }
+}, { immediate: true })
 </script>
 
 <template>
   <div class="d-flex min-vh-100 bg-light">
     <Header />
-
-    <main class="flex-grow-1 p-4" style="margin-left: 280px;">
+    <main class="assignment-main flex-grow-1 p-4">
       <div class="container-fluid">
-        <!-- Titre & Indicateur de chargement des conteneurs -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <header class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-4">
           <div>
-            <h1 class="h4 fw-bold text-dark mb-1">Gestion & Assignation des Conteneurs</h1>
-            <p class="text-secondary mb-0 small">
-              Filtre automatique sur les dossiers du jour. Assignation simplifiée des conteneurs maritime.
-            </p>
+            <h1 class="h4 fw-bold text-dark mb-1">Assignation des conteneurs</h1>
+            <p class="text-secondary mb-0 small">Sélectionnez un dossier maritime pour consulter et gérer ses conteneurs.</p>
           </div>
+          <button v-if="espaceOuvert" type="button" class="btn btn-outline-secondary btn-sm" @click="retourDossiers">← Retour aux dossiers</button>
+        </header>
 
-          <!-- Chargement des conteneurs -->
-          <div v-if="loadingConteneurs" class="d-flex align-items-center gap-2 bg-white px-3 py-2 border rounded shadow-sm">
-            <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
-            <span class="small fw-semibold text-primary">Chargement des conteneurs…</span>
-          </div>
-        </div>
+        <ChoixDossier v-show="!espaceOuvert" action-label="Assigner les conteneurs" :selectionnable="estMaritime"
+          :motif-indisponible="() => 'Transport non maritime'" @selection="choisirDossier" />
 
-        <!-- Carte Table -->
-        <div class="card border shadow-sm">
-          <div class="card-body p-3">
-            <DataTable 
-              ref="datatableRef" 
-              :columns="columns" export-title="Dossiers et conteneurs"
-              :fetch-function="chargerDossiers"
-              :filters="filters" 
-              default-sort="date_creation" 
-              default-sort-dir="desc" 
-              :pageSize="15"
-            >
-              <!-- Filtres -->
-              <template #filters="{ filters: slotFilters }">
-                <div class="row g-2 align-items-end">
-                  <div class="col-md-3">
-                    <label class="form-label small fw-semibold text-secondary">Date dossier</label>
-                    <input type="date" v-model="slotFilters.dateMin" class="form-control form-control-sm" />
-                  </div>
-                  <div class="col-md-3">
-                    <div class="d-flex gap-1">
-                      <button 
-                        type="button" 
-                        class="btn btn-sm btn-outline-primary w-100" 
-                        :class="{ active: slotFilters.dateMin === todayStr }"
-                        @click="filtrerAujourdhui"
-                      >
-                        Aujourd'hui
-                      </button>
-                      <button 
-                        type="button" 
-                        class="btn btn-sm btn-outline-secondary w-100" 
-                        @click="reinitialiserFiltreDate"
-                      >
-                        Tous les jours
-                      </button>
-                    </div>
-                  </div>
-                  <div class="col-md-3">
-                    <label class="form-label small fw-semibold text-secondary">Phase</label>
-                    <select v-model="slotFilters.phaseId" class="form-select form-select-sm">
-                      <option value="">Toutes les phases</option>
-                      <option v-for="p in phases" :key="p.id" :value="p.id">{{ p.nom }}</option>
-                    </select>
-                  </div>
-                  <div class="col-md-3">
-                    <label class="form-label small fw-semibold text-secondary">Statut</label>
-                    <select v-model="slotFilters.statutId" class="form-select form-select-sm">
-                      <option value="">Tous les statuts</option>
-                      <option v-for="s in statuts" :key="s.id" :value="s.id">{{ s.nom }}</option>
-                    </select>
-                  </div>
+        <template v-if="espaceOuvert">
+          <p v-if="chargement" class="alert alert-light border" role="status">Chargement de l’assignation…</p>
+          <p v-else-if="erreur" class="alert alert-danger" role="alert">{{ erreur }}</p>
+          <template v-else-if="dossierSelectionne">
+            <div class="assignment-context mb-4">
+              <div>
+                <span class="small text-secondary d-block">Dossier sélectionné</span>
+                <h2 class="h5 fw-semibold mb-1">{{ dossierSelectionne.numeroDossier }}</h2>
+                <span class="small text-secondary">{{ dossierSelectionne.client?.nom }} {{ dossierSelectionne.client?.prenom || '' }} · {{ dossierSelectionne.agence?.nom }} · {{ dossierSelectionne.typeProduction?.description }}</span>
+              </div>
+              <div class="small text-end">
+                <span class="badge text-bg-primary">Maritime</span>
+                <RouterLink :to="`/dossiers/${dossierSelectionne.id}`" class="d-block mt-2">Voir le dossier</RouterLink>
+              </div>
+            </div>
+
+            <section class="card border-0 shadow-sm" aria-labelledby="conteneurs-dossier-title">
+              <div class="card-header bg-white d-flex align-items-center justify-content-between gap-3 flex-wrap p-3">
+                <h3 id="conteneurs-dossier-title" class="h6 fw-semibold mb-0">Conteneurs du dossier <span class="badge text-bg-light border ms-1">{{ conteneurs.length }}</span></h3>
+                <div class="d-flex gap-2 flex-wrap">
+                  <ExportActions title="Conteneurs du dossier" :columns="colonnesExport" :load-rows="lignesExport" :disabled="!conteneurs.length" />
+                  <button v-if="peutEditer" type="button" class="btn btn-primary btn-sm" @click="ouvrirModal()">+ Assigner un conteneur</button>
                 </div>
-              </template>
-
-              <!-- Colonne 1: N° Dossier -->
-              <template #cell-numeroDossier="{ row }">
-                <router-link :to="`/dossiers/${row.id}`" class="fw-semibold text-primary text-decoration-none">
-                  {{ row.numeroDossier }}
-                </router-link>
-              </template>
-
-              <!-- Colonne 2: Client -->
-              <template #cell-client.nom="{ row }">
-                {{ row.client ? `${row.client.nom} ${row.client.prenom || ''}` : '—' }}
-              </template>
-
-              <!-- Colonne 3: Date Embarquement -->
-              <template #cell-dateEmbarquement="{ row }">
-                {{ formatarDate(row.ordreTransit?.contratTransport?.datePrevue || row.echeance) }}
-              </template>
-
-              <!-- Colonne 4: Date Arrivée -->
-              <template #cell-dateArrivee="{ row }">
-                {{ formatarDate(row.ordreTransit?.contratTransport?.dateArrivee || row.dateLivraison) }}
-              </template>
-
-              <!-- Colonne 5: Compagnie -->
-              <template #cell-compagnie="{ row }">
-                {{ row.ordreTransit?.contratTransport?.compagnie?.nom || row.compagnie || '—' }}
-              </template>
-
-              <!-- Colonne 6: Description du type production -->
-              <template #cell-typeProduction.description="{ row }">
-                <span class="small text-dark">
-                  {{ row.typeProduction?.description || row.typeProduction?.nom || row.ordreTransit?.typeProduction?.description || '—' }}
-                </span>
-              </template>
-
-              <!-- Colonne 7: Conteneurs Assignés (Déroulement flottant sans impacter la hauteur des lignes) -->
-              <template #cell-conteneurs="{ row }">
-                <div v-if="conteneursParDossier[row.id] && conteneursParDossier[row.id].length > 0" class="position-relative">
-                  
-                  <!-- En-tête tronqué en une ligne fixe -->
-                  <div 
-                    class="d-flex align-items-center gap-1 cursor-pointer py-1 px-2 border rounded bg-white hover-bg-light text-nowrap"
-                    style="max-width: 220px; font-size: 0.82rem;"
-                    @click="toggleExpand(row.id, $event)"
-                    title="Cliquer pour dérouler la liste des conteneurs"
-                  >
-                    <span class="text-dark text-truncate">
-                      {{ conteneursParDossier[row.id][0].numeroContainer }}
-                      <span class="text-secondary">({{ conteneursParDossier[row.id][0].typeContainer?.nom || 'Conteneur' }})</span>
-                    </span>
-                    <span v-if="conteneursParDossier[row.id].length > 1" class="text-primary fw-bold ms-auto" style="font-size: 0.75rem;">
-                      ... (+{{ conteneursParDossier[row.id].length - 1 }}) ▾
-                    </span>
-                    <span v-else class="text-secondary ms-auto" style="font-size: 0.7rem;">▾</span>
-                  </div>
-
-                  <!-- Menu déroulant flottant au clic -->
-                  <div 
-                    v-if="expandedRows[row.id]" 
-                    class="position-absolute start-0 top-100 mt-1 bg-white border rounded shadow-lg p-2 dropdown-container"
-                    style="z-index: 1050; min-width: 280px; max-height: 220px; overflow-y: auto;"
-                    @click.stop
-                  >
-                    <div class="d-flex justify-content-between align-items-center pb-2 mb-2 border-bottom">
-                      <span class="fw-semibold text-dark small">Conteneurs assignés ({{ conteneursParDossier[row.id].length }})</span>
-                      <button 
-                        type="button" 
-                        class="btn-close p-0" 
-                        style="font-size: 0.65rem;" 
-                        @click="expandedRows[row.id] = false"
-                      ></button>
-                    </div>
-
-                    <div 
-                      v-for="c in conteneursParDossier[row.id]" 
-                      :key="c.id"
-                      class="py-1 px-2 mb-1 border-bottom-subtle d-flex justify-content-between align-items-center gap-2 hover-bg-light rounded small"
-                    >
-                      <div class="text-truncate">
-                        <strong class="text-dark">{{ c.numeroContainer }}</strong>
-                        <span class="text-secondary ms-1">({{ c.typeContainer?.nom || 'Conteneur' }})</span>
-                        <div v-if="c.description" class="text-muted" style="font-size: 0.7rem;">
-                          {{ c.description }}
-                        </div>
-                      </div>
-
-                      <div class="d-flex align-items-center gap-2 flex-shrink-0">
-                        <button 
-                          class="btn btn-link btn-sm p-0 text-primary text-decoration-none" 
-                          style="font-size: 0.75rem;" 
-                          @click="ouvrirModalAssignation(row, c); expandedRows[row.id] = false"
-                        >
-                          Edit
-                        </button>
-                        <button 
-                          class="btn btn-link btn-sm p-0 text-danger text-decoration-none" 
-                          style="font-size: 0.75rem;" 
-                          @click="supprimerConteneur(c.id, row.id)"
-                        >
-                          Suppr.
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                </div>
-                
-                <span v-else class="text-muted small fst-italic">—</span>
-              </template>
-
-              <!-- Colonne 8: Actions -->
-              <template #cell-actions="{ row }">
-                <button 
-                  v-if="estEligible(row)"
-                  class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1"
-                  @click="ouvrirModalAssignation(row)"
-                >
-                  + Assigner conteneur
-                </button>
-                <button 
-                  v-else
-                  class="btn btn-sm btn-light border text-muted opacity-75" 
-                  disabled 
-                  title="Assignation impossible : le dossier n'est pas maritime"
-                >
-                  Non maritime
-                </button>
-              </template>
-            </DataTable>
-          </div>
-        </div>
+              </div>
+              <div v-if="!conteneurs.length" class="p-5 text-center text-secondary">
+                <strong>Aucun conteneur assigné à ce dossier.</strong>
+                <p v-if="peutEditer" class="small mb-0 mt-2">Utilisez « Assigner un conteneur » pour en ajouter un ou choisir un conteneur existant.</p>
+              </div>
+              <div v-else class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                  <thead class="table-light"><tr><th scope="col">N° conteneur</th><th scope="col">Type</th><th scope="col">Description</th><th v-if="peutEditer || peutRetirer" scope="col" class="text-end">Actions</th></tr></thead>
+                  <tbody><tr v-for="conteneur in conteneurs" :key="conteneur.id">
+                    <td class="fw-semibold">{{ conteneur.numeroContainer }}</td><td>{{ conteneur.typeContainer?.nom || '—' }}</td><td>{{ conteneur.description || '—' }}</td>
+                    <td v-if="peutEditer || peutRetirer" class="text-end text-nowrap">
+                      <button v-if="peutEditer" type="button" class="btn btn-sm btn-outline-primary me-2" :disabled="retraitId !== null" @click="ouvrirModal(conteneur)">Modifier<span class="visually-hidden"> {{ conteneur.numeroContainer }}</span></button>
+                      <button v-if="peutRetirer" type="button" class="btn btn-sm btn-outline-danger" :disabled="retraitId !== null" @click="retirer(conteneur)">{{ retraitId === conteneur.id ? 'Retrait…' : 'Retirer du dossier' }}<span class="visually-hidden"> {{ conteneur.numeroContainer }}</span></button>
+                    </td>
+                  </tr></tbody>
+                </table>
+              </div>
+            </section>
+          </template>
+        </template>
       </div>
     </main>
-
-    <!-- Modale d'assignation -->
-    <ModalConteneur
-      :show="showModal"
-      :dossier="dossierSelectionne"
-      :conteneurAEditer="conteneurAEditer"
-      @close="showModal = false"
-      @saved="onConteneurEnregistre"
-    />
+    <ModalConteneur :show="showModal" :dossier="dossierSelectionne" :conteneur-a-editer="conteneurAEditer" @close="showModal = false" @saved="onConteneurEnregistre" />
   </div>
 </template>
 
 <style scoped>
-.cursor-pointer {
-  cursor: pointer;
-}
-.hover-bg-light:hover {
-  background-color: #f8fafc;
-}
-.border-bottom-subtle {
-  border-bottom: 1px dashed #e2e8f0;
-}
-.dropdown-container {
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-}
+.assignment-main { margin-left: 280px; min-width: 0; }
+.assignment-context { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.25rem; border: 1px solid #d7e2ef; border-left: 4px solid #356493; border-radius: .75rem; background: #fff; }
+th { font-size: .75rem; color: #526175; }
+td { padding: 1rem; }
+@media (max-width: 767px) { .assignment-context { align-items: flex-start; flex-direction: column; } }
 </style>

@@ -7,6 +7,19 @@
         </div>
 
         <div v-else>
+            <div v-if="typeDocuments.length" class="doc-progress mb-3" aria-label="État des documents">
+                <span class="doc-progress__item doc-progress__item--done">
+                    <span aria-hidden="true">✓</span>
+                    {{ nombreDocumentsEnregistres }} remis et enregistré(s)
+                </span>
+                <span class="doc-progress__item doc-progress__item--pending">
+                    <span aria-hidden="true">◷</span>
+                    {{ nombreDocumentsEnAttente }} {{ dossierId ? 'à enregistrer' : 'sélectionné(s)' }}
+                </span>
+                <span class="doc-progress__item">
+                    {{ nombreDocumentsNonRemis }} non remis
+                </span>
+            </div>
             <!-- ═══ Date de remise commune pour l'assignation ═══ -->
             <div v-if="!readOnly" class="d-flex flex-wrap align-items-center gap-2 mb-3 p-2 rounded batch-bar">
                 <label class="fw-semibold small mb-0">Date de remise commune :</label>
@@ -19,7 +32,7 @@
 
             <!-- Liste des types de documents avec checkboxes -->
             <div v-for="typeDoc in typeDocuments" :key="typeDoc.id" class="doc-item mb-2"
-                :class="{ 'doc-item--assigned': estCoche(typeDoc.id) }">
+                :class="`doc-item--${etatDocument(typeDoc.id)}`">
                 <div class="d-flex align-items-start gap-3">
                     <!-- Checkbox -->
                     <div class="form-check mt-1">
@@ -37,6 +50,10 @@
                                 class="badge bg-danger-subtle text-danger border border-danger-subtle"
                                 style="font-size:0.65rem;">obligatoire</span>
                         </label>
+                        <span class="doc-state mt-1" :class="`doc-state--${etatDocument(typeDoc.id)}`">
+                            <span aria-hidden="true">{{ iconeEtatDocument(typeDoc.id) }}</span>
+                            {{ libelleEtatDocument(typeDoc.id) }}
+                        </span>
                         <div v-if="typeDoc.description" class="text-secondary" style="font-size:0.75rem;">{{
                             typeDoc.description }}</div>
 
@@ -72,12 +89,6 @@
 
                         <!-- Aperçu du fichier existant (mode lecture ou remplissage) -->
                         <div v-if="getDocumentActif(typeDoc.id)" class="mt-1 d-flex align-items-center gap-2 flex-wrap">
-                            <span class="text-success fw-semibold" style="font-size:0.75rem;">
-                                <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12">
-                                    <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 0 1-1.06-1.06l2.094 2.093 3.473-4.425z" />
-                                </svg>
-                                Remis
-                            </span>
                             <!-- Bouton et Lien pour visualiser le fichier -->
                             <div v-if="getDocumentActif(typeDoc.id).nomFichier" class="d-flex align-items-center gap-2">
                                 <button type="button"
@@ -238,6 +249,13 @@ const cochesSelectionnes = computed(() => {
     return Array.from(coches.value).filter(id => !remis.has(id))
 })
 
+const nombreDocumentsEnregistres = computed(() => props.dossierId
+    ? typeDocuments.value.filter(type => getDocumentActif(type.id)).length : 0)
+const nombreDocumentsEnAttente = computed(() => typeDocuments.value.filter(type =>
+    ['selectionne', 'modification', 'valide-creation'].includes(etatDocument(type.id))).length)
+const nombreDocumentsNonRemis = computed(() => typeDocuments.value.filter(type =>
+    etatDocument(type.id) === 'manquant').length)
+
 onMounted(async () => {
     await chargerDonnees()
 })
@@ -308,11 +326,39 @@ function getDocumentActif(typeDocId) {
     // Retourne le dernier document correspondant au type demandé.
     for (let i = documentsActifs.value.length - 1; i >= 0; i -= 1) {
         const doc = documentsActifs.value[i]
-        if (doc?.typeDocument?.id === typeDocId) {
+        if (doc?.typeDocument?.id === typeDocId && doc.estActif !== false) {
             return doc
         }
     }
     return null
+}
+
+// Une remise enregistrée est distinguée de la sélection encore locale.
+// Le modèle ne possède pas d'approbation documentaire séparée.
+function etatDocument(typeDocId) {
+    if (props.dossierId && getDocumentActif(typeDocId)) {
+        return fichiersTemp.value[typeDocId] ? 'modification' : 'remis'
+    }
+    if (estCoche(typeDocId)) {
+        return !props.dossierId && valideeCreation.value ? 'valide-creation' : 'selectionne'
+    }
+    return 'manquant'
+}
+
+function libelleEtatDocument(typeDocId) {
+    const etat = etatDocument(typeDocId)
+    return {
+        remis: 'Remis et enregistré',
+        modification: 'Remis · nouveau fichier à enregistrer',
+        'valide-creation': 'Sélection validée pour la création',
+        selectionne: props.dossierId ? 'Sélectionné · à enregistrer' : 'Sélectionné · à valider',
+        manquant: 'Non remis',
+    }[etat]
+}
+
+function iconeEtatDocument(typeDocId) {
+    return ['remis', 'valide-creation'].includes(etatDocument(typeDocId)) ? '✓'
+        : ['selectionne', 'modification'].includes(etatDocument(typeDocId)) ? '◷' : '○'
 }
 
 function getDateRemise(typeDocId) {
@@ -539,13 +585,77 @@ defineExpose({ coches, fichiersTemp, typeDocuments, dateRemiseBatch, datesRemise
 
 .doc-item {
     padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #cbd5e1;
     border-radius: 8px;
-    transition: background 0.15s;
+    background: #fff;
+    transition: background 0.15s, border-color 0.15s;
 }
 
-.doc-item:hover,
-.doc-item--assigned {
-    background: #f8f9fa;
+.doc-item:hover {
+    border-right-color: #94a3b8;
+}
+
+.doc-item--remis,
+.doc-item--valide-creation {
+    border-color: #b9ddc8;
+    border-left-color: #198754;
+    background: #f0faf4;
+}
+
+.doc-item--selectionne,
+.doc-item--modification {
+    border-color: #c6d8f4;
+    border-left-color: #3269ab;
+    background: #f2f7ff;
+}
+
+.doc-state {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .2rem .5rem;
+    border-radius: 1rem;
+    color: #64748b;
+    background: #f1f5f9;
+    font-size: .7rem;
+    font-weight: 600;
+}
+
+.doc-state--remis,
+.doc-state--valide-creation {
+    color: #146c43;
+    background: #dff2e6;
+}
+
+.doc-state--selectionne,
+.doc-state--modification {
+    color: #24578f;
+    background: #e0ecff;
+}
+
+.doc-progress {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem 1rem;
+    padding: .75rem 0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.doc-progress__item {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    color: #64748b;
+    font-size: .75rem;
+}
+
+.doc-progress__item--done {
+    color: #146c43;
+}
+
+.doc-progress__item--pending {
+    color: #24578f;
 }
 
 .doc-checkbox {

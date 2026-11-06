@@ -205,6 +205,62 @@ class DashboardServicePostgresTest {
                 .andExpect(jsonPath("$.activites.length()").value(6));
     }
 
+    private void creerDossierMereClotureEtSousDossierOuvert() {
+        jdbc.execute("""
+            INSERT INTO agence VALUES(1, 'TNR'), (3, 'TMA');
+            INSERT INTO statut_dossier VALUES(1, 'Ouvert'), (15, 'Clôturé'), (17, 'Annulé');
+            INSERT INTO phase_dossier VALUES(1, 'PREPARATION');
+            INSERT INTO mode_transport VALUES(1, 'Maritime');
+            INSERT INTO type_production VALUES(1, 'import', 1), (2, 'export', 1);
+            INSERT INTO clients VALUES(1, 'Client', 'Test', NULL, NULL);
+            INSERT INTO ordre_transit(id, id_type_production, id_agence) VALUES(1, 1, 1);
+            INSERT INTO dossier(id, numero_dossier, id_client, id_ordre_transit,
+                id_statut, id_phase, id_type_production, id_agence) VALUES
+                (1, 'MERE-TNR', 1, 1, 15, 1, 1, 1),
+                (2, 'SOUS-DOSSIER-TMA', 1, 1, 1, 1, 1, 3);
+            """);
+    }
+
+    @Test void agencyDistributionIncludesClosedParentAndOpenChildSharingTheSameOt() throws Exception {
+        creerDossierMereClotureEtSousDossierOuvert();
+        authentifier(1, 10000);
+
+        mvc.perform(get("/api/dashboard/dossiers"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.kpi.enCours").value(1))
+                .andExpect(jsonPath("$.kpi.clotures").value(1))
+                .andExpect(jsonPath("$.parAgence.length()").value(2))
+                .andExpect(jsonPath("$.parAgence[?(@.label == 'TNR')].valeur")
+                        .value(org.hamcrest.Matchers.contains(1)))
+                .andExpect(jsonPath("$.parAgence[?(@.label == 'TMA')].valeur")
+                        .value(org.hamcrest.Matchers.contains(1)));
+    }
+
+    @Test void agencyDistributionCountsAllStatusesWhileKeepingAgencyAndProductionFilters() throws Exception {
+        creerDossierMereClotureEtSousDossierOuvert();
+        jdbc.execute("""
+            INSERT INTO dossier(id, numero_dossier, id_client, id_statut,
+                id_phase, id_type_production, id_agence)
+            VALUES(3, 'ANNULE-TNR-EXPORT', 1, 17, 1, 2, 1);
+            """);
+        authentifier(1, 10000);
+
+        mvc.perform(get("/api/dashboard/dossiers").param("agenceId", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.kpi.enCours").value(0))
+                .andExpect(jsonPath("$.parAgence.length()").value(1))
+                .andExpect(jsonPath("$.parAgence[0].label").value("TNR"))
+                .andExpect(jsonPath("$.parAgence[0].valeur").value(2));
+
+        mvc.perform(get("/api/dashboard/dossiers")
+                        .param("agenceId", "1").param("typeProductionId", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.kpi.enCours").value(0))
+                .andExpect(jsonPath("$.parAgence.length()").value(1))
+                .andExpect(jsonPath("$.parAgence[0].label").value("TNR"))
+                .andExpect(jsonPath("$.parAgence[0].valeur").value(1));
+    }
+
     @Test void dossierDashboardIsRestrictedToTheUserAgencyWithoutAllReadScope() throws Exception {
         jdbc.execute("""
             INSERT INTO agence VALUES(1, 'TNR'), (2, 'TMA');

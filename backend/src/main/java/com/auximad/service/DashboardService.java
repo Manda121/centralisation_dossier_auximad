@@ -121,14 +121,15 @@ public class DashboardService {
                 GROUP BY ph.id, ph.nom
                 ORDER BY valeur DESC""".formatted(SCOPE_DOSSIER, DOSSIER_ACTIF), params));
 
-        // ── Répartition par agence (comparaison, réservée aux utilisateurs multi-agences)
+        // ── Tous les dossiers par agence, y compris les dossiers meres clotures.
+        // Chaque dossier compte dans sa propre agence, meme si plusieurs partagent un OT.
         result.put("parAgence", named.queryForList("""
                 SELECT a.id AS id, a.nom AS label, COUNT(*) AS valeur
                 FROM dossier d
                 JOIN agence a ON a.id = d.id_agence
-                WHERE %s AND %s
+                WHERE %s
                 GROUP BY a.id, a.nom
-                ORDER BY valeur DESC""".formatted(SCOPE_DOSSIER, DOSSIER_ACTIF), params));
+                ORDER BY valeur DESC, a.nom, a.id""".formatted(SCOPE_DOSSIER), params));
 
         // ── Évolution des créations de dossiers sur la période sélectionnée
         result.put("evolution", evolutionCreations(agenceId, typeProductionId, debut, fin));

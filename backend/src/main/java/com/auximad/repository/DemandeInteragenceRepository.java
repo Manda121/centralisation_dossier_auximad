@@ -13,6 +13,12 @@ import java.util.Optional;
 
 @Repository
 public interface DemandeInteragenceRepository extends JpaRepository<DemandeInteragence, Integer> {
+    Optional<DemandeInteragence> findFirstByDossierIdAndAgenceDestinataireIdAndStatutInOrderByDateDemandeDesc(
+            Integer dossierId, Integer agenceId, List<String> statuts);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select d from DemandeInteragence d where d.id = :id")
+    Optional<DemandeInteragence> verrouiller(@Param("id") Integer id);
 
     List<DemandeInteragence> findByDossierIdOrderByDateDemandeDesc(Integer dossierId);
 

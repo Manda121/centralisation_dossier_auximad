@@ -20,6 +20,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\AuximadApp
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\config\AsyncConfig.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\config\AuditInterceptor.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\config\DossierFullTextConfig.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\config\MailScheduler.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\config\OpenApiConfig.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\config\SecurityConfig.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\config\WebMvcConfig.java
@@ -28,6 +29,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\AuthentificationController.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\ChatController.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\ClientController.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\ConfigurationEmailController.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\ConteneurController.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\DashboardController.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\DeclarationController.java
@@ -40,6 +42,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\MvtDossierController.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\OrdreTransitController.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\controller\SuppressionExceptionHandler.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\AdresseEmailAgenceRequest.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\ChatConfirmation.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\ChatReponse.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\ChatRequete.java
@@ -55,6 +58,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\Operat
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\PageResponse.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\dto\SousDossierRequest.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Action.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\AdresseEmailAgence.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Agence.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Autorisation.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Bureau.java
@@ -71,6 +75,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Dos
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\DossierInteragence.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Expedition.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Historique.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\HistoriqueMail.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Inconterme.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Instruction.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Marchandise.java
@@ -97,6 +102,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Typ
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\UniteMesure.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\entity\Utilisateur.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\ActionRepository.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\AdresseEmailAgenceRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\AgenceRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\AutorisationRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\BureauRepository.java
@@ -111,6 +117,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\DocumentRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\DossierInteragenceRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\DossierRepository.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\HistoriqueMailRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\HistoriqueRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\IncontermeRepository.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\repository\InstructionRepository.java
@@ -144,6 +151,7 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\security\J
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\AgenceService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\AuthentificationService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\ClientService.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\ConfigurationEmailService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\ConfirmationAnnulationException.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\ConteneurService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\DashboardService.java
@@ -152,12 +160,17 @@ D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\De
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\DocumentService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\DossierService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\DossierWorkflowService.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\EnvoiMailService.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\HeritageSousDossierService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\HistoriqueService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\HistorisationService.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\InitialisationAvancementInteragence.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\InterAgenceService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\MarchandiseService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\MvtDossierService.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\NotificationInteragenceService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\OperationDossierService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\OrdreTransitService.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\SuppressionConfirmationException.java
 D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\SuppressionService.java
+D:\Stage Auximad\centralisation_app\backend\src\main\java\com\auximad\service\SynchronisationMouvementsService.java

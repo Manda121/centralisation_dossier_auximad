@@ -55,6 +55,7 @@
 
                     <section class="admin-content">
                         <OperationDossierAdminView v-if="activeKey === 'operationsDossier'" />
+                        <EmailConfiguration v-else-if="activeKey === 'emails'" />
 
                         <div v-else-if="!activeConfig" class="admin-welcome">
                             <div class="admin-welcome__intro">
@@ -242,6 +243,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import Header from '../components/inc/Header.vue'
 import ExportActions from '../components/inc/ExportActions.vue'
 import OperationDossierAdminView from './OperationDossierAdminView.vue'
+import EmailConfiguration from '../components/admin/EmailConfiguration.vue'
 import AdminService from '../services/AdminService'
 import authService from '../utils/auth.service'
 import { useNotification } from '../composables/useNotification'
@@ -307,6 +309,12 @@ onMounted(chargerReferentiels)
 
 // ── Configuration de toutes les entités ──────────────────────────────────
 const CONFIGS = {
+    emails: {
+        key: 'emails',
+        label: 'Adresses emails',
+        description: 'Destinataires par agence et historique des envois interagences',
+        service: null,
+    },
     // ─── 1. Utilisateurs & Sécurité ────────────────────────────────────────
     utilisateurs: {
         key: 'utilisateurs',
@@ -726,7 +734,7 @@ const sections = [
     {
         id: 'structure',
         label: 'Structure organisationnelle',
-        items: [CONFIGS.agences, CONFIGS.bureaux],
+        items: [CONFIGS.agences, CONFIGS.bureaux, CONFIGS.emails],
     },
     {
         id: 'referentiels',
